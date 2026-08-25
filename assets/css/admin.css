@@ -1,0 +1,22 @@
+.admin-shell{ display:flex; min-height:calc(100vh - 74px); }
+.admin-sidebar{ width:230px; background:var(--night-2); flex-shrink:0; padding:20px 12px; display:flex; flex-direction:column; gap:4px; }
+.admin-tab{ color:#D9D0FF; text-align:right; padding:13px 14px; border-radius:12px; font-weight:700; font-size:14.5px; display:block; }
+.admin-tab:hover{ background:rgba(255,255,255,.06); color:#fff; }
+.admin-tab.active{ background:var(--gold); color:var(--ink); }
+.admin-content{ flex:1; padding:30px; background:var(--cream); overflow-x:auto; }
+.admin-content h2{ margin-top:0; color:var(--ink); }
+.admin-content h3{ color:var(--ink); }
+.admin-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:26px; }
+.stat-card{ background:#fff; border-radius:16px; padding:20px; box-shadow:var(--shadow-soft); }
+.stat-card b{ font-family:var(--font-display); font-size:28px; display:block; color:var(--violet); }
+.admin-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:14px; overflow:hidden; box-shadow:var(--shadow-soft); }
+.admin-table th, .admin-table td{ padding:12px 14px; text-align:right; font-size:14px; border-bottom:1px solid #F1EBFF; }
+.admin-table th{ background:#F7F3FF; font-weight:800; }
+.admin-table tr:last-child td{ border-bottom:none; }
+.admin-form{ background:#fff; border-radius:16px; padding:22px; box-shadow:var(--shadow-soft); margin-bottom:24px; }
+.admin-form .row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:12px; }
+.admin-form input, .admin-form select, .admin-form textarea{ width:100%; padding:10px 12px; border-radius:10px; border:2px solid #EEE3FF; font-family:inherit; }
+.admin-card-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+.admin-item-card{ background:#fff; border-radius:16px; padding:16px; box-shadow:var(--shadow-soft); position:relative; }
+.admin-item-actions{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+@media(max-width:800px){ .admin-shell{ flex-direction:column; } .admin-sidebar{ width:100%; flex-direction:row; overflow-x:auto; } }
