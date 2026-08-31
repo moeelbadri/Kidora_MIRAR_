@@ -141,7 +141,9 @@ require_once __DIR__ . '/includes/navbar.php';
         --bg-card-hover: rgba(255,255,255,0.06);
         --text-primary: #f1f5f9;
         --text-secondary: #c4b5d4;
-        --text-muted: #8b7aa8;
+        /* كان #8b7aa8 وتباينه 2.7:1 فوق أفتح طور من الخلفية المتحركة — أقل من
+           4.5:1 المطلوبة لنص صغير (تسميات الأرقام، التذييل، سطر التنبيه). */
+        --text-muted: #b9abd4;
         --primary: #a78bfa;
         --primary-dark: #7c3aed;
         --primary-glow: rgba(167,139,250,0.15);
@@ -208,9 +210,15 @@ require_once __DIR__ . '/includes/navbar.php';
         line-height: 1.1;
         margin-bottom: 10px;
         letter-spacing: -1px;
+        /* ظل خفيف يثبّت قراءة العنوان عندما يمرّ أفتح جزء من التدرّج المتحرك تحته */
+        text-shadow: 0 2px 14px rgba(10,6,26,.55);
     }
     .hero-content h1 .highlight {
-        background: linear-gradient(135deg, var(--primary), var(--purple-dark));
+        /* الطرف الغامق من التدرّج السابق (--purple-dark #7c3aed) كان يختفي على
+           الخلفية البنفسجية. الطرفان الآن فاتحان.
+           لا تُستخدم background المختصرة — فهي تصفّر background-clip:text
+           فيظهر التدرّج كمستطيل صلب بدل أن يُقصّ على شكل الحروف. */
+        background-image: linear-gradient(135deg, #ffffff, #c4b5fd);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -218,15 +226,17 @@ require_once __DIR__ . '/includes/navbar.php';
     .hero-subtitle {
         font-size: 26px;
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--text-primary);
         margin-bottom: 14px;
+        text-shadow: 0 2px 14px rgba(10,6,26,.55);
     }
     .hero-description {
         font-size: 18px;
-        color: var(--text-secondary);
+        color: #d9d0ff;
         max-width: 520px;
         line-height: 1.9;
         margin-bottom: 30px;
+        text-shadow: 0 1px 10px rgba(10,6,26,.5);
     }
     .hero-actions {
         display: flex;

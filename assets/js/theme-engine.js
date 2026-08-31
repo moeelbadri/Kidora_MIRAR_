@@ -24,16 +24,53 @@ const ThemeEngine = (function () {
     } catch (e) { return hex; }
   }
 
+  // سقف إضاءة ستوبات الخلفية. النصوص في كل المنصة فاتحة (#fff / #D9D0FF)،
+  // فلو صارت الخلفية أفتح من هذا الحد يختفي النص أثناء حركة التدرّج.
+  const MAX_BG_LUMINANCE = 0.075;
+
+  function toRgb(hex) {
+    const f = parseInt(hex.slice(1), 16);
+    return [f >> 16 & 0xFF, f >> 8 & 0xFF, f & 0xFF];
+  }
+
+  function toHex(rgb) {
+    return "#" + rgb.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+  }
+
+  /** الإضاءة النسبية حسب WCAG — الأصفر أعلى إضاءة من البنفسجي بنفس التشبّع */
+  function luminance(rgb) {
+    const ch = rgb.map(v => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  }
+
+  /** يعتّم اللون حتى ينزل تحت سقف الإضاءة، مع الحفاظ على درجته اللونية */
+  function darkenToLuminance(hex, max) {
+    try {
+      let rgb = toRgb(hex);
+      for (let i = 0; i < 80 && luminance(rgb) > max; i++) rgb = rgb.map(v => v * 0.97);
+      return toHex(rgb);
+    } catch (e) { return hex; }
+  }
+
   function updateBackgroundColor(color) {
     const el = document.getElementById("bgGradient");
     if (!el) return;
-    const c1 = color, c2 = shadeColor(color, 35), c3 = shadeColor(color, -35);
-    el.style.background = `linear-gradient(-45deg, ${c1}, ${c2}, ${c3}, ${c1})`;
+    // أفتح ستوب يُحسب أولاً ثم يُعتَّم تحت السقف، والباقي أغمق منه —
+    // فتبقى الخلفية غامقة بلون الشخصية أياً كان لونها (أصفر/تركواز/بنفسجي).
+    const top = darkenToLuminance(shadeColor(color, 18), MAX_BG_LUMINANCE);
+    const mid = shadeColor(top, -28);
+    const deep = shadeColor(top, -52);
+    el.style.backgroundImage = `linear-gradient(-45deg, ${mid}, ${top}, ${deep}, ${mid})`;
     el.style.backgroundSize = "400% 400%";
     el.style.animation = "none";
     setTimeout(() => { el.style.animation = "gradientMove 12s ease infinite"; }, 50);
+    // التوهّج والأكسنت يحتفظان باللون الأصلي الزاهي (يستخدمهما الأفاتار
+    // وبطاقة الترحيب)، والحماية من فقدان التباين تأتي من طبقة #animated-bg::after
     document.documentElement.style.setProperty("--theme-accent", color);
-    document.documentElement.style.setProperty("--theme-glow", c2);
+    document.documentElement.style.setProperty("--theme-glow", shadeColor(color, 35));
   }
 
   function updateFloatingIcons(icons, move) {

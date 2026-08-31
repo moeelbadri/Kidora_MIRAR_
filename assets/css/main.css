@@ -5,9 +5,11 @@
   --cream-2: #FFF1DD;
   --ink: #241645;
   --ink-soft: #5B4E7A;
-   --gold: #818cf8 !important;
-    --gold-dark: #6366f1 !important;
-    --gold-glow: rgba(99,102,241,0.15) !important;
+  /* اسم المتغيّر «ذهبي» لكن القيمة نيلية بعد إعادة العلامة — مقصود، ولا يطابق
+     الذهبي #fbbf24 المكتوب صريحاً في navbar.php. لا تُوحّدهما إلا بقرار تصميم. */
+  --gold: #818cf8;
+  --gold-dark: #6366f1;
+  --gold-glow: rgba(99,102,241,0.15);
   --coral: #FF7A50;
   --coral-soft: #FFC1AC;
   --mint: #2EC4B6;
@@ -38,7 +40,13 @@ a{color:inherit;text-decoration:none;}
 #animated-bg{ position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
 .bg-gradient{ position:absolute; inset:0; background:linear-gradient(-45deg,#1B1035,#241645,#3A2A75,#1B1035); background-size:400% 400%; animation:gradientMove 12s ease infinite; transition:background 1.2s ease; }
 .bg-glow{ position:absolute; inset:-10%; opacity:.55; filter:blur(60px); background:radial-gradient(circle at 20% 25%, var(--theme-accent), transparent 45%), radial-gradient(circle at 80% 70%, var(--theme-glow), transparent 45%); transition:background 1.2s ease; animation:glowPulse 6s ease-in-out infinite; }
-@keyframes glowPulse{ 0%,100%{ opacity:.45; } 50%{ opacity:.7; } }
+/* كان .45→.7 — كان التوهّج يرفع سطوع الخلفية تحت نص الهيرو مباشرة فيبتلعه.
+   رفعه فوق ~.28 يُنزل تباين النص الصغير تحت 4.5:1 (مقيس). */
+@keyframes glowPulse{ 0%,100%{ opacity:.16; } 50%{ opacity:.28; } }
+/* طبقة تعتيم فوق كل طبقات الخلفية المتحركة. بدونها يرتفع سطوع الخلفية أثناء
+   حركة التدرّج فيختفي النص الفاتح ثم يظهر — وهي الضمانة الأخيرة لتباين مقروء
+   مهما كان لون الشخصية النشطة (بما فيها شخصيات يضيفها الأدمن بألوان فاتحة). */
+#animated-bg::after{ content:""; position:absolute; inset:0; z-index:3; pointer-events:none; background:rgba(10,6,26,.42); }
 @keyframes gradientMove{ 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
 .floating-icons-container{ position:absolute; inset:0; overflow:hidden; z-index:1; }
 .floating-icon{ position:absolute; bottom:-60px; animation:floatUp linear infinite; pointer-events:none; text-shadow:0 0 20px rgba(255,255,255,.25); user-select:none; will-change:transform; }
