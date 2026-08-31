@@ -43,7 +43,11 @@ require_once __DIR__ . '/includes/navbar.php';
         <?php foreach ($catGames as $g): ?>
           <div class="friend-card card" style="border-top:5px solid <?php echo h($meta['color']); ?>;">
             <div class="fchar"><div class="fe" style="background:<?php echo h($meta['color']); ?>;"><?php echo $meta['icon']; ?></div><div><b><?php echo h($g['title']); ?></b><div style="font-size:12px;color:var(--ink-soft);"><?php echo h($catName); ?></div></div></div>
-            <button class="btn btn-sm btn-primary" onclick="playGame('<?php echo h($g['type']); ?>','<?php echo h(addslashes($g['title'])); ?>','<?php echo h($meta['color']); ?>')">▶ العب الآن</button>
+            <button class="btn btn-sm btn-primary" onclick="playGame(this)"
+                    data-type="<?php echo h($g['type']); ?>"
+                    data-title="<?php echo h($g['title']); ?>"
+                    data-color="<?php echo h($meta['color']); ?>"
+                    data-category="<?php echo h($catName); ?>">▶ العب الآن</button>
           </div>
         <?php endforeach; ?>
       </div>
@@ -61,17 +65,17 @@ require_once __DIR__ . '/includes/navbar.php';
 <footer class="site-footer">Kidora © 2026</footer>
 <script>window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;</script>
 <script>
-/* 3 آليات لعب مختلفة فعلياً موحّدة عبر assets/js/games-engine.js */
+/* 6 آليات لعب مختلفة فعلياً موحّدة عبر assets/js/games-engine.js */
 
-function playGame(type, title, color){
+function playGame(btn){
   const host = document.getElementById('gameHost');
-  GamesEngine.run(type, host, title, color, () => {
+  GamesEngine.run(btn.dataset.type, host, btn.dataset.title, btn.dataset.color, () => {
     fetch(window.KIDAURA_BASE + '/api/play-game.php', {method:'POST'})
       .then(r=>r.json()).then(data => {
         if (data.ok) document.getElementById('gamesPlayedLabel').textContent = data.games_played;
         window.companionSay('أحسنت! لعبة رائعة 🎮');
       });
-  });
+  }, { category: btn.dataset.category });
 }
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

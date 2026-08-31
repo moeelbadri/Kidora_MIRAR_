@@ -1,0 +1,83 @@
+---
+description: Kidora project context — read PROJECT-REPORT.md before any task
+alwaysApply: true
+---
+
+# Kidora — always read the project report first
+
+**Before doing anything in this repo, read `PROJECT-REPORT.md` at the repo root.**
+It is the reverse-engineered reference for this codebase (architecture, data model,
+user flow, UI system, verified defect list, conventions). Do not re-derive that
+context by exploring — read the report, then explore only what the task needs.
+
+If you discover the report is wrong or out of date, update `PROJECT-REPORT.md` in the
+same change.
+
+## Non-negotiables
+
+- **Arabic RTL first.** All user-facing copy is Arabic; `<html dir="rtl">`. New strings
+  must be Arabic and must be checked in RTL layout.
+- **Escape every output with `h()`** (`htmlspecialchars` wrapper in `includes/functions.php`).
+- **Prepared statements only.** The single interpolated `ORDER BY` is whitelist-guarded;
+  keep that idiom, never interpolate raw input.
+- **POST-redirect-GET.** POST handlers end with `header('Location: <self>'); exit;` and
+  pass state through `$_SESSION['flash_*']` keys.
+- **No build step.** Plain PHP 8 + PDO, vanilla JS, no framework/Composer/npm. Do not
+  introduce a toolchain without being asked.
+
+## Page contract
+
+```php
+require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/functions.php';
+$child = require_login();
+$progress = ensure_daily_progress($pdo, $child['id']);
+// POST handling → redirect
+$__pageTitle = '...'; $__pageLine = '...';   // $__pageLine = what the companion says
+require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/navbar.php';
+// markup
+require_once __DIR__ . '/includes/footer.php';
+```
+
+## Styling
+
+`assets/css/main.css` holds shared tokens/components; page-specific CSS goes in that
+page's own inline `<style>` block. `includes/navbar.php` and `includes/footer.php` are
+self-contained (HTML + CSS + JS in one file).
+
+**The animated background must stay dark.** Every text colour on top of it is light,
+so brightening the background makes text vanish as the gradient animates — this was a
+real bug (worst case 1.1:1) and is now fixed by three interacting pieces:
+`MAX_BG_LUMINANCE` in `assets/js/theme-engine.js`, the `#animated-bg::after` scrim,
+and the capped `glowPulse` opacity — all documented in `PROJECT-REPORT.md` §4 and §8.
+The binding constraint is `--text-muted` `#b9abd4` at 4.87:1. If you change any of the
+three, re-measure contrast against the **lightest** phase of the 12 s loop for every
+character before claiming it works.
+
+Never use the `background` shorthand on gradient-clipped text (`background-clip:text`)
+— it resets the clip and the gradient renders as a solid box. Use `background-image`.
+
+## Run locally
+
+`php -S localhost:8000` — SQLite is created and seeded on first request.
+Admin at `/admin/login.php` (`admin@kidora.com` / `admin123`). Reset by deleting
+`storage/kidora.sqlite`.
+
+## Known-defect awareness
+
+`PROJECT-REPORT.md` §8 lists the verified defects, marking which are resolved.
+Do not "fix" an open item as a drive-by; confirm it is in scope first.
+
+Two things future work keeps getting wrong:
+
+- **All seed content lives in `database/seed.php`.** The schema files are
+ structure-only. They used to carry their own `INSERT` blocks that ran first and
+ made most of `seed.php` dead code — do not put data back into them.
+- **Adding a game mechanic takes three edits**: a `run*()` branch in
+ `assets/js/games-engine.js`, an entry in `game_types()` (`includes/functions.php`),
+ and seed rows. Admin dropdowns and POST validation both follow `game_types()`.
+
+The mission package is `tasks` → `tasks.figure_id` → `tasks.game_type`, and all three
+are meant to be about the same subject. Resolve the figure with `figure_for_task()`,
+never with a random query.

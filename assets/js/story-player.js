@@ -16,6 +16,7 @@ const StoryPlayer = (function () {
         <div class="story-scene" id="${containerId}_scene" style="background:linear-gradient(135deg, ${story.scenes[0].grad});">
           ${story.photo ? `<div class="story-photo-badge"><img src="${story.photo}"></div>` : ''}
           ${story.spriteFace ? `<div class="story-sprite">${story.spriteFace}</div>` : ''}
+          <div class="story-chapter" id="${containerId}_chapter"></div>
           <div class="story-scene-caption" id="${containerId}_caption">${story.scenes[0].caption}</div>
         </div>
         <div class="story-controls">
@@ -35,7 +36,13 @@ const StoryPlayer = (function () {
       document.getElementById(`${containerId}_scene`).style.background = `linear-gradient(135deg, ${s.grad})`;
       document.getElementById(`${containerId}_caption`).textContent = s.caption;
       document.getElementById(`${containerId}_counter`).textContent = `${idx + 1} / ${story.scenes.length}`;
+      // العنوان والأيقونة اختياريان — القصص اليومية القديمة بلا فصول
+      const chapter = document.getElementById(`${containerId}_chapter`);
+      chapter.innerHTML = (s.icon || s.title)
+        ? `${s.icon ? `<div class="story-chapter-icon">${s.icon}</div>` : ''}${s.title ? `<div class="story-chapter-title">${s.title}</div>` : ''}`
+        : '';
     }
+    paint();
     document.getElementById(`${containerId}_prev`).onclick = () => { idx = Math.max(0, idx - 1); paint(); };
     document.getElementById(`${containerId}_next`).onclick = () => { idx = Math.min(story.scenes.length - 1, idx + 1); paint(); };
     document.getElementById(`${containerId}_narrate`).onclick = () => narrate(story);
@@ -89,11 +96,22 @@ const StoryPlayer = (function () {
       const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
       grad.addColorStop(0, c1); grad.addColorStop(1, c2 || c1);
       ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = "center";
+
+      if (s.icon) {
+        ctx.font = "72px sans-serif";
+        ctx.fillText(s.icon, canvas.width / 2, 150);
+      }
+      if (s.title) {
+        ctx.font = "800 26px Baloo Bhaijaan 2, sans-serif";
+        ctx.fillStyle = "#FFC93C";
+        ctx.fillText(s.title, canvas.width / 2, s.icon ? 196 : 150);
+      }
+
       ctx.fillStyle = "rgba(0,0,0,.28)";
       ctx.fillRect(0, canvas.height - 120, canvas.width, 120);
       ctx.fillStyle = "#fff";
       ctx.font = "600 22px Cairo, sans-serif";
-      ctx.textAlign = "center";
       wrapText(ctx, s.caption, canvas.width / 2, canvas.height - 60, canvas.width - 80, 30);
       ctx.font = "800 16px Baloo Bhaijaan 2, sans-serif";
       ctx.fillStyle = "#FFC93C";

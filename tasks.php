@@ -26,13 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['complete_task_id'])) 
             $pdo->prepare("UPDATE daily_progress SET completed_task_ids = ? WHERE id = ?")->execute([json_encode($completedIds), $progress['id']]);
             $pdo->prepare("UPDATE children SET points = points + ? WHERE id = ?")->execute([(int)$task['points'], $child['id']]);
 
-            $figure = $pdo->query("SELECT * FROM history_figures WHERE active = 1 ORDER BY RANDOM() LIMIT 1")->fetch();
-
             $_SESSION['flash_story'] = $task['story_line'];
             $_SESSION['flash_points'] = (int)$task['points'];
-            $_SESSION['flash_figure'] = $figure ?: null;
+            $_SESSION['flash_figure'] = figure_for_task($pdo, $task);
             $_SESSION['flash_game_type'] = $task['game_type'] ?: 'catch';
-            $_SESSION['flash_game_title'] = $task['title'];
+            $_SESSION['flash_game_title'] = $task['game_title'] ?: $task['title'];
+            $_SESSION['flash_game_category'] = $task['category'];
         }
     }
     header('Location: tasks.php'); exit;
@@ -43,7 +42,8 @@ $flashPoints = $_SESSION['flash_points'] ?? null;
 $flashFigure = $_SESSION['flash_figure'] ?? null;
 $flashGameType = $_SESSION['flash_game_type'] ?? 'catch';
 $flashGameTitle = $_SESSION['flash_game_title'] ?? 'لعبة قصيرة';
-unset($_SESSION['flash_story'], $_SESSION['flash_points'], $_SESSION['flash_figure'], $_SESSION['flash_game_type'], $_SESSION['flash_game_title']);
+$flashGameCategory = $_SESSION['flash_game_category'] ?? '';
+unset($_SESSION['flash_story'], $_SESSION['flash_points'], $_SESSION['flash_figure'], $_SESSION['flash_game_type'], $_SESSION['flash_game_title'], $_SESSION['flash_game_category']);
 
 $doneCount = count($completedIds);
 $allTasksDone = $doneCount >= count($taskPool);
@@ -146,7 +146,7 @@ require_once __DIR__ . '/includes/navbar.php';
         GamesEngine.run(<?php echo json_encode($flashGameType); ?>, host, <?php echo json_encode($flashGameTitle, JSON_UNESCAPED_UNICODE); ?>, 'var(--coral)', function(){
           fetch(window.KIDAURA_BASE + '/api/play-game.php', {method:'POST'});
           setTimeout(function(){ location.href = 'tasks.php'; }, 1200);
-        });
+        }, { category: <?php echo json_encode($flashGameCategory, JSON_UNESCAPED_UNICODE); ?> });
       };
     });
   <?php endif; ?>

@@ -21,53 +21,6 @@
 
   <div class="toast-wrap" id="toastWrap"></div>
 
-  <style>
-  /* تكبير عملاق */
-#companionAvatar {
-  width: 40vh !important;
-  height: 40vh !important;
-  font-size: 25vh !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#companionAvatar img {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain;
-  border: none !important;
-  image-rendering: pixelated; /* اختياري للكرتون */
-}
-
-#companionWidget {
-  width: 45vh !important;
-  height: 45vh !important;
-}
-.companion-col {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* حركة المشي العملاقة */
-@keyframes walk {
-  0% { transform: translateX(0) rotate(0deg) scale(1); }
-  25% { transform: translateX(15px) rotate(-4deg) scale(1.05); }
-  50% { transform: translateX(0) rotate(0deg) scale(0.95); }
-  75% { transform: translateX(-15px) rotate(4deg) scale(1.05); }
-  100% { transform: translateX(0) rotate(0deg) scale(1); }
-}
-
-.move-walk {
-  animation: walk 1.3s infinite ease-in-out !important;
-}
-
-</style>
-
 </div><!-- /.app-wrapper -->
 
 <script src="<?php echo BASE_PATH; ?>/assets/js/app.js"></script>

@@ -139,6 +139,181 @@ function assessment_axis_summary(PDO $pdo, int $childId): array {
     return $stmt->fetchAll();
 }
 
+/**
+ * آليات اللعب المدعومة فعلياً في assets/js/games-engine.js.
+ * أي قيمة خارج هذه القائمة ستسقط إلى catch، فاحصر إدخال الأدمن بها.
+ */
+function game_types(): array {
+    return [
+        'catch'     => 'لعبة التقاط',
+        'match'     => 'مطابقة الأزواج',
+        'quiz'      => 'سباق أسئلة',
+        'reaction'  => 'سرعة البديهة',
+        'memory'    => 'ذاكرة التسلسل',
+        'adventure' => 'مغامرة بالاختيارات',
+    ];
+}
+
+/** دالة الترتيب العشوائي حسب المحرّك — SQLite تستخدم RANDOM() وMySQL تستخدم RAND() */
+function sql_random(): string {
+    return DB_DRIVER === 'mysql' ? 'RAND()' : 'RANDOM()';
+}
+
+/**
+ * الشخصية التاريخية التي تُعرض بعد إنجاز مهمة معيّنة.
+ * الأولوية: الربط المباشر (tasks.figure_id) ← تطابق التصنيف ← أي شخصية نشطة.
+ * الغرض أن تكون الشخصية ذات صلة فعلية بالمهمة بدل اختيارها عشوائياً.
+ */
+function figure_for_task(PDO $pdo, array $task): ?array {
+    if (!empty($task['figure_id'])) {
+        $stmt = $pdo->prepare("SELECT * FROM history_figures WHERE id = ? AND active = 1");
+        $stmt->execute([(int)$task['figure_id']]);
+        if ($f = $stmt->fetch()) return $f;
+    }
+    if (!empty($task['category'])) {
+        $stmt = $pdo->prepare("SELECT * FROM history_figures WHERE active = 1 AND category = ? ORDER BY " . sql_random() . " LIMIT 1");
+        $stmt->execute([$task['category']]);
+        if ($f = $stmt->fetch()) return $f;
+    }
+    $f = $pdo->query("SELECT * FROM history_figures WHERE active = 1 ORDER BY " . sql_random() . " LIMIT 1")->fetch();
+    return $f ?: null;
+}
+
+/** أيقونة تعبيرية لكل تصنيف مهمة — تُستخدم في مشاهد المغامرة الكبرى */
+function category_icon(string $category): string {
+    $map = [
+        'مهارات حياتية' => '🧹', 'تعلّم' => '📚', 'صحة' => '🏃', 'إبداع' => '🎨',
+        'قيم' => '💛', 'صحة نفسية' => '🧘', 'حماية' => '🛡️', 'مسؤولية' => '🌱',
+        'اجتماعي' => '🤝', 'ثقافي' => '🕌',
+    ];
+    return $map[$category] ?? '⭐';
+}
+
+/**
+ * ملخّص إنجاز الطفل خلال فترة — الأساس الذي تُبنى عليه المغامرة الكبرى.
+ * يجمع المهام المنجزة وتصنيفاتها، الألعاب، الشخصيات التاريخية التي قابلها،
+ * وتطوّر تحليل السلوك بين أول جلسة وآخر جلسة.
+ */
+function child_achievement_summary(PDO $pdo, int $childId, string $fromDay, string $toDay): array {
+    $sum = [
+        'days' => 0, 'tasks_done' => 0, 'games_played' => 0,
+        'categories' => [], 'figures' => [], 'best_axis' => null, 'growth' => null,
+    ];
+
+    $stmt = $pdo->prepare("SELECT completed_task_ids, games_played FROM daily_progress WHERE child_id = ? AND day_key BETWEEN ? AND ?");
+    $stmt->execute([$childId, $fromDay, $toDay]);
+    $taskIds = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $sum['days']++;
+        $sum['games_played'] += (int)$row['games_played'];
+        foreach (json_decode_safe($row['completed_task_ids'], []) as $tid) $taskIds[] = (int)$tid;
+    }
+    $sum['tasks_done'] = count($taskIds);
+
+    if ($taskIds) {
+        $unique = array_values(array_unique($taskIds));
+        $ph = implode(',', array_fill(0, count($unique), '?'));
+        $q = $pdo->prepare("SELECT t.id, t.category, f.name figure_name
+                             FROM tasks t LEFT JOIN history_figures f ON f.id = t.figure_id
+                             WHERE t.id IN ($ph)");
+        $q->execute($unique);
+        $byId = [];
+        foreach ($q->fetchAll() as $r) $byId[(int)$r['id']] = $r;
+
+        $figures = [];
+        foreach ($taskIds as $tid) {
+            if (!isset($byId[$tid])) continue;
+            $cat = $byId[$tid]['category'] ?: 'عام';
+            $sum['categories'][$cat] = ($sum['categories'][$cat] ?? 0) + 1;
+            if (!empty($byId[$tid]['figure_name'])) $figures[$byId[$tid]['figure_name']] = true;
+        }
+        arsort($sum['categories']);
+        $sum['figures'] = array_keys($figures);
+    }
+
+    $best = $pdo->prepare("SELECT axis, AVG(value) avg_v FROM quiz_history WHERE child_id = ? GROUP BY axis ORDER BY avg_v DESC LIMIT 1");
+    $best->execute([$childId]);
+    $sum['best_axis'] = $best->fetch() ?: null;
+
+    // تطوّر التحليل: متوسط أول جلسة مقابل متوسط آخر جلسة
+    $span = $pdo->prepare("SELECT MIN(DATE(created_at)) first_day, MAX(DATE(created_at)) last_day FROM quiz_history WHERE child_id = ?");
+    $span->execute([$childId]);
+    $span = $span->fetch();
+    if ($span && $span['first_day'] && $span['first_day'] !== $span['last_day']) {
+        $avg = $pdo->prepare("SELECT AVG(value) v FROM quiz_history WHERE child_id = ? AND DATE(created_at) = ?");
+        $avg->execute([$childId, $span['first_day']]);
+        $from = (float)$avg->fetch()['v'];
+        $avg->execute([$childId, $span['last_day']]);
+        $to = (float)$avg->fetch()['v'];
+        if ($to > $from) $sum['growth'] = ['from' => round($from, 1), 'to' => round($to, 1)];
+    }
+
+    return $sum;
+}
+
+/**
+ * يبني مشاهد المغامرة الكبرى من إنجاز الطفل الحقيقي خلال الشهر،
+ * لا من مجرد دمج القصص اليومية. كل مشهد: caption + grad + icon + title.
+ */
+function grand_story_scenes(array $child, array $stories, array $sum, string $companions): array {
+    $name = $child['name'];
+    $grads = ['#1B1035,#6C63FF','#6C63FF,#FF6FA5','#2EC4B6,#6C63FF','#FF7A50,#FFC93C','#FF6FA5,#FFC93C','#2EC4B6,#241645','#3A2A75,#FF7A50'];
+    $i = 0;
+    $scenes = [];
+    $add = function (string $icon, string $title, string $caption) use (&$scenes, &$i, $grads) {
+        $scenes[] = ['caption' => $caption, 'grad' => $grads[$i++ % count($grads)], 'icon' => $icon, 'title' => $title];
+    };
+
+    // لا يوجد حقل جنس للطفل، فالصياغة اسمية ومحايدة بدل أفعال تحتاج مطابقة
+    $add('🌟', 'المغامرة الكبرى', "ثلاثون يوماً... هذه رحلة {$name} من أول مهمة إلى آخر نجمة.");
+    $add('🌱', 'البداية', "قبل ثلاثين يوماً بدأت الرحلة مع {$companions}، ولم تكن النهاية معروفة بعد.");
+    $add('✅', 'المهام', $sum['tasks_done'] . " مهمة مُنجزة على مدى " . max(1, $sum['days']) . " يوماً — واحدة تلو الأخرى، بلا استسلام.");
+
+    $top = array_slice($sum['categories'], 0, 2, true);
+    foreach ($top as $cat => $count) {
+        $add(category_icon($cat), "تألّق في {$cat}", "أكثر مجال تألّق فيه {$name}: «{$cat}» — {$count} مهمة فيه وحده.");
+    }
+
+    if ($sum['figures']) {
+        $shown = array_slice($sum['figures'], 0, 4);
+        $more = count($sum['figures']) - count($shown);
+        $list = implode('، ', $shown) . ($more > 0 ? " و{$more} آخرين" : '');
+        $add('🕌', 'أبطال التاريخ', count($sum['figures']) . " من أبطال تاريخنا رافقوا الرحلة: {$list}.");
+    }
+
+    if ($sum['games_played'] > 0) {
+        $add('🎮', 'الألعاب', $sum['games_played'] . " لعبة خلال الشهر، وكل واحدة درّبت العقل على شيء جديد.");
+    }
+
+    $add('⭐', 'النجوم', (int)$child['points'] . " نجمة في رصيد {$name} حتى الآن ✨");
+
+    if ($sum['growth']) {
+        $add('📈', 'التقدّم', "تحليل السلوك ارتفع من {$sum['growth']['from']} إلى {$sum['growth']['to']} من 3 — تقدّم حقيقي يُرى بالأرقام.");
+    }
+    if ($sum['best_axis']) {
+        $add('🏅', 'أقوى محور', "أقوى محور اليوم: «" . $sum['best_axis']['axis'] . "» — صار العلامة المميّزة لـ{$name}.");
+    }
+
+    // لقطات من القصص اليومية نفسها حتى تبقى الرحلة محسوسة لا أرقاماً فقط
+    $highlights = [];
+    foreach ($stories as $s) {
+        $sc = json_decode_safe($s['scenes_json'], []);
+        foreach ($sc as $one) {
+            if (!empty($one['caption'])) $highlights[] = $one['caption'];
+        }
+    }
+    if ($highlights) {
+        $step = max(1, (int)floor(count($highlights) / 3));
+        for ($k = 0; $k < 3 && ($k * $step) < count($highlights); $k++) {
+            $add('📖', 'من يوميّاته', $highlights[$k * $step]);
+        }
+    }
+
+    $add('🏆', 'النهاية... والبداية', "وهكذا انتهت ثلاثون يوماً من النمو والشجاعة والتعلّم. المغامرة القادمة تبدأ غداً!");
+
+    return $scenes;
+}
+
 /** يبني مجلد صورة/صوت مخصّص لكل شخصية assets/images/characters/{slug}/ أو assets/audio/characters/{slug}/ */
 function character_media_dir(string $kind, string $slug): string {
     $base = $kind === 'audio' ? __DIR__ . '/../assets/audio/characters' : __DIR__ . '/../assets/images/characters';

@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_plan_id'])) {
             $_SESSION['flash_toast'] = 'تم تسجيل طلبك! جاري تحويلك لواتساب لإتمام التواصل 📲';
         }
     }
-    header('Location: subscriptions.php'); exit;
+    header('Location: subscriptions.php' . (isset($_POST['welcome']) ? '?welcome=1' : '')); exit;
 }
 
 $subRec = get_subscription_record($pdo, $child['id']);
@@ -36,18 +36,35 @@ $flashToast = $_SESSION['flash_toast'] ?? null;
 $flashWaLink = $_SESSION['flash_wa_link'] ?? null;
 unset($_SESSION['flash_toast'], $_SESSION['flash_wa_link']);
 
+// أول واجهة بعد التسجيل: نفس الصفحة مع ترحيب وزر متابعة حتى لا يعلق الطفل هنا
+$isWelcome = isset($_GET['welcome']);
+
 $__pageTitle = 'خطط الاشتراك — Kidora';
-$__pageLine = "اشتراكك المدفوع بيفتحلك شخصيات وألعاب وقصص أكتر بكتير! يلا نشترك سوا 💳";
+$__pageLine = $isWelcome
+    ? "أهلاً فيك يا بطل! اختار خطتك، وإذا بدك تبلّش على طول اضغط متابعة 🚀"
+    : "اشتراكك المدفوع بيفتحلك شخصيات وألعاب وقصص أكتر بكتير! يلا نشترك سوا 💳";
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
 <div class="page-body">
 <main class="container" style="padding-top:26px;">
   <div class="section-head">
-    <div class="eyebrow">خطط المنصة</div>
+    <div class="eyebrow"><?php echo $isWelcome ? 'أهلاً بك في Kidora 🎉' : 'خطط المنصة'; ?></div>
     <h2 class="section-title">اختر خطة اشتراكك (بالشيكل ₪)</h2>
-    <p class="section-sub">الاشتراك المدفوع يفتح باقي الشخصيات، مهام وقصص غير محدودة، وتقارير واتساب لولي الأمر.</p>
+    <p class="section-sub">
+      <?php if ($isWelcome): ?>
+        تم إنشاء حسابك بنجاح! خطتك المجانية مفعّلة، وتقدر تبدأ مغامرتك فوراً. الاشتراك المدفوع يفتح باقي الشخصيات، مهام وقصص غير محدودة، وتقارير واتساب لولي الأمر.
+      <?php else: ?>
+        الاشتراك المدفوع يفتح باقي الشخصيات، مهام وقصص غير محدودة، وتقارير واتساب لولي الأمر.
+      <?php endif; ?>
+    </p>
   </div>
+
+  <?php if ($isWelcome): ?>
+    <div style="text-align:center;margin-bottom:22px;">
+      <a href="welcome.php" class="btn btn-gold">تخطّي الآن وابدأ مغامرتي 🚀</a>
+    </div>
+  <?php endif; ?>
 
   <?php if ($subRec && $subRec['status'] === 'pending'): ?>
     <div class="card" style="padding:22px;margin-bottom:20px;background:var(--cream-2);text-align:center;">
@@ -73,6 +90,7 @@ require_once __DIR__ . '/includes/navbar.php';
         </ul>
         <form method="POST">
           <input type="hidden" name="request_plan_id" value="<?php echo (int)$p['id']; ?>">
+          <?php if ($isWelcome): ?><input type="hidden" name="welcome" value="1"><?php endif; ?>
           <?php if ($isActive): ?>
             <button class="btn btn-ghost btn-block" disabled>خطتك المفعّلة ✅</button>
           <?php elseif ($isPending): ?>

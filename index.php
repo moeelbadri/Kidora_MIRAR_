@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 
                 $_SESSION['child_id'] = $childId;
                 $_SESSION['child_name'] = $name;
-                header('Location: welcome.php');
+                header('Location: subscriptions.php?welcome=1');
                 exit;
             }
         }
