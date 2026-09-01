@@ -69,15 +69,30 @@ Admin at `/admin/login.php` (`admin@kidora.com` / `admin123`). Reset by deleting
 `PROJECT-REPORT.md` §8 lists the verified defects, marking which are resolved.
 Do not "fix" an open item as a drive-by; confirm it is in scope first.
 
-Two things future work keeps getting wrong:
+Things future work keeps getting wrong:
 
 - **All seed content lives in `database/seed.php`.** The schema files are
- structure-only. They used to carry their own `INSERT` blocks that ran first and
- made most of `seed.php` dead code — do not put data back into them.
+  structure-only. They used to carry their own `INSERT` blocks that ran first and
+  made most of `seed.php` dead code — do not put data back into them.
 - **Adding a game mechanic takes three edits**: a `run*()` branch in
- `assets/js/games-engine.js`, an entry in `game_types()` (`includes/functions.php`),
- and seed rows. Admin dropdowns and POST validation both follow `game_types()`.
+  `assets/js/games-engine.js`, an entry in `game_types()` (`includes/functions.php`),
+  and seed rows. Admin dropdowns and POST validation both follow `game_types()`.
+- **In-game content is database rows, not JavaScript.** Questions and adventure
+  scenarios live in `game_questions` / `game_scenarios` and reach the engine through
+  `api/game-content.php`. The `FALLBACK` object in `games-engine.js` exists only for a
+  failed request — do not grow it back into a content bank.
+- **Age is a server decision.** Under `GAME_TIMER_MIN_AGE` (10) games drop their
+  timers, read themselves aloud via `SoundEngine`, and `reaction` is swapped for
+  `match`. The age comes from the `children` row in the API, never from the client.
+- **Copy next to the child's name must be gender-neutral.** `children` has no gender
+  column. Task `story_line`, figure `story_line`, and story captions are nominal
+  sentences on purpose; a bound verb ("أنجز"/"أنجزت") is wrong half the time.
 
 The mission package is `tasks` → `tasks.figure_id` → `tasks.game_type`, and all three
 are meant to be about the same subject. Resolve the figure with `figure_for_task()`,
 never with a random query.
+
+The free plan gets the whole daily loop — missions, mission mini-games, figures, safety
+— plus two library games (`FREE_LIBRARY_GAMES`). The **daily story** is the paid
+feature, so `story.php` must check `is_premium_active()` on the POST, not just hide the
+button.

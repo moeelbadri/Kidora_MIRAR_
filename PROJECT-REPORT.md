@@ -69,10 +69,14 @@ index.php (landing + login/register)
              └─> tasks.php   4 age-filtered tasks, one at a time
                   │  after each task: story line + LINKED historical figure + themed game
                   └─> safety.php      (hard redirect once all 4 are done)
-                       └─> games.php  play >= 2 games
-                            └─> story.php       daily story unlocks
+                       └─> games.php  play >= 2 games   (free plan: only 2 exist)
+                            └─> story.php       PAID — free plan sees a paywall
                                  └─> grand-story.php   every 30 stories
 ```
+
+Under the free plan the loop still runs end to end — missions, their mini-games, the
+historical figures, safety, and the two library games are all free. What the paywall
+holds back is the **daily story**, and with it the 30-story grand adventure.
 
 `dashboard.php` is the post-login landing page for a returning child (welcome banner,
 companion cards, plan status, and story recommendations keyed to the child's *weakest*
@@ -123,11 +127,24 @@ animated scenes plus a true/false game, sourced from `safety_content`.
 to the server.** Each card passes its category to `GamesEngine.run()` via `data-*`
 attributes, so a صحي game asks health questions and a ثقافي game asks heritage ones.
 
+**Subscription gating (Sep 2026).** Without an active paid plan the child sees only
+`FREE_LIBRARY_GAMES = 2` cards, picked by `visible_library_games()` to be **two
+different mechanics** so the sample shows range, followed by one upgrade card naming
+how many remain. The mini-game that follows each mission is **not** part of this
+allowance — it belongs to the mission package and stays free.
+
 ### `story.php` — daily personal story
-- Gated on `tasksDone && games_played >= 2`.
+- **Paid feature.** Without an active plan the page shows a paywall card and the
+  `generate_story` POST handler refuses (`$isPremium` is checked server-side, not
+  just in the view). An already-generated story stays viewable if the plan lapses.
+- Gated on `tasksDone && games_played >= FREE_LIBRARY_GAMES`.
 - Child may upload a photo; scenes are assembled from the day's **actual completed
   tasks'** `story_line` values plus an opening and closing scene, saved to
   `daily_stories.scenes_json`, and `children.ring_days` is incremented (+10 points).
+- Each scene carries `icon` (from `category_icon()` of the task) and `title` (the task
+  title), and rendering passes `animate: true` plus the companion's first
+  `icons_json` emoji as `spriteFace` — so the daily story autoplays with a floating
+  companion and a per-scene chapter header, matching the grand story's presentation.
 - Exportable as a real video file from the browser — Canvas + `MediaRecorder`,
   640×360, 2.2 s per scene, tries `video/mp4` then falls back to `video/webm`.
   No audio track, no paid AI service.
@@ -281,15 +298,34 @@ Session flash keys (`$_SESSION['flash_*']`) carry cross-redirect state:
 |---|---|---|
 | `theme-engine.js` | `ThemeEngine` | `applyBackground()` / `previewCharacter()` — recolours gradient, sets `--theme-accent`/`--theme-glow`, spawns floating icons |
 | `sound-engine.js` | `SoundEngine` | `speak()` via `SpeechSynthesis` (`ar-SA`, prefers an Arabic female voice), pre-speech chime, optional Web Audio background music. Toggles persist in `localStorage` (`kidaura_voice`, `kidaura_music`) |
-| `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile |
-| `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `reaction` / `memory` / `adventure`. `category` selects a content topic (icons + true/false bank + 3-scene branching adventure); unknown categories fall back to `general`. `game_types()` in `includes/functions.php` is the authoritative slug→label list |
+| `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay (4.5 s/scene), a play/pause button, and a caption/chapter cross-fade via the `is-out` class; manual navigation cancels autoplay |
+| `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `reaction` / `memory` / `adventure`. **Content is fetched from `api/game-content.php`, not hardcoded** (a small `FALLBACK` bank exists only so a failed request never shows a broken screen). `game_types()` in `includes/functions.php` is the authoritative slug→label list |
 | `app.js` | `companionSay()` | bootstrap: nav toggle, voice/music buttons, companion click + swap, auto page greeting |
 
+**Age-adaptive play (Sep 2026).** `GAME_TIMER_MIN_AGE = 10` in
+`includes/functions.php`. The server decides which version a child gets and returns
+`calm` on the content endpoint — the client cannot opt into timers. When `calm`:
+
+- `quiz` drops the countdown entirely and reads each question aloud via `SoundEngine`.
+- `reaction` is **swapped for `match`**, because reaction time *is* the mechanic —
+  there is no timer to remove. The displayed title is replaced too, so
+  "سرعة القفز" does not promise a speed game the child will not play.
+- `adventure` reads the situation and its choices aloud and waits longer on outcomes.
+- `catch` spawns slower, `match` uses 4 pairs instead of 6, `memory` caps at 3 levels.
+
+Read-aloud goes through `SoundEngine.speak()`, so the existing mute toggle still wins.
+
 ### API endpoints
-Both require `$_SESSION['child_id']`, take **no body parameters**, and have no CSRF token.
+All require `$_SESSION['child_id']` and have no CSRF token.
 - `POST api/play-game.php` → `games_played += 1`, returns `{ok, games_played}`.
 - `POST api/swap-companion.php` → toggles `active_character` between `character_1`
   and `character_2`, returns `{ok, active_character}`; client reloads the page.
+- `GET api/game-content.php?category=<arabic>` → `{ok, age, calm, topic, label, icons,
+  quiz, adventure}`. The Arabic category is resolved to a topic through
+  `game_topics.categories_json` (unknown → `general`), rows are filtered by the
+  child's age and returned in random order so replays differ. **Age comes from the
+  `children` row, never from the query string** — the calm/timed split is a
+  child-protection decision, not a client preference.
 
 ---
 
@@ -301,8 +337,11 @@ Both require `$_SESSION['child_id']`, take **no body parameters**, and have no C
 | `children` | the user account: credentials, age, parent name/phone, `character_1/2`, `active_character`, `points`, `ring_days`, `last_assessment_at` |
 | `tasks` | title, description, category, age range, `story_line`, `youtube_id`, `game_type`, `points`, `active` |
 | `games` | title, `type`, category, age range, description, `is_active` |
+| `game_topics` | `topic_key`, `label`, `icons_json`, `categories_json` (which Arabic task/game categories map to this topic), `active`, `sort_order` |
+| `game_questions` | in-game true/false bank: `topic_key`, `question`, `answer`, age range, `active`, `reviewed` |
+| `game_scenarios` | branching-adventure situations: `topic_key`, `prompt`, `choices_json` (`[{l,g,r}]`), age range, `active`, `reviewed` |
 | `history_figures` | the post-task hero cards (+ optional `youtube_id`) |
-| `quiz_questions` | 6 axes × 3 options, each option has `value` (1–3) + `msg` |
+| `quiz_questions` | the daily **assessment** questions: 12 axes × 3 options, each option has `value` (1–3) + `msg`. Distinct from `game_questions`, which is in-game content |
 | `quiz_history` | append-only `(child_id, axis, value)` — the real behaviour data |
 | `daily_progress` | one row per `(child_id, day_key)`: `task_pool_ids`, `completed_task_ids`, `games_played`, `quiz_*`, `story_generated` |
 | `daily_stories` / `grand_stories` | generated story scenes as JSON |
@@ -313,12 +352,26 @@ Both require `$_SESSION['child_id']`, take **no body parameters**, and have no C
 | `settings` | `whatsapp_number`, `platform_name`, `story_api_key` (key-value) |
 
 Seeded volumes: 6 characters, 24 tasks, 36 games (6 mechanics × 6 categories),
-12 quiz questions, 29 history figures, 4 safety items, 3 plans, 3 settings.
+12 assessment questions, 29 history figures, 4 safety items, 3 plans, 3 settings,
+and — for in-game content — 9 topics, **180 true/false questions** (20 per topic) and
+**72 adventure scenarios** (8 per topic).
 
 Columns added Aug 2026 (both schemas + `kidora_migrate()`):
 `tasks.figure_id` (the mission's linked historical figure) and
 `history_figures.category` (matches the task category vocabulary, used as the
 fallback when a task has no explicit link).
+
+Tables added Sep 2026: `game_topics`, `game_questions`, `game_scenarios`. Existing
+databases pick them up through `kidora_migrate()`, which checks for `game_topics` as
+the sentinel (all three are created together), executes each `CREATE TABLE` **read
+out of the schema file** — so the DDL is never duplicated in PHP — and then calls
+`kidora_seed_game_content()`. That function is separate from `kidora_seed()` for
+exactly this reason and is safe to re-run: each block seeds only if its table is empty.
+
+`reviewed = 0` marks content authored by tooling rather than approved by a human. It
+does **not** hide the row — `active` does that. All 252 seeded rows ship
+`active = 1, reviewed = 0`, and the admin tab surfaces the pending count with a
+per-topic bulk approve.
 
 Characters: **mimo (ميمو)** and **zizo (زيزو)** are free; **finn, nova, lulu, rex**
 are premium.
@@ -339,6 +392,8 @@ string equality** against constants in `config/config.php` L43–44
 | الشخصيات (characters) | full CRUD **incl. edit**, image + audio upload, toggle free↔premium |
 | المهام (tasks) | add / delete / toggle active (no edit form) |
 | الألعاب (games) | add / delete |
+| محتوى الألعاب (gamecontent) | per-topic editor for `game_questions` + `game_scenarios`: add, approve, enable/disable, delete, and bulk-approve a whole topic. Shows which Arabic categories feed each topic |
+| أسئلة التحليل (assessment) | `quiz_questions` editor: add (axis autocompletes from existing axes), enable/disable, delete |
 | الشخصيات التاريخية (history) | add / delete |
 | الاشتراكات (subscriptions) | approve / reject pending requests with direct WhatsApp link, add/delete plans |
 | المؤسسات (institutions) | add / delete partner orgs |
@@ -428,7 +483,9 @@ Two gotchas found while fixing this:
 
 ### Content not admin-manageable (contradicts the "admin controls everything" claim)
 10. `friends.php` L31 `FRIEND_STORY_BANK` and `culture.php` L25 `CULTURE_STORY_BANK`
-    are hardcoded JS objects.
+    are hardcoded JS objects. **Still open** — these are the last two hardcoded
+    content banks; `games-engine.js` was moved to the database in Sep 2026 and is the
+    worked example to copy.
 11. `games2.php`'s 4 arcade games are hardcoded canvas implementations outside the
     `games` table.
 
@@ -479,6 +536,51 @@ These were not in the original list; recorded so they are not reintroduced.
 27. ~~`admin/tabs/games.php` offered a `jump` game type that no engine implements,
     and did not whitelist the POST value.~~ Both admin tabs now render and validate
     against `game_types()`.
+
+### Found and fixed during the Sep 2026 age/gating/content pass
+
+28. ~~**Timed games reached children as young as 4.**~~ `quiz` ran a 25 s countdown and
+    `reaction` scored milliseconds, and `GamesEngine.run()` had no age input at all, so
+    a 4-year-old and a 12-year-old played identical games. Age now comes from the
+    server (`GAME_TIMER_MIN_AGE = 10`); see §5 for what changes under `calm`.
+29. ~~**Games were silent.**~~ `SoundEngine.speak()` existed and worked in Arabic but
+    `games-engine.js` never called it, so a pre-reader could not play a text game.
+    Questions, adventure prompts, choices and outcomes are now read aloud under `calm`.
+30. ~~**Every child saw the whole games library and could generate a daily story, paid
+    or not.**~~ `is_premium_active()` only guarded character selection and the VIP
+    badge. Now the library shows 2 games without a plan and `story.php` refuses the
+    POST — see §3.
+31. ~~**The daily story was a static, manually-clicked slideshow.**~~ `StoryPlayer`
+    already supported chapter icons, titles and a floating sprite — the grand story
+    used them, the daily story passed only `caption` and `grad`. It now passes all
+    three and enables autoplay.
+32. ~~**Game content was 72 questions and 27 scenarios hardcoded in JavaScript**~~, so
+    a topic recycled its 8 questions immediately, `general` was 7/8 duplicated from
+    other banks, replays were identical, and nothing was editable. Content is now
+    180 questions / 72 scenarios in the database, age-filtered and randomly ordered.
+33. ~~**`quiz_questions` had no admin screen at all**~~ — the assessment that drives
+    every growth axis could only be changed with raw SQL.
+34. ~~**Luqman's advice was framed as "أولها" (the first of his commandments)**~~,
+    which conflicts with the Qur'anic list. Reworded as "ومن أشهر ما يُروى عنه" — the
+    honest framing for an *adab*-literature aphorism.
+35. ~~**Shahrazad was presented as a historical figure**~~ under a card reading
+    "تعرّف على بطل من تاريخنا". Her description now opens by saying she is from the
+    tales and not from history, and the card reads "شخصية من تراثنا", which is true of
+    all 29 entries.
+36. ~~**Narration assumed the child's gender.**~~ `children` has no gender column, yet
+    4 figure lines said "تعلّمت البطلة" (addressing every boy as female) and the other
+    25, all 24 task lines, the `story.php` opener/closer, and the admin default
+    `story_line` used masculine verbs bound to the child's name. All of it is now
+    nominal phrasing with no verb agreement. **Do not reintroduce a bound verb here**
+    — the grand story already worked this way and the two must match.
+37. ~~**The mechanic swap left a misleading title.**~~ Swapping `reaction` for `match`
+    kept the label "سرعة القفز", promising a speed game.
+
+**Still open from the content review** (not fixed, needs product input): all 24
+missions have `youtube_id = NULL` despite the mission package specifying a video;
+several history figures — mostly the female ones — are reachable only through the
+category fallback because no task links to them; and the 252 seeded content rows are
+`reviewed = 0` pending a human pass.
 
 ---
 
@@ -536,3 +638,16 @@ proxy the public hostname to `127.0.0.1:81`.
   null, give the figure a `category` matching the task's so the fallback still pairs
   them sensibly.
 - **All seed content goes in `database/seed.php`**, never in the schema files.
+- **In-game content belongs in the database**, not in `games-engine.js`. Add rows to
+  `game_questions` / `game_scenarios` (or use the محتوى الألعاب admin tab). The
+  `FALLBACK` object in the engine is a request-failure safety net — do not grow it
+  into a content bank. A new topic needs a `game_topics` row whose `categories_json`
+  lists the Arabic task/game categories it serves.
+- **Never let the client decide the age split.** `api/game-content.php` reads age from
+  the `children` row on purpose; removing timers for under-10s is a protection rule.
+- **Narration must not assume gender.** `children` has no gender column, so any copy
+  that sits next to the child's name — task `story_line`, figure `story_line`, story
+  captions — has to be a nominal sentence. See §8 item 36.
+- **Two question tables, different jobs.** `quiz_questions` is the daily assessment
+  that feeds `quiz_history` and the growth axes; `game_questions` is true/false
+  content inside mini-games. They are not interchangeable.
