@@ -92,7 +92,7 @@ require_once __DIR__ . '/includes/navbar.php';
           <?php if (!empty($flashFigure['youtube_id'])): ?>
             <div class="task-video-wrap">
               <div style="position:relative;padding-bottom:56.25%;height:0;">
-                <iframe src="https://www.youtube.com/embed/<?php echo h($flashFigure['youtube_id']); ?>" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allowfullscreen loading="lazy"></iframe>
+                <iframe src="<?php echo h(youtube_embed_url($flashFigure['youtube_id'])); ?>" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allowfullscreen loading="lazy"></iframe>
               </div>
             </div>
           <?php else: ?>
@@ -116,7 +116,7 @@ require_once __DIR__ . '/includes/navbar.php';
         <?php if (!empty($currentTask['youtube_id'])): ?>
           <div class="task-video-wrap">
             <div style="position:relative;padding-bottom:56.25%;height:0;">
-              <iframe src="https://www.youtube.com/embed/<?php echo h($currentTask['youtube_id']); ?>" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allowfullscreen loading="lazy"></iframe>
+              <iframe src="<?php echo h(youtube_embed_url($currentTask['youtube_id'])); ?>" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allowfullscreen loading="lazy"></iframe>
             </div>
           </div>
         <?php endif; ?>

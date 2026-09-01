@@ -327,6 +327,12 @@ All require `$_SESSION['child_id']` and have no CSRF token.
   `children` row, never from the query string** — the calm/timed split is a
   child-protection decision, not a client preference.
 
+  Age is a *preference*, not a filter. `game_topic_rows()` returns eligible rows
+  first and, only if there are fewer than a full round (`GAME_QUIZ_ROUND = 5`,
+  `GAME_ADVENTURE_SCENES = 4` — both mirroring `games-engine.js`), appends the rest of
+  the topic behind them. A topic with no content written for age 4 therefore plays
+  older content rather than opening an empty game.
+
 ---
 
 ## 6. Data model
@@ -351,10 +357,10 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 | `wa_log` | every WhatsApp message generated |
 | `settings` | `whatsapp_number`, `platform_name`, `story_api_key` (key-value) |
 
-Seeded volumes: 6 characters, 24 tasks, 36 games (6 mechanics × 6 categories),
-12 assessment questions, 29 history figures, 4 safety items, 3 plans, 3 settings,
-and — for in-game content — 9 topics, **180 true/false questions** (20 per topic) and
-**72 adventure scenarios** (8 per topic).
+Seeded volumes: 6 characters, **29 tasks**, 36 games (6 mechanics × 6 categories),
+12 assessment questions, 29 history figures (every one reachable from a task),
+4 safety items, 3 plans, 3 settings, and — for in-game content — 9 topics,
+**192 true/false questions** and **78 adventure scenarios**, both age-tagged.
 
 Columns added Aug 2026 (both schemas + `kidora_migrate()`):
 `tasks.figure_id` (the mission's linked historical figure) and
@@ -369,9 +375,14 @@ out of the schema file** — so the DDL is never duplicated in PHP — and then 
 exactly this reason and is safe to re-run: each block seeds only if its table is empty.
 
 `reviewed = 0` marks content authored by tooling rather than approved by a human. It
-does **not** hide the row — `active` does that. All 252 seeded rows ship
-`active = 1, reviewed = 0`, and the admin tab surfaces the pending count with a
-per-topic bulk approve.
+does **not** hide the row — `active` does that. The admin tab surfaces the pending
+count with a per-topic bulk approve.
+
+After the internal review pass, `kidora_content_reviewed()` ships eight topics as
+`reviewed = 1` and holds only **safety** (20 questions + 8 scenarios) at `0`. That
+topic covers strangers, frightening secrets, unwanted touch, and that an adult's
+mistake is never the child's fault — messages a person should approve rather than a
+language check. They keep playing while they wait.
 
 Characters: **mimo (ميمو)** and **zizo (زيزو)** are free; **finn, nova, lulu, rex**
 are premium.
@@ -557,7 +568,7 @@ These were not in the original list; recorded so they are not reintroduced.
 32. ~~**Game content was 72 questions and 27 scenarios hardcoded in JavaScript**~~, so
     a topic recycled its 8 questions immediately, `general` was 7/8 duplicated from
     other banks, replays were identical, and nothing was editable. Content is now
-    180 questions / 72 scenarios in the database, age-filtered and randomly ordered.
+    192 questions / 78 scenarios in the database, age-filtered and randomly ordered.
 33. ~~**`quiz_questions` had no admin screen at all**~~ — the assessment that drives
     every growth axis could only be changed with raw SQL.
 34. ~~**Luqman's advice was framed as "أولها" (the first of his commandments)**~~,
@@ -576,11 +587,30 @@ These were not in the original list; recorded so they are not reintroduced.
 37. ~~**The mechanic swap left a misleading title.**~~ Swapping `reaction` for `match`
     kept the label "سرعة القفز", promising a speed game.
 
-**Still open from the content review** (not fixed, needs product input): all 24
-missions have `youtube_id = NULL` despite the mission package specifying a video;
-several history figures — mostly the female ones — are reachable only through the
-category fallback because no task links to them; and the 252 seeded content rows are
-`reviewed = 0` pending a human pass.
+38. ~~Five history figures — three of them women — had no task pointing at them~~, so
+    they appeared only through the random category fallback and girls saw fewer role
+    models than the library holds. Five missions were added; all 29 figures are now
+    directly reachable, and `tasks` is 29 rows.
+39. ~~**Every question a four-year-old could be asked in six of the nine topics
+    answered "صح"**~~, so pressing صح always won. Those topics gained concrete false
+    statements (a hot snowball, a mouse bigger than an elephant) rather than negated
+    good behaviour, which is what confuses that age.
+40. ~~Adventure scenarios were all seeded 4-12~~ although several assume school exams,
+    weekly planning or using a dictionary. They now carry real age ranges, six
+    concrete scenarios were added for the young end, and `game_topic_rows()` treats
+    age as a preference — if a topic has too few eligible rows it tops the round up
+    from the rest of the topic, so an authoring gap can never open an empty game.
+41. ~~`أصرخ عليه وأضربه` was a clickable choice~~ in a values scenario. Hitting is not
+    offered as a button in a children's app; the lesson lands without it.
+42. ~~Embeds used `youtube.com`~~, which sets tracking cookies before playback. All
+    three (task, figure, landing page) now go through `youtube_embed_url()` →
+    `youtube-nocookie.com` with related videos restricted to the same channel.
+
+**Still open, needs product input:** all 29 missions have `youtube_id = NULL`, so no
+mission shows a video yet. `docs/mission-video-shortlist.md` holds three verified
+candidates per mission — existence, embeddability, channel, title and duration are
+machine-checked, but **nobody has watched them**, and for missions 14, 15 and 23
+nothing suitable surfaced after three searches each.
 
 ---
 
@@ -636,7 +666,8 @@ proxy the public hostname to `127.0.0.1:81`.
   automatically.
 - **Adding a task** should set `figure_id` and `youtube_id`; if you leave `figure_id`
   null, give the figure a `category` matching the task's so the fallback still pairs
-  them sensibly.
+  them sensibly. Never build an embed URL by hand — use `youtube_embed_url()`, which
+  is what keeps playback on `youtube-nocookie.com`.
 - **All seed content goes in `database/seed.php`**, never in the schema files.
 - **In-game content belongs in the database**, not in `games-engine.js`. Add rows to
   `game_questions` / `game_scenarios` (or use the محتوى الألعاب admin tab). The

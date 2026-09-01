@@ -201,6 +201,19 @@ function game_is_calm_age(?int $age): bool {
 }
 
 /**
+ * رابط تضمين فيديو المهمة أو الشخصية.
+ *
+ * youtube-nocookie.com لا يزرع كوكيز التتبّع قبل التشغيل — وهذا هو الوضع
+ * المطلوب في تطبيق يشاهده أطفال. rel=0 لا يُلغي المقترحات (غيّرت يوتيوب ذلك
+ * سنة 2018) لكنه يحصرها في القناة نفسها، وهو أقصى ما تسمح به المنصة.
+ * playsinline يمنع الفتح بملء الشاشة تلقائياً على أجهزة iOS.
+ */
+function youtube_embed_url(string $id): string {
+    return 'https://www.youtube-nocookie.com/embed/' . rawurlencode($id)
+         . '?rel=0&modestbranding=1&playsinline=1';
+}
+
+/**
  * طول الجولة كما يستهلكها GamesEngine: خمسة أسئلة، وأربعة مشاهد مغامرة.
  * القيمتان مرآة لـ TOTAL في runQuiz وslice في runAdventure — إن تغيّرت هناك
  * فلتتغيّر هنا، وإلا صار العمر يُجوّع اللعبة بلا أن يشتكي أحد.
