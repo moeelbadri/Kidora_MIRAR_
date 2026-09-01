@@ -201,6 +201,14 @@ function game_is_calm_age(?int $age): bool {
 }
 
 /**
+ * طول الجولة كما يستهلكها GamesEngine: خمسة أسئلة، وأربعة مشاهد مغامرة.
+ * القيمتان مرآة لـ TOTAL في runQuiz وslice في runAdventure — إن تغيّرت هناك
+ * فلتتغيّر هنا، وإلا صار العمر يُجوّع اللعبة بلا أن يشتكي أحد.
+ */
+const GAME_QUIZ_ROUND      = 5;
+const GAME_ADVENTURE_SCENES = 4;
+
+/**
  * موضوع المحتوى المناسب لتصنيف مهمة أو لعبة (بالعربية).
  * الخريطة نفسها تعيش في game_topics.categories_json فتُحرَّر من لوحة التحكم.
  * المواضيع تسعة صفوف فقط، فالمطابقة في PHP أبسط وأكثر توافقاً من JSON في SQL.
@@ -223,6 +231,43 @@ function game_topic_for_category(PDO $pdo, ?string $category): ?array {
 }
 
 /**
+ * صفوف محتوى موضوع واحد مرتّبة عشوائياً: المناسبة للعمر أولاً، ثم — إن قلّ
+ * عددها عن جولة كاملة — بقيةُ صفوف الموضوع لتكملة العدد.
+ *
+ * أي أن العمر تفضيلٌ لا شرط. الأصل كان شرطاً، فموضوعٌ لم يُكتب له محتوى
+ * لعمر 4 كان يعيد قائمة فارغة واللعبة تُفتح بلا أسئلة. المحرّك يأخذ أول
+ * GAME_QUIZ_ROUND عنصراً، فالتكملة لا تُستهلك إلا عند الحاجة فعلاً.
+ *
+ * غياب العمر يعني «كل المحتوى» — تستخدمه لوحة التحكم للعرض والتحرير.
+ * $table ثابت في الكود ومحصور بقائمة، ولا يأتي من المستخدم أبداً.
+ */
+function game_topic_rows(PDO $pdo, string $table, string $key, ?int $age, int $need): array {
+    $cols = [
+        'game_questions' => 'question, answer',
+        'game_scenarios' => 'prompt, choices_json',
+    ][$table] ?? null;
+    if ($cols === null) return [];
+
+    $rand = sql_random();
+    $fits = 'age_min <= :age AND age_max >= :age';
+
+    if ($age === null) {
+        $st = $pdo->prepare("SELECT {$cols} FROM {$table} WHERE topic_key = ? AND active = 1 ORDER BY {$rand}");
+        $st->execute([$key]);
+        return $st->fetchAll();
+    }
+
+    $st = $pdo->prepare("SELECT {$cols} FROM {$table} WHERE topic_key = :k AND active = 1 AND {$fits} ORDER BY {$rand}");
+    $st->execute(['k' => $key, 'age' => $age]);
+    $rows = $st->fetchAll();
+    if (count($rows) >= $need) return $rows;
+
+    $st = $pdo->prepare("SELECT {$cols} FROM {$table} WHERE topic_key = :k AND active = 1 AND NOT ({$fits}) ORDER BY {$rand}");
+    $st->execute(['k' => $key, 'age' => $age]);
+    return array_merge($rows, $st->fetchAll());
+}
+
+/**
  * محتوى اللعبة كما يستهلكه GamesEngine: الأيقونات + بنك صح/خطأ +
  * سيناريوهات المغامرة، مفلترة بعمر الطفل ومرتّبة عشوائياً.
  *
@@ -234,24 +279,16 @@ function game_content_for(PDO $pdo, ?string $category, ?int $age = null): array 
     $topic = game_topic_for_category($pdo, $category);
     if (!$topic) return ['topic' => 'general', 'label' => 'عام', 'icons' => [], 'quiz' => [], 'adventure' => []];
 
-    $key  = $topic['topic_key'];
-    $age  = $age !== null ? max(1, min(18, (int)$age)) : null;
-    // غياب العمر يعني «كل المحتوى» — تستخدمه لوحة التحكم للعرض والتحرير
-    $ageSql = $age !== null ? ' AND age_min <= :age AND age_max >= :age' : '';
-    $bind   = $age !== null ? ['age' => $age] : [];
-    $rand   = sql_random();
+    $key = $topic['topic_key'];
+    $age = $age !== null ? max(1, min(18, (int)$age)) : null;
 
-    $qs = $pdo->prepare("SELECT question, answer FROM game_questions WHERE topic_key = :k AND active = 1{$ageSql} ORDER BY {$rand}");
-    $qs->execute(['k' => $key] + $bind);
     $quiz = array_map(
         fn($r) => ['q' => $r['question'], 'a' => (bool)(int)$r['answer']],
-        $qs->fetchAll()
+        game_topic_rows($pdo, 'game_questions', $key, $age, GAME_QUIZ_ROUND)
     );
 
-    $ss = $pdo->prepare("SELECT prompt, choices_json FROM game_scenarios WHERE topic_key = :k AND active = 1{$ageSql} ORDER BY {$rand}");
-    $ss->execute(['k' => $key] + $bind);
     $adventure = [];
-    foreach ($ss->fetchAll() as $r) {
+    foreach (game_topic_rows($pdo, 'game_scenarios', $key, $age, GAME_ADVENTURE_SCENES) as $r) {
         $choices = json_decode_safe($r['choices_json'], []);
         if ($choices) $adventure[] = ['t' => $r['prompt'], 'c' => $choices];
     }
