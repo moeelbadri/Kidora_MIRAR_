@@ -2,7 +2,8 @@
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_task'])) {
     $title = trim($_POST['title']); $desc = trim($_POST['description']); $cat = trim($_POST['category']) ?: 'عام';
     $ageMin = (int)$_POST['age_min']; $ageMax = (int)$_POST['age_max'];
-    $story = trim($_POST['story_line']) ?: "أنجز البطل مهمة {$title} بنجاح! ✨";
+    // جملة اسمية: سطر القصة يظهر بجوار اسم الطفل، والتطبيق لا يسجّل جنسه
+    $story = trim($_POST['story_line']) ?: "مهمة «{$title}» منجزة بنجاح! ✨";
     $youtube = trim($_POST['youtube_id']);
     $points = (int)($_POST['points'] ?: 5);
     $gameType = array_key_exists($_POST['game_type'] ?? '', game_types()) ? $_POST['game_type'] : 'catch';

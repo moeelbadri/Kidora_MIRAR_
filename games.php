@@ -9,6 +9,12 @@ $stmt->execute([$child['age'], $child['age']]);
 $games = $stmt->fetchAll();
 if (!$games) $games = $pdo->query("SELECT * FROM games ORDER BY category, id")->fetchAll();
 
+// غير المشترك يرى عيّنة من المكتبة فقط. اللعبة التالية لكل مهمة تبقى مجانية.
+$isPremium = is_premium_active($pdo, (int)$child['id']);
+$totalGames = count($games);
+$games = visible_library_games($games, $isPremium);
+$lockedCount = $totalGames - count($games);
+
 $categories = [];
 foreach ($games as $g) { $categories[$g['category']][] = $g; }
 
@@ -31,7 +37,16 @@ require_once __DIR__ . '/includes/navbar.php';
   <div class="section-head">
     <div class="eyebrow">مكتبة الألعاب</div>
     <h2 class="section-title">ألعاب مناسبة لعمرك (<?php echo (int)$child['age']; ?> سنوات)</h2>
-    <p class="section-sub">ألعاب متنوعة تربوية وعلمية واجتماعية وسلوكية وثقافية — العب واحدة على الأقل لتفتح قصتك اليومية لاحقاً!</p>
+    <p class="section-sub">
+      <?php if ($isPremium): ?>
+        ألعاب متنوعة تربوية وعلمية واجتماعية وسلوكية وثقافية — العب واحدة على الأقل لتفتح قصتك اليومية لاحقاً!
+      <?php else: ?>
+        هاتان لعبتاك المجانيتان لليوم. مع الاشتراك تُفتح المكتبة كاملة 🎮
+      <?php endif; ?>
+    </p>
+    <?php if (game_is_calm_age((int)$child['age'])): ?>
+      <p class="section-sub" style="color:var(--mint);">ألعابك بلا مؤقّت، وبتنقرأ عليك بصوت صاحبك 🔊</p>
+    <?php endif; ?>
   </div>
 
   <p style="text-align:center;font-weight:800;color:var(--gold);">ألعاب اليوم: <span id="gamesPlayedLabel"><?php echo (int)$progress['games_played']; ?></span> 🎮</p>
@@ -53,6 +68,15 @@ require_once __DIR__ . '/includes/navbar.php';
       </div>
     </div>
   <?php endforeach; ?>
+
+  <?php if ($lockedCount > 0): ?>
+    <div class="card" style="max-width:520px;margin:24px auto 0;padding:26px;text-align:center;">
+      <div style="font-size:40px;">🔓</div>
+      <h3 style="color:var(--ink);">في <?php echo (int)$lockedCount; ?> لعبة كمان مستنيّاك!</h3>
+      <p style="color:var(--ink-soft);">مع الاشتراك تُفتح المكتبة كاملة، وكذلك قصتك اليومية المتحركة.</p>
+      <a class="btn btn-primary" href="<?php echo BASE_PATH; ?>/subscriptions.php">شوف الاشتراكات 💳</a>
+    </div>
+  <?php endif; ?>
 
   <div id="gameHost" style="margin-top:20px;"></div>
 

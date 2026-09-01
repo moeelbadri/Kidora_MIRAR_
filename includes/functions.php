@@ -85,6 +85,36 @@ function is_premium_active(PDO $pdo, int $childId): bool {
     return $plan && (int)$plan['price_ils'] > 0;
 }
 
+/**
+ * عدد ألعاب المكتبة المتاحة بلا اشتراك.
+ * اللعبة الصغيرة التي تلي كل مهمة ليست منها — هي جزء من باكج المهمة ومجانية دائماً.
+ */
+const FREE_LIBRARY_GAMES = 2;
+
+/**
+ * ألعاب المكتبة التي يراها الطفل فعلاً.
+ * غير المشترك يرى FREE_LIBRARY_GAMES فقط، ويُفضَّل أن تكون بآليات مختلفة
+ * حتى تُظهر العيّنة تنوّع المكتبة لا آلية واحدة مكرّرة.
+ */
+function visible_library_games(array $games, bool $premium): array {
+    if ($premium) return $games;
+
+    $picked = $seenTypes = $pickedIds = [];
+    foreach ($games as $g) {
+        if (count($picked) >= FREE_LIBRARY_GAMES) break;
+        if (in_array($g['type'], $seenTypes, true)) continue;
+        $seenTypes[] = $g['type'];
+        $pickedIds[] = $g['id'];
+        $picked[] = $g;
+    }
+    // مكتبة بآلية واحدة فقط: أكمل العدد بالترتيب
+    foreach ($games as $g) {
+        if (count($picked) >= FREE_LIBRARY_GAMES) break;
+        if (!in_array($g['id'], $pickedIds, true)) { $pickedIds[] = $g['id']; $picked[] = $g; }
+    }
+    return $picked;
+}
+
 /** الشخصيات المتاحة للاختيار: المجانية دائماً + الحصرية فقط إن كان الاشتراك مفعّلاً */
 function selectable_characters(PDO $pdo, bool $premiumUnlocked): array {
     $all = all_characters($pdo);
@@ -157,6 +187,82 @@ function game_types(): array {
 /** دالة الترتيب العشوائي حسب المحرّك — SQLite تستخدم RANDOM() وMySQL تستخدم RAND() */
 function sql_random(): string {
     return DB_DRIVER === 'mysql' ? 'RAND()' : 'RANDOM()';
+}
+
+/**
+ * سنّ التحوّل بين نسختَي اللعب. من هذا العمر وما فوق: مؤقّتات وسرعة بديهة.
+ * تحته: بلا مؤقّت، والنص يُقرأ صوتياً، وسرعة البديهة تُستبدل بآلية بلا ضغط وقت.
+ */
+const GAME_TIMER_MIN_AGE = 10;
+
+/** هل يلعب هذا العمر النسخة الهادئة (بلا مؤقّت + قراءة صوتية)؟ */
+function game_is_calm_age(?int $age): bool {
+    return $age !== null && $age < GAME_TIMER_MIN_AGE;
+}
+
+/**
+ * موضوع المحتوى المناسب لتصنيف مهمة أو لعبة (بالعربية).
+ * الخريطة نفسها تعيش في game_topics.categories_json فتُحرَّر من لوحة التحكم.
+ * المواضيع تسعة صفوف فقط، فالمطابقة في PHP أبسط وأكثر توافقاً من JSON في SQL.
+ */
+function game_topic_for_category(PDO $pdo, ?string $category): ?array {
+    $topics = $pdo->query("SELECT * FROM game_topics WHERE active = 1 ORDER BY sort_order, id")->fetchAll();
+    if (!$topics) return null;
+
+    $needle = trim((string)$category);
+    $fallback = null;
+    foreach ($topics as $t) {
+        if ($t['topic_key'] === 'general') $fallback = $t;
+        if ($needle === '') continue;
+        if ($t['topic_key'] === $needle) return $t;
+        foreach (json_decode_safe($t['categories_json'], []) as $c) {
+            if (trim((string)$c) === $needle) return $t;
+        }
+    }
+    return $fallback ?: $topics[0];
+}
+
+/**
+ * محتوى اللعبة كما يستهلكه GamesEngine: الأيقونات + بنك صح/خطأ +
+ * سيناريوهات المغامرة، مفلترة بعمر الطفل ومرتّبة عشوائياً.
+ *
+ * أشكال البيانات (q/a للسؤال، t/c/l/g/r للمغامرة) هي نفسها التي كان المحرّك
+ * يقرأها من الثوابت، فعقد الاستهلاك لم يتغيّر — تغيّر المصدر فقط.
+ * الترتيب العشوائي هو ما يجعل إعادة اللعب مختلفة (كانت متطابقة كل مرة).
+ */
+function game_content_for(PDO $pdo, ?string $category, ?int $age = null): array {
+    $topic = game_topic_for_category($pdo, $category);
+    if (!$topic) return ['topic' => 'general', 'label' => 'عام', 'icons' => [], 'quiz' => [], 'adventure' => []];
+
+    $key  = $topic['topic_key'];
+    $age  = $age !== null ? max(1, min(18, (int)$age)) : null;
+    // غياب العمر يعني «كل المحتوى» — تستخدمه لوحة التحكم للعرض والتحرير
+    $ageSql = $age !== null ? ' AND age_min <= :age AND age_max >= :age' : '';
+    $bind   = $age !== null ? ['age' => $age] : [];
+    $rand   = sql_random();
+
+    $qs = $pdo->prepare("SELECT question, answer FROM game_questions WHERE topic_key = :k AND active = 1{$ageSql} ORDER BY {$rand}");
+    $qs->execute(['k' => $key] + $bind);
+    $quiz = array_map(
+        fn($r) => ['q' => $r['question'], 'a' => (bool)(int)$r['answer']],
+        $qs->fetchAll()
+    );
+
+    $ss = $pdo->prepare("SELECT prompt, choices_json FROM game_scenarios WHERE topic_key = :k AND active = 1{$ageSql} ORDER BY {$rand}");
+    $ss->execute(['k' => $key] + $bind);
+    $adventure = [];
+    foreach ($ss->fetchAll() as $r) {
+        $choices = json_decode_safe($r['choices_json'], []);
+        if ($choices) $adventure[] = ['t' => $r['prompt'], 'c' => $choices];
+    }
+
+    return [
+        'topic'     => $key,
+        'label'     => $topic['label'],
+        'icons'     => json_decode_safe($topic['icons_json'], []),
+        'quiz'      => $quiz,
+        'adventure' => $adventure,
+    ];
 }
 
 /**

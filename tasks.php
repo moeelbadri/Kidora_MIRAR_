@@ -85,7 +85,9 @@ require_once __DIR__ . '/includes/navbar.php';
 
       <?php if ($flashFigure): ?>
         <div class="card" style="max-width:560px;margin:20px auto;padding:26px;text-align:center;">
-          <div class="eyebrow">تعرّف على بطل من تاريخنا</div>
+          <!-- «تراثنا» لا «تاريخنا»: المكتبة تضم شخصيات تاريخية وأخرى من الحكايات
+               (شهرزاد)، والعنوان يجب أن يصدق على الاثنتين -->
+          <div class="eyebrow">تعرّف على شخصية من تراثنا</div>
           <h3 style="color:var(--ink);margin:8px 0 4px;"><?php echo h($flashFigure['name']); ?> — <?php echo h($flashFigure['title']); ?></h3>
           <?php if (!empty($flashFigure['youtube_id'])): ?>
             <div class="task-video-wrap">

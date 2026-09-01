@@ -68,6 +68,46 @@ CREATE TABLE IF NOT EXISTS games (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ---------------- محتوى الألعاب (كان مكتوباً داخل games-engine.js) ----------------
+-- الموضوع يجمع الأيقونات + قائمة تصنيفات المهام/الألعاب التي تُخدَّم منه،
+-- فيصبح ربط «تصنيف عربي ← موضوع محتوى» قابلاً للتعديل من لوحة التحكم.
+CREATE TABLE IF NOT EXISTS game_topics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    topic_key VARCHAR(40) UNIQUE NOT NULL,
+    label VARCHAR(80) NOT NULL,
+    icons_json TEXT DEFAULT NULL,
+    categories_json TEXT DEFAULT NULL,
+    active TINYINT(1) DEFAULT 1,
+    sort_order INT DEFAULT 0
+);
+
+-- reviewed = 0 يعني «محتوى مقترح لم يُراجَع بعد» — يظهر للطفل لكنه مُعلَّم
+-- في لوحة التحكم حتى تعتمده الإدارة. active = 0 يخفيه فعلياً.
+CREATE TABLE IF NOT EXISTS game_questions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    topic_key VARCHAR(40) NOT NULL,
+    question VARCHAR(255) NOT NULL,
+    answer TINYINT(1) NOT NULL,
+    age_min INT DEFAULT 4,
+    age_max INT DEFAULT 12,
+    active TINYINT(1) DEFAULT 1,
+    reviewed TINYINT(1) DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS game_scenarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    topic_key VARCHAR(40) NOT NULL,
+    prompt VARCHAR(255) NOT NULL,
+    choices_json TEXT NOT NULL,
+    age_min INT DEFAULT 4,
+    age_max INT DEFAULT 12,
+    active TINYINT(1) DEFAULT 1,
+    reviewed TINYINT(1) DEFAULT 0,
+    sort_order INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS history_figures (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,

@@ -5,10 +5,17 @@
    ============================================================ */
 const StoryPlayer = (function () {
 
+  // زمن بقاء المشهد في التشغيل التلقائي، وزمن تلاشي النص بين مشهدين
+  const SCENE_MS = 4500;
+  const FADE_MS = 260;
+
   function render(story, containerId, opts = {}) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    let idx = 0;
+    // animate = قصة متحركة: تشغيل تلقائي + انتقال بين المشاهد.
+    // بدونه يبقى السلوك القديم (تقليب يدوي) للقصص التي لا تحتاج حركة.
+    const animate = !!opts.animate;
+    let idx = 0, timer = null;
 
     container.innerHTML = `
       ${opts.badge ? `<p style="text-align:center;color:var(--mint);font-weight:800;">${opts.badge}</p>` : ''}
@@ -23,6 +30,7 @@ const StoryPlayer = (function () {
           <button class="btn btn-sm btn-ghost" id="${containerId}_prev">◀ السابق</button>
           <span class="grow" id="${containerId}_counter">1 / ${story.scenes.length}</span>
           <button class="btn btn-sm btn-ghost" id="${containerId}_next">التالي ▶</button>
+          ${animate ? `<button class="btn btn-sm btn-primary" id="${containerId}_play">⏸️ إيقاف</button>` : ''}
           <button class="btn btn-sm btn-mint" id="${containerId}_narrate">🔊 اسمع القصة</button>
         </div>
       </div>
@@ -31,23 +39,57 @@ const StoryPlayer = (function () {
         <button class="btn btn-ghost btn-sm" id="${containerId}_share">🔗 مشاركة</button>
       </div>`;
 
-    function paint() {
-      const s = story.scenes[idx];
-      document.getElementById(`${containerId}_scene`).style.background = `linear-gradient(135deg, ${s.grad})`;
-      document.getElementById(`${containerId}_caption`).textContent = s.caption;
-      document.getElementById(`${containerId}_counter`).textContent = `${idx + 1} / ${story.scenes.length}`;
-      // العنوان والأيقونة اختياريان — القصص اليومية القديمة بلا فصول
-      const chapter = document.getElementById(`${containerId}_chapter`);
-      chapter.innerHTML = (s.icon || s.title)
-        ? `${s.icon ? `<div class="story-chapter-icon">${s.icon}</div>` : ''}${s.title ? `<div class="story-chapter-title">${s.title}</div>` : ''}`
-        : '';
+    const el = suffix => document.getElementById(`${containerId}_${suffix}`);
+
+    function paint(withFade) {
+      const caption = el('caption'), chapter = el('chapter');
+      const apply = () => {
+        const s = story.scenes[idx];
+        el('scene').style.background = `linear-gradient(135deg, ${s.grad})`;
+        caption.textContent = s.caption;
+        el('counter').textContent = `${idx + 1} / ${story.scenes.length}`;
+        // العنوان والأيقونة اختياريان — القصص المولّدة قبل الفصول بلا أيّهما
+        chapter.innerHTML = (s.icon || s.title)
+          ? `${s.icon ? `<div class="story-chapter-icon">${s.icon}</div>` : ''}${s.title ? `<div class="story-chapter-title">${s.title}</div>` : ''}`
+          : '';
+        caption.classList.remove('is-out');
+        chapter.classList.remove('is-out');
+      };
+      if (!withFade) return apply();
+      caption.classList.add('is-out');
+      chapter.classList.add('is-out');
+      setTimeout(apply, FADE_MS);
     }
-    paint();
-    document.getElementById(`${containerId}_prev`).onclick = () => { idx = Math.max(0, idx - 1); paint(); };
-    document.getElementById(`${containerId}_next`).onclick = () => { idx = Math.min(story.scenes.length - 1, idx + 1); paint(); };
-    document.getElementById(`${containerId}_narrate`).onclick = () => narrate(story);
-    document.getElementById(`${containerId}_download`).onclick = () => exportVideo(story);
-    document.getElementById(`${containerId}_share`).onclick = () => share(story);
+
+    function stopPlay() {
+      if (timer) { clearInterval(timer); timer = null; }
+      const b = el('play');
+      if (b) { b.textContent = '▶ تشغيل'; b.classList.remove('btn-primary'); b.classList.add('btn-ghost'); }
+    }
+    function startPlay() {
+      if (timer) return;
+      // الضغط على «تشغيل» في آخر مشهد يعيد القصة من أولها
+      if (idx >= story.scenes.length - 1) { idx = 0; paint(true); }
+      const b = el('play');
+      if (b) { b.textContent = '⏸️ إيقاف'; b.classList.remove('btn-ghost'); b.classList.add('btn-primary'); }
+      timer = setInterval(() => {
+        if (idx >= story.scenes.length - 1) return stopPlay();
+        idx++; paint(true);
+      }, SCENE_MS);
+    }
+
+    paint(false);
+    // التقليب اليدوي يوقف التشغيل التلقائي — الطفل هو من يقود
+    el('prev').onclick = () => { stopPlay(); idx = Math.max(0, idx - 1); paint(true); };
+    el('next').onclick = () => { stopPlay(); idx = Math.min(story.scenes.length - 1, idx + 1); paint(true); };
+    el('narrate').onclick = () => narrate(story);
+    el('download').onclick = () => exportVideo(story);
+    el('share').onclick = () => share(story);
+
+    if (animate && story.scenes.length > 1) {
+      el('play').onclick = () => (timer ? stopPlay() : startPlay());
+      setTimeout(startPlay, 900);
+    }
   }
 
   function narrate(story) {

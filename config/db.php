@@ -18,9 +18,31 @@ function kidora_table_columns(PDO $pdo, string $table): array {
     return array_column($pdo->query("PRAGMA table_info({$table})")->fetchAll(), 'name');
 }
 
+/** هل الجدول موجود؟ اسم الجدول ثابت في الكود ولا يأتي من المستخدم. */
+function kidora_table_exists(PDO $pdo, string $table): bool {
+    $sql = DB_DRIVER === 'mysql'
+        ? "SELECT COUNT(*) c FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?"
+        : "SELECT COUNT(*) c FROM sqlite_master WHERE type = 'table' AND name = ?";
+    $st = $pdo->prepare($sql);
+    $st->execute([$table]);
+    return (int)$st->fetch()['c'] > 0;
+}
+
 /**
- * ترقيات تلقائية للقواعد المُنشأة قبل إضافة أعمدة جديدة.
- * آمنة للتكرار: تُضيف العمود فقط إذا كان مفقوداً.
+ * ينفّذ عبارة إنشاء جدول واحد كما هي مكتوبة في ملف الهيكل، حتى يبقى
+ * تعريف الجدول في ملف الهيكل وحده بدل تكراره هنا.
+ */
+function kidora_create_table_from_schema(PDO $pdo, string $table): void {
+    $file = __DIR__ . '/../database/' . (DB_DRIVER === 'mysql' ? 'schema.sql' : 'schema_sqlite.sql');
+    $sql = @file_get_contents($file);
+    if ($sql === false) return;
+    $pattern = '/CREATE TABLE IF NOT EXISTS\s+' . preg_quote($table, '/') . '\s*\(.*?\);/is';
+    if (preg_match($pattern, $sql, $m)) $pdo->exec($m[0]);
+}
+
+/**
+ * ترقيات تلقائية للقواعد المُنشأة قبل إضافة أعمدة أو جداول جديدة.
+ * آمنة للتكرار: تُضيف الناقص فقط.
  */
 function kidora_migrate(PDO $pdo): void {
     $isMysql = DB_DRIVER === 'mysql';
@@ -38,6 +60,16 @@ function kidora_migrate(PDO $pdo): void {
                 $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$col}` {$type}");
             }
         }
+    }
+
+    // محتوى الألعاب انتقل من games-engine.js إلى القاعدة. الثلاثة تُنشأ معاً،
+    // فوجود game_topics كافٍ للحكم — استعلام واحد لكل طلب بدل ثلاثة.
+    if (!kidora_table_exists($pdo, 'game_topics')) {
+        foreach (['game_topics', 'game_questions', 'game_scenarios'] as $t) {
+            kidora_create_table_from_schema($pdo, $t);
+        }
+        require_once __DIR__ . '/../database/seed.php';
+        kidora_seed_game_content($pdo);
     }
 }
 

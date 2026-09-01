@@ -2,12 +2,13 @@
 require_once __DIR__ . '/includes/guard.php';
 
 $tab = $_GET['tab'] ?? 'overview';
-$validTabs = ['overview','users','characters','tasks','games','history','subscriptions','institutions','settings'];
+$validTabs = ['overview','users','characters','tasks','games','gamecontent','assessment','history','subscriptions','institutions','settings'];
 if (!in_array($tab, $validTabs, true)) $tab = 'overview';
 
 $TAB_LABELS = [
     'overview' => '📊 نظرة عامة', 'users' => '👨‍👩‍👧 المستخدمون', 'characters' => '🐾 الشخصيات',
-    'tasks' => '🎯 المهام', 'games' => '🎮 الألعاب', 'history' => '🕌 الشخصيات التاريخية',
+    'tasks' => '🎯 المهام', 'games' => '🎮 الألعاب', 'gamecontent' => '🧩 محتوى الألعاب',
+    'assessment' => '📝 أسئلة التحليل', 'history' => '🕌 الشخصيات التاريخية',
     'subscriptions' => '💳 الاشتراكات', 'institutions' => '🏫 المؤسسات', 'settings' => '⚙️ الإعدادات',
 ];
 ?>
