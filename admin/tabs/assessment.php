@@ -51,7 +51,13 @@ $activeCount = count(array_filter($questions, fn($q) => $q['active']));
   <b><?php echo $activeCount; ?></b> من <?php echo count($questions); ?>،
   موزّعة على <?php echo count($axes); ?> محوراً.
   المحور هو ما يُقاس عليه نمو الطفل شهرياً، فاستخدم اسم محور موجود إلا إذا أردت محوراً جديداً فعلاً.
+  كل جلسة تحليل تسحب <b>10</b> أسئلة عشوائية من المُفعَّل.
 </p>
+<?php if ($activeCount < 10): ?>
+  <p style="background:#FFF4E5;border:2px solid #FFD8A8;border-radius:12px;padding:12px 16px;color:#B54708;font-weight:700;">
+    ⚠️ المُفعَّل الآن <?php echo $activeCount; ?> فقط، فالطفل سيرى جلسة أقصر («سؤال 1 من <?php echo $activeCount; ?>»). فعّل أو أضف أسئلة حتى تبلغ 10.
+  </p>
+<?php endif; ?>
 
 <div class="admin-form">
   <h3 style="margin-top:0;">إضافة سؤال تحليل</h3>

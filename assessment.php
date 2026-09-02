@@ -82,7 +82,10 @@ require_once __DIR__ . '/includes/navbar.php';
       <div class="quiz-confetti">🎉✨🌟💫🎊</div>
       <div style="font-size:52px;">🌟</div>
       <h3><?php echo h($flashMsg); ?></h3>
-      <a href="assessment.php" class="btn btn-primary" style="margin-top:12px;">التالي</a>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px;">
+        <button type="button" class="btn btn-listen" data-say="<?php echo h($flashMsg); ?>">🔊 اسمع</button>
+        <a href="assessment.php" class="btn btn-primary">التالي</a>
+      </div>
     </div>
 
   <?php elseif ($dueNow && !$doneNow && $currentQuestion): ?>
@@ -90,10 +93,16 @@ require_once __DIR__ . '/includes/navbar.php';
       <?php foreach ($qSet as $i => $qid): ?><span class="<?php echo in_array($qid,$answered) ? 'done' : (($qid===$currentQuestion['id']) ? 'current' : ''); ?>"></span><?php endforeach; ?>
     </div>
     <p style="text-align:center;color:#D9D0FF;font-weight:700;">سؤال <?php echo count($answered)+1; ?> من <?php echo count($qSet); ?></p>
+    <?php
+      // السؤال ثم الخيارات مرقّمة — الصغير الذي لا يقرأ بعد يسمع ما سيختاره
+      $sayQuestion = $currentQuestion['question'];
+      for ($i = 1; $i <= 3; $i++) $sayQuestion .= " الخيار {$i}: " . $currentQuestion["option_{$i}"] . '.';
+    ?>
     <div class="quiz-card card quiz-live">
       <div class="quiz-reaction-avatar" id="quizAvatar">🤔</div>
       <div class="quiz-axis"><?php echo h($currentQuestion['axis']); ?></div>
       <h3><?php echo h($currentQuestion['question']); ?></h3>
+      <button type="button" class="btn btn-listen" data-say="<?php echo h($sayQuestion); ?>">🔊 اسمع السؤال والخيارات</button>
       <form method="POST" class="quiz-options">
         <input type="hidden" name="answer_question_id" value="<?php echo (int)$currentQuestion['id']; ?>">
         <?php for ($i = 1; $i <= 3; $i++): ?>
@@ -148,6 +157,15 @@ require_once __DIR__ . '/includes/navbar.php';
 <footer class="site-footer">Kidora © 2026</footer>
 <script>window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;</script>
 <script>
+  <?php if ($currentQuestion && game_is_calm_age((int)$child['age'])): ?>
+    // تحت سنّ المؤقّتات (نفس قاعدة الألعاب): السؤال يُقرأ تلقائياً بعد تحية الرفيق،
+    // فالطفل الذي لا يقرأ بعد لا يحتاج أن يجد زر «اسمع» أولاً.
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(function(){
+        SoundEngine.speak(<?php echo json_encode($sayQuestion, JSON_UNESCAPED_UNICODE); ?>, window.KIDAURA_ACTIVE_CHARACTER);
+      }, 3200);
+    });
+  <?php endif; ?>
   function bounceAvatar(){
     const el = document.getElementById('quizAvatar');
     if (!el) return;

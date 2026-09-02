@@ -214,6 +214,43 @@ function youtube_embed_url(string $id): string {
 }
 
 /**
+ * يستخرج معرّف الفيديو (11 حرفاً) من أي شكل يلصقه الأدمن: المعرّف نفسه، أو
+ * رابط watch?v=، أو shorts/، أو youtu.be/، أو embed/، أو live/ — مع أي
+ * معاملات إضافية (?si=… التي تضيفها المشاركة من التطبيق).
+ *
+ * كان الحقل يُخزَّن كما هو، فرابط Shorts كامل (60+ حرفاً) أسقط الطلب
+ * بـ«Data too long for column youtube_id» على MySQL، ولو دخل لكان
+ * youtube_embed_url() قد بنى رابطاً معطوباً منه.
+ *
+ * يُعيد null للفراغ أو لما لا يشبه معرّف يوتيوب — لا يُقتطع الإدخال أبداً.
+ */
+function youtube_id_from_input(?string $raw): ?string {
+    $s = trim((string)$raw);
+    if ($s === '') return null;
+    if (preg_match('/^[A-Za-z0-9_-]{11}$/', $s)) return $s;
+
+    if (!preg_match('~^https?://~i', $s)) $s = 'https://' . $s;
+    $u = parse_url($s);
+    if (!$u || empty($u['host'])) return null;
+    $host = strtolower(preg_replace('/^(www|m|music)\./', '', $u['host']));
+    $path = $u['path'] ?? '';
+
+    $candidate = null;
+    if ($host === 'youtu.be') {
+        $candidate = ltrim($path, '/');
+    } elseif (in_array($host, ['youtube.com', 'youtube-nocookie.com'], true)) {
+        parse_str($u['query'] ?? '', $q);
+        if (!empty($q['v'])) {
+            $candidate = $q['v'];
+        } elseif (preg_match('~^/(?:shorts|embed|live|v)/([^/?#]+)~', $path, $m)) {
+            $candidate = $m[1];
+        }
+    }
+    $candidate = $candidate !== null ? explode('/', $candidate)[0] : null;
+    return ($candidate !== null && preg_match('/^[A-Za-z0-9_-]{11}$/', $candidate)) ? $candidate : null;
+}
+
+/**
  * طول الجولة كما يستهلكها GamesEngine: خمسة أسئلة، وأربعة مشاهد مغامرة.
  * القيمتان مرآة لـ TOTAL في runQuiz وslice في runAdventure — إن تغيّرت هناك
  * فلتتغيّر هنا، وإلا صار العمر يُجوّع اللعبة بلا أن يشتكي أحد.

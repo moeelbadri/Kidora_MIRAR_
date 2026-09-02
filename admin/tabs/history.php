@@ -1,11 +1,16 @@
 <?php
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_figure'])) {
     $name = trim($_POST['name']); $title = trim($_POST['title']); $desc = trim($_POST['description']);
-    $youtube = trim($_POST['youtube_id']); $story = trim($_POST['story_line']);
+    // يقبل المعرّف أو أي رابط يوتيوب (watch / shorts / youtu.be) ويخزّن المعرّف فقط
+    $youtubeRaw = trim($_POST['youtube_id'] ?? '');
+    $youtube = youtube_id_from_input($youtubeRaw);
+    $story = trim($_POST['story_line']);
     $category = trim($_POST['category'] ?? '');
-    if ($name && $desc) {
+    if ($youtubeRaw !== '' && $youtube === null) {
+        $_SESSION['admin_flash'] = 'رابط اليوتيوب غير مفهوم ⚠️ الصق رابط الفيديو كاملاً أو معرّفه (11 حرفاً)';
+    } elseif ($name && $desc) {
         $pdo->prepare("INSERT INTO history_figures (name,title,description,youtube_id,story_line,category) VALUES (?,?,?,?,?,?)")
-            ->execute([$name,$title,$desc,$youtube ?: null,$story,$category]);
+            ->execute([$name,$title,$desc,$youtube,$story,$category]);
         $_SESSION['admin_flash'] = 'تمت الإضافة ✅';
     }
     header('Location: ?tab=history'); exit;
@@ -25,7 +30,7 @@ $figures = $pdo->query("SELECT * FROM history_figures ORDER BY id DESC")->fetchA
       <input name="name" placeholder="الاسم" required>
       <input name="title" placeholder="اللقب/الوصف القصير">
       <input name="category" placeholder="التصنيف (يطابق تصنيف المهمة)">
-      <input name="youtube_id" placeholder="معرّف فيديو يوتيوب (اختياري)">
+      <input name="youtube_id" placeholder="رابط أو معرّف فيديو يوتيوب (اختياري)">
     </div>
     <div class="row">
       <input name="description" placeholder="وصف تعريفي قصير" style="grid-column:span 2;" required>

@@ -73,6 +73,11 @@ a{color:inherit;text-decoration:none;}
 .btn-block{ width:100%; }
 .btn-sm{ padding:9px 16px; font-size:14px; }
 .btn[disabled]{ opacity:.45; cursor:not-allowed; }
+/* زر «اسمع» — يقرأ data-say بصوت الرفيق (app.js). يُستخدم في التحليل والمهام كما في قسم الحماية */
+.btn-listen{ background:#E3FBF8; color:#137F74; border:2px solid #BFF0EA; padding:8px 14px; font-size:14px; }
+.btn-listen:hover{ background:#D2F6F1; }
+.btn-listen.is-speaking{ animation:listenPulse .6s ease-in-out 2; }
+@keyframes listenPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.08); } }
 .pill{ display:inline-block; padding:6px 14px; border-radius:999px; font-size:13px; font-weight:700; background:var(--cream-2); color:var(--coral); }
 .card{ background:rgba(255,255,255,.94); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.5); border-radius:var(--radius-md); box-shadow:0 18px 40px rgba(15,10,40,.35); }
 

@@ -81,7 +81,15 @@ require_once __DIR__ . '/includes/navbar.php';
 
     <?php if ($flashStory): ?>
       <!-- شاشة إنجاز المهمة: قصة السطر + شخصية تاريخية ملهمة -->
+      <?php
+        // قصة السطرين ثم الشخصية: ما يُعرض هو ما يُقرأ
+        $sayDone = $flashStory;
+        if ($flashFigure) $sayDone .= ' ' . $flashFigure['name'] . '، ' . $flashFigure['title'] . '. ' . $flashFigure['description'] . ' ' . $flashFigure['story_line'];
+      ?>
       <div class="story-line-toast">📖 <?php echo h($flashStory); ?> <?php echo $flashPoints ? "(+{$flashPoints} ⭐)" : ''; ?></div>
+      <div style="text-align:center;margin-top:10px;">
+        <button type="button" class="btn btn-listen" data-say="<?php echo h($sayDone); ?>">🔊 اسمع القصة والشخصية</button>
+      </div>
 
       <?php if ($flashFigure): ?>
         <div class="card" style="max-width:560px;margin:20px auto;padding:26px;text-align:center;">
@@ -113,6 +121,7 @@ require_once __DIR__ . '/includes/navbar.php';
         <span class="pill task-cat"><?php echo h($currentTask['category']); ?></span>
         <h3><?php echo h($currentTask['title']); ?></h3>
         <p><?php echo h($currentTask['description']); ?></p>
+        <button type="button" class="btn btn-listen" data-say="<?php echo h($currentTask['title'] . '. ' . $currentTask['description']); ?>">🔊 اسمع المهمة</button>
         <?php if (!empty($currentTask['youtube_id'])): ?>
           <div class="task-video-wrap">
             <div style="position:relative;padding-bottom:56.25%;height:0;">

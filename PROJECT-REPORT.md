@@ -47,7 +47,11 @@ Two defining design decisions:
 
 - Operator WhatsApp number lives in `settings.whatsapp_number` (currently
   `972592038364`), editable from the admin Settings tab.
-- Plans seeded: **البداية** (free) · **المستكشف** ₪49/month · **العائلة** ₪99/month.
+- Plans seeded (fresh DB only): **البداية** (free) · **الشهرية** ₪15/month ·
+  **السنوية** ₪150/year. Seed values never overwrite an existing database — the
+  admin Subscriptions tab has a full **edit** form (name, price, cycle, features one
+  per line, display order), and that is how the live plans are meant to be changed.
+  Deleting a plan that has subscriptions is refused (it would orphan `subscriptions.plan_id`).
 - Every outbound message is also logged to the `wa_log` table (`log_wa()`).
 - `is_premium_active()` deliberately requires `price_ils > 0`, so the free plan
   being `active` does not unlock premium characters.
@@ -95,6 +99,19 @@ assessment-due greeting.
 - Results render as a bar chart expressed as a **level out of 3, deliberately not a
   percentage** (`assessment_axis_summary()` → `AVG(value)`).
 - A button WhatsApps the full report to the parent (`profile.php`).
+- **Read-aloud (Sep 2026).** The question card has a `🔊 اسمع السؤال والخيارات`
+  button (question + numbered options) and the companion's reply card has `🔊 اسمع`.
+  Under `GAME_TIMER_MIN_AGE` the question is also spoken automatically ~3 s after
+  the page greeting. Same on `tasks.php`: `🔊 اسمع المهمة` on the mission card and
+  `🔊 اسمع القصة والشخصية` on the completion screen. All of these are the shared
+  `data-say` button (handler in `app.js`, `.btn-listen` in `main.css`); if the 🗣️
+  voice toggle is off the button shows a toast pointing at it instead of doing nothing.
+- A session needs **10** active `quiz_questions`. Databases seeded before Aug 2026
+  had only 6, which is why the UI said "سؤال 1 من 6". `kidora_migrate()` now calls
+  `kidora_seed_assessment_questions($pdo, 10)`, which adds seed questions for any
+  **axis** that has no question yet (matching by axis, not text, so drifted wording
+  does not duplicate) until the active count reaches 10. Admin-written or disabled
+  questions are never touched; the admin tab shows a warning while the count is below 10.
 
 ### `tasks.php` — the core
 - 4 tasks drawn at random, filtered `age_min <= age <= age_max`, then **pinned for
@@ -261,8 +278,11 @@ database/             schema.sql (MySQL) · schema_sqlite.sql · seed.php
   `kidora_seed()` always saw non-zero. If you add content, add it to `seed.php`.)
 - `kidora_migrate()` in `config/db.php` adds missing columns idempotently on every
   connect (`PRAGMA table_info` / `SHOW COLUMNS` then `ALTER TABLE`), so an existing
-  database picks up new columns without a reset. It does **not** backfill content —
-  to get new seed content into an existing dev DB, delete `storage/kidora.sqlite`.
+  database picks up new columns without a reset. On MySQL it also widens any
+  `youtube_id VARCHAR(<64)` to `VARCHAR(64)` (`SHOW COLUMNS … LIKE` then `MODIFY`).
+  It does **not** backfill content, with one deliberate exception — the assessment
+  top-up described in §3 — so to get other new seed content into an existing dev DB,
+  delete `storage/kidora.sqlite`.
 - `storage/*.sqlite` is gitignored (`storage/.gitignore`).
 
 ### Page contract
@@ -401,12 +421,12 @@ string equality** against constants in `config/config.php` L43–44
 | نظرة عامة (overview) | counts + active-subscriber-per-plan bar chart |
 | المستخدمون (users) | sortable table (name/age/points), parent data, plan badge, per-child behaviour analysis |
 | الشخصيات (characters) | full CRUD **incl. edit**, image + audio upload, toggle free↔premium |
-| المهام (tasks) | add / delete / toggle active (no edit form) |
+| المهام (tasks) | add / delete / toggle active (no edit form). The YouTube field accepts a pasted URL (watch / shorts / youtu.be / embed / live, with `?si=` etc.) or a bare ID — `youtube_id_from_input()` stores only the 11-char ID and rejects anything else with a flash |
 | الألعاب (games) | add / delete |
 | محتوى الألعاب (gamecontent) | per-topic editor for `game_questions` + `game_scenarios`: add, approve, enable/disable, delete, and bulk-approve a whole topic. Shows which Arabic categories feed each topic |
 | أسئلة التحليل (assessment) | `quiz_questions` editor: add (axis autocompletes from existing axes), enable/disable, delete |
-| الشخصيات التاريخية (history) | add / delete |
-| الاشتراكات (subscriptions) | approve / reject pending requests with direct WhatsApp link, add/delete plans |
+| الشخصيات التاريخية (history) | add / delete; same URL-or-ID YouTube handling as tasks |
+| الاشتراكات (subscriptions) | approve / reject pending requests with direct WhatsApp link; add / **edit** / delete plans (edit = `?tab=subscriptions&edit_plan=ID`, same form prefilled; delete refused while subscriptions reference the plan) |
 | المؤسسات (institutions) | add / delete partner orgs |
 | الإعدادات (settings) | WhatsApp number, platform name, future story API key |
 
@@ -606,6 +626,24 @@ These were not in the original list; recorded so they are not reintroduced.
     three (task, figure, landing page) now go through `youtube_embed_url()` →
     `youtube-nocookie.com` with related videos restricted to the same channel.
 
+### Found and fixed during the Sep 2026 admin pass
+
+43. ~~**Pasting a YouTube link into the admin crashed the page.**~~ `youtube_id` was
+    `VARCHAR(30)` on MySQL and the field was stored verbatim, so a Shorts share link
+    (`https://youtube.com/shorts/…?si=…`, 60+ chars) died with
+    `SQLSTATE[22001] Data too long for column 'youtube_id'` — and had it fit, the
+    embed URL built from it would have been broken anyway. Both admin tabs now go
+    through `youtube_id_from_input()`, the column is widened to 64 by the migration,
+    and unrecognised input is refused with a message instead of being truncated.
+44. ~~**Live databases seeded before Aug 2026 ran a 6-question assessment.**~~ The
+    schema-file `INSERT` blocks were removed then, but nothing topped up databases
+    that already existed, so production kept showing "سؤال 1 من 6". See §3.
+45. ~~**Plans could only be added or deleted, never edited**~~, so changing a price
+    meant deleting a plan that active subscriptions pointed at. Edit form added; delete
+    is guarded.
+46. ~~**Assessment questions and missions had no read-aloud control**~~ although
+    safety scenes and the games did. Shared `data-say` button added (see §3).
+
 **Still open, needs product input:** all 29 missions have `youtube_id = NULL`, so no
 mission shows a video yet. `docs/mission-video-shortlist.md` holds three verified
 candidates per mission — existence, embeddability, channel, title and duration are
@@ -667,7 +705,12 @@ proxy the public hostname to `127.0.0.1:81`.
 - **Adding a task** should set `figure_id` and `youtube_id`; if you leave `figure_id`
   null, give the figure a `category` matching the task's so the fallback still pairs
   them sensibly. Never build an embed URL by hand — use `youtube_embed_url()`, which
-  is what keeps playback on `youtube-nocookie.com`.
+  is what keeps playback on `youtube-nocookie.com`. Any path that **stores** a
+  `youtube_id` from user input must run it through `youtube_id_from_input()` first;
+  the column holds an 11-char ID, never a URL.
+- **Read-aloud** is `<button class="btn btn-listen" data-say="…">` — do not write
+  per-page `SoundEngine.speak` click handlers; the shared handler in `app.js` also
+  handles the muted case.
 - **All seed content goes in `database/seed.php`**, never in the schema files.
 - **In-game content belongs in the database**, not in `games-engine.js`. Add rows to
   `game_questions` / `game_scenarios` (or use the محتوى الألعاب admin tab). The

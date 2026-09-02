@@ -4,14 +4,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_task'])) {
     $ageMin = (int)$_POST['age_min']; $ageMax = (int)$_POST['age_max'];
     // جملة اسمية: سطر القصة يظهر بجوار اسم الطفل، والتطبيق لا يسجّل جنسه
     $story = trim($_POST['story_line']) ?: "مهمة «{$title}» منجزة بنجاح! ✨";
-    $youtube = trim($_POST['youtube_id']);
+    // يقبل المعرّف أو أي رابط يوتيوب (watch / shorts / youtu.be) ويخزّن المعرّف فقط
+    $youtubeRaw = trim($_POST['youtube_id'] ?? '');
+    $youtube = youtube_id_from_input($youtubeRaw);
     $points = (int)($_POST['points'] ?: 5);
     $gameType = array_key_exists($_POST['game_type'] ?? '', game_types()) ? $_POST['game_type'] : 'catch';
     $gameTitle = trim($_POST['game_title'] ?? '');
     $figureId = (int)($_POST['figure_id'] ?? 0) ?: null;
-    if ($title && $desc) {
+    if ($youtubeRaw !== '' && $youtube === null) {
+        $_SESSION['admin_flash'] = 'رابط اليوتيوب غير مفهوم ⚠️ الصق رابط الفيديو كاملاً أو معرّفه (11 حرفاً)';
+    } elseif ($title && $desc) {
         $pdo->prepare("INSERT INTO tasks (title,description,category,age_min,age_max,story_line,youtube_id,points,game_type,game_title,figure_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-            ->execute([$title,$desc,$cat,$ageMin ?: 4,$ageMax ?: 12,$story,$youtube ?: null,$points,$gameType,$gameTitle ?: 'لعبة قصيرة',$figureId]);
+            ->execute([$title,$desc,$cat,$ageMin ?: 4,$ageMax ?: 12,$story,$youtube,$points,$gameType,$gameTitle ?: 'لعبة قصيرة',$figureId]);
         $_SESSION['admin_flash'] = 'تمت إضافة المهمة ✅';
     }
     header('Location: ?tab=tasks'); exit;
@@ -43,7 +47,7 @@ $figures = $pdo->query("SELECT id, name, category FROM history_figures WHERE act
       <input name="story_line" placeholder="قصة السطرين عند الإنجاز" style="grid-column:span 2;">
     </div>
     <div class="row">
-      <input name="youtube_id" placeholder="معرّف فيديو يوتيوب عن المهمة (اختياري)">
+      <input name="youtube_id" placeholder="رابط أو معرّف فيديو يوتيوب عن المهمة (اختياري)">
       <input name="points" type="number" value="5" placeholder="النقاط">
       <select name="game_type">
         <?php foreach (game_types() as $slug => $label): ?>

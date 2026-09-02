@@ -74,6 +74,29 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // ---------- أزرار «اسمع» ----------
+  // أي زر يحمل data-say يقرأ نصّه بصوت الرفيق (مثل مشاهد قسم الحماية).
+  // إن كان الصوت مغلقاً من زر 🗣️ لا نتجاوز اختيار الطفل، بل نخبره أين يفتحه —
+  // بدل زرٍ يُضغط ولا يحدث شيء.
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-say]");
+    if (!btn) return;
+    const text = btn.getAttribute("data-say") || "";
+    if (!text.trim()) return;
+    if (!SoundEngine.isVoiceEnabled()) {
+      const wrap = document.getElementById("toastWrap");
+      if (wrap) {
+        const el = document.createElement("div"); el.className = "toast";
+        el.textContent = "الصوت مغلق — اضغط 🔈 في الأعلى لتشغيله";
+        wrap.appendChild(el); setTimeout(() => el.remove(), 3500);
+      }
+      return;
+    }
+    SoundEngine.speak(text, window.KIDAURA_ACTIVE_CHARACTER);
+    btn.classList.add("is-speaking");
+    setTimeout(() => btn.classList.remove("is-speaking"), 1200);
+  });
+
   // رسالة ترحيب تلقائية من الرفيق عند دخول أي صفحة (إن حُدّدت عبر PHP)
   if (window.KIDAURA_PAGE_LINE) {
     setTimeout(() => window.companionSay(window.KIDAURA_PAGE_LINE), 500);

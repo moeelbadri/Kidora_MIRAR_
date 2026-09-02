@@ -62,6 +62,24 @@ function kidora_migrate(PDO $pdo): void {
         }
     }
 
+    // youtube_id كان VARCHAR(30) على MySQL؛ رابط Shorts ملصوق كاملاً أسقط الإدخال
+    // بـ«Data too long». المدخل يُطبَّع الآن إلى المعرّف (11 حرفاً)، والعمود يُوسَّع
+    // احتياطاً حتى لا يعود الخطأ من أي مسار آخر. SQLite بلا حدّ طول أصلاً.
+    if ($isMysql) {
+        foreach (['tasks', 'history_figures', 'safety_content'] as $table) {
+            $st = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE 'youtube_id'");
+            $col = $st ? $st->fetch() : null;
+            if ($col && preg_match('/^varchar\((\d+)\)/i', $col['Type'], $m) && (int)$m[1] < 64) {
+                $pdo->exec("ALTER TABLE `{$table}` MODIFY `youtube_id` VARCHAR(64) DEFAULT NULL");
+            }
+        }
+    }
+
+    // قواعد أُنشئت أيام كانت ملفات الهيكل تبذر 6 أسئلة تحليل فقط تعرض «سؤال 1 من 6»؛
+    // الجلسة تحتاج 10. يُكمل من بنك البذر بالمحاور الناقصة دون لمس ما عدّله الأدمن.
+    require_once __DIR__ . '/../database/seed.php';
+    kidora_seed_assessment_questions($pdo, 10);
+
     // محتوى الألعاب انتقل من games-engine.js إلى القاعدة. الثلاثة تُنشأ معاً،
     // فوجود game_topics كافٍ للحكم — استعلام واحد لكل طلب بدل ثلاثة.
     if (!kidora_table_exists($pdo, 'game_topics')) {
