@@ -64,6 +64,81 @@ $__pageLine = $flashStory ? null : "يلا نبدأ هالمهمة سوا! 💪"
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
+<style>
+/* ===== إضافات التحفيز والاحتفال ===== */
+.celebration-box {
+    background: linear-gradient(135deg, #f9d423, #ff4e50);
+    border-radius: 60px 20px 60px 20px;
+    padding: 20px 30px;
+    margin: 20px auto;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(255, 78, 80, 0.4);
+    animation: pulse-glow 1.5s infinite alternate;
+    position: relative;
+    z-index: 2;
+}
+
+.celebration-text h2 {
+    color: #fff;
+    font-size: 2rem;
+    margin: 0 0 6px;
+    text-shadow: 0 3px 10px rgba(0,0,0,0.3);
+}
+
+.celebration-text p {
+    color: #fff;
+    font-size: 1.2rem;
+    margin: 0 0 6px;
+    opacity: 0.9;
+}
+
+.celebration-text .stars {
+    font-size: 2.5rem;
+    letter-spacing: 12px;
+    animation: spin-stars 3s linear infinite;
+}
+
+@keyframes pulse-glow {
+    0% { transform: scale(1); box-shadow: 0 8px 25px rgba(255, 78, 80, 0.4); }
+    100% { transform: scale(1.03); box-shadow: 0 15px 40px rgba(255, 78, 80, 0.7); }
+}
+
+@keyframes spin-stars {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.confetti-piece {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    animation: confetti-fall linear forwards;
+}
+
+@keyframes confetti-fall {
+    0% {
+        opacity: 1;
+        transform: translateY(-20px) rotate(0deg) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(100vh) rotate(720deg) scale(0.4);
+    }
+}
+</style>
 <div class="page-body">
 <main class="container" style="padding-top:26px;">
   <div class="section-head">
@@ -90,6 +165,16 @@ require_once __DIR__ . '/includes/navbar.php';
       <div style="text-align:center;margin-top:10px;">
         <button type="button" class="btn btn-listen" data-say="<?php echo h($sayDone); ?>">🔊 اسمع القصة والشخصية</button>
       </div>
+
+      <!-- ===== رسالة تحفيزية وتأثيرات احتفالية ===== -->
+      <div class="celebration-box">
+          <div class="celebration-text">
+              <h2>🌟 أحسنت! أنت بطل اليوم! 🌟</h2>
+              <p>كل مهمة تنجزها تقربك أكثر من القمة! استمر 💪</p>
+              <div class="stars">⭐ ⭐ ⭐ ⭐ ⭐</div>
+          </div>
+      </div>
+      <div id="confetti-container"></div>
 
       <?php if ($flashFigure): ?>
         <div class="card" style="max-width:560px;margin:20px auto;padding:26px;text-align:center;">
@@ -150,6 +235,9 @@ require_once __DIR__ . '/includes/navbar.php';
   <?php endif; ?>
   <?php if ($flashStory): ?>
     document.addEventListener('DOMContentLoaded', function(){
+      // إطلاق تأثيرات الاحتفال
+      launchConfetti(80);
+      
       const btn = document.getElementById('toGameBtn');
       if (btn) btn.onclick = function(){
         btn.style.display = 'none';
@@ -160,6 +248,25 @@ require_once __DIR__ . '/includes/navbar.php';
         }, { category: <?php echo json_encode($flashGameCategory, JSON_UNESCAPED_UNICODE); ?> });
       };
     });
+
+    function launchConfetti(count) {
+        const container = document.getElementById('confetti-container');
+        const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8A5C', '#6C5CE7', '#FD79A8'];
+        for (let i = 0; i < count; i++) {
+            const piece = document.createElement('div');
+            piece.className = 'confetti-piece';
+            piece.style.left = Math.random() * 100 + '%';
+            piece.style.top = '-10px';
+            piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            piece.style.width = (Math.random() * 10 + 6) + 'px';
+            piece.style.height = (Math.random() * 10 + 6) + 'px';
+            piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '4px';
+            piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            piece.style.animationDelay = (Math.random() * 1.5) + 's';
+            container.appendChild(piece);
+            setTimeout(() => { piece.remove(); }, 4000);
+        }
+    }
   <?php endif; ?>
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
