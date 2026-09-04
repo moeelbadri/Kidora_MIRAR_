@@ -895,7 +895,7 @@ require_once __DIR__ . '/includes/navbar.php';
         <h2 class="section-title">فيديو تعريفي للمنصة</h2>
     </div>
     <div class="video-wrapper">
-        <iframe src="<?php echo h(youtube_embed_url('slKwl9AGA5M')); ?>"
+        <iframe src="<?php echo h(youtube_embed_url('XIQBQk6F-ok')); ?>"
                 title="Kidora"
                 loading="lazy"
                 allowfullscreen>
