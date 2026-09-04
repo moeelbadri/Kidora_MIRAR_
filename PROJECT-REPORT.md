@@ -421,11 +421,11 @@ string equality** against constants in `config/config.php` L43–44
 | نظرة عامة (overview) | counts + active-subscriber-per-plan bar chart |
 | المستخدمون (users) | sortable table (name/age/points), parent data, plan badge, per-child behaviour analysis |
 | الشخصيات (characters) | full CRUD **incl. edit**, image + audio upload, toggle free↔premium |
-| المهام (tasks) | add / delete / toggle active (no edit form). The YouTube field accepts a pasted URL (watch / shorts / youtu.be / embed / live, with `?si=` etc.) or a bare ID — `youtube_id_from_input()` stores only the 11-char ID and rejects anything else with a flash |
+| المهام (tasks) | add / **edit** / delete / toggle active. Edit = `?tab=tasks&edit_task=ID`, same form prefilled. The YouTube field accepts a pasted URL (watch / shorts / youtu.be / embed / live, with `?si=` etc.) or a bare ID — `youtube_id_from_input()` stores only the 11-char ID and rejects anything else with a flash. This is the live MySQL `tasks` table, not a SQLite file |
 | الألعاب (games) | add / delete |
 | محتوى الألعاب (gamecontent) | per-topic editor for `game_questions` + `game_scenarios`: add, approve, enable/disable, delete, and bulk-approve a whole topic. Shows which Arabic categories feed each topic |
 | أسئلة التحليل (assessment) | `quiz_questions` editor: add (axis autocompletes from existing axes), enable/disable, delete |
-| الشخصيات التاريخية (history) | add / delete; same URL-or-ID YouTube handling as tasks |
+| الشخصيات التاريخية (history) | add / **edit** / delete; same URL-or-ID YouTube handling as tasks (`?tab=history&edit_figure=ID`) |
 | الاشتراكات (subscriptions) | approve / reject pending requests with direct WhatsApp link; add / **edit** / delete plans (edit = `?tab=subscriptions&edit_plan=ID`, same form prefilled; delete refused while subscriptions reference the plan) |
 | المؤسسات (institutions) | add / delete partner orgs |
 | الإعدادات (settings) | WhatsApp number, platform name, future story API key |
@@ -643,6 +643,11 @@ These were not in the original list; recorded so they are not reintroduced.
     is guarded.
 46. ~~**Assessment questions and missions had no read-aloud control**~~ although
     safety scenes and the games did. Shared `data-say` button added (see §3).
+47. ~~**Existing missions could not have a YouTube video attached from admin.**~~
+    Tasks and history figures were add/delete only, so the 29 seeded rows stayed
+    `youtube_id = NULL` unless someone wrote SQL. The live site is MySQL, not the
+    local `storage/kidora.sqlite` file — that confusion made the data look
+    unreachable. Both tabs now have **تعديل** and show the stored ID (or «بدون فيديو»).
 
 **Still open, needs product input:** all 29 missions have `youtube_id = NULL`, so no
 mission shows a video yet. `docs/mission-video-shortlist.md` holds three verified
