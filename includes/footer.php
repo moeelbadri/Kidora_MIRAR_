@@ -1,8 +1,8 @@
 <?php
 /**
  * ملف التذييل العام للمنصة
- * يشمل: الرفيق الدائم (الشخصية الناطقة المتحركة) بحجم أكبر، بدون إطار، مع حركة الفم واليدين.
- * تم إصلاح مشكلة ظهوره كمربع صغير يختفي.
+ * يشمل: الرفيق الدائم (الشخصية الناطقة المتحركة) بحجم أكبر، بدون إطار،
+ * مع حركة الفم واليدين، وإمكانية تبديل الشخصية بالنقر على الرفيق نفسه.
  */
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -66,7 +66,7 @@ if (!defined('BASE_PATH')) {
     define('BASE_PATH', $__base);
 }
 ?>
-</div><!-- /.app-wrapper (إن وُجد) -->
+</div><!-- /.app-wrapper -->
 
 <div class="toast-wrap" id="toastWrap"></div>
 
@@ -74,10 +74,8 @@ if (!defined('BASE_PATH')) {
 <div id="companionWidget">
     <div id="companionBubble"></div>
     <div class="companion-col">
-        <?php if ($canSwap): ?>
-        <button id="companionSwapBtn" title="بدّل الرفيق">🔄</button>
-        <?php endif; ?>
-        <div id="companionAvatar" class="move-<?php echo h($activeChar['move_type'] ?? 'wiggle'); ?>">
+        <!-- إزالة زر التبديل المنفصل وجعل النقر على الرفيق هو الذي يبدل -->
+        <div id="companionAvatar" class="move-<?php echo h($activeChar['move_type'] ?? 'wiggle'); ?>" data-char1="<?php echo $char1; ?>" data-char2="<?php echo $char2; ?>" data-active="<?php echo $activeId; ?>">
             <?php if (!empty($activeChar['image_path'])): ?>
                 <img src="<?php echo BASE_PATH . '/' . h($activeChar['image_path']); ?>" alt="<?php echo h($activeChar['name']); ?>">
             <?php else: ?>
@@ -93,7 +91,7 @@ if (!defined('BASE_PATH')) {
 
 <style>
 /* ============================================================
-   الرفيق الدائم – إصلاح كامل (مربع/مستطيل، كبير، لا يختفي)
+   الرفيق الدائم – إصلاح كامل (كبير، لا يختفي، نقر سهل)
    ============================================================ */
 #companionWidget {
   position: fixed;
@@ -117,47 +115,31 @@ if (!defined('BASE_PATH')) {
   gap: 10px;
 }
 
-#companionSwapBtn {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 40px;
-  color: #fff;
-  padding: 8px 14px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: 0.3s;
-  backdrop-filter: blur(6px);
-  font-weight: 700;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-}
-
-#companionSwapBtn:hover {
-  background: rgba(255,255,255,0.2);
-  transform: scale(1.05);
-}
-
-/* ===== الحاوية الرئيسية للشخصية ===== */
+/* ===== الحاوية الرئيسية للشخصية – حجم أكبر ===== */
 #companionAvatar {
   position: relative;
-  width: 120px;          /* حجم كبير */
-  height: 120px;
+  width: 140px;          /* حجم كبير جداً */
+  height: 140px;
   border-radius: 0;      /* لا إطار دائري – مربع/مستطيل */
   background: transparent !important;
   box-shadow: none !important;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.3s, filter 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: visible;     /* الأيدي تخرج خارج الحدود */
-  filter: drop-shadow(0 8px 25px rgba(0,0,0,0.5));
-  /* نضمن عدم وجود أي خلفية أو حدود */
+  overflow: visible;
+  filter: drop-shadow(0 10px 30px rgba(0,0,0,0.6));
   border: none;
   outline: none;
+  /* زيادة مساحة النقر عبر padding */
+  padding: 10px;
+  margin: -10px; /* تعويض padding ليبقى الحجم المرئي كما هو */
 }
 
 #companionAvatar:hover {
   transform: scale(1.08);
+  filter: drop-shadow(0 12px 40px rgba(167,139,250,0.3));
 }
 
 /* الصورة أو الإيموجي */
@@ -165,11 +147,11 @@ if (!defined('BASE_PATH')) {
 #companionAvatar .char-emoji {
   width: 100%;
   height: 100%;
-  object-fit: contain;   /* تحافظ على النسبة مع ملء الحاوية */
+  object-fit: contain;
   display: block;
-  font-size: 90px;
+  font-size: 110px;
   line-height: 1;
-  border-radius: 0;      /* لا تقليم دائري */
+  border-radius: 0;
 }
 
 /* ===== الفم المتحرك ===== */
@@ -178,10 +160,10 @@ if (!defined('BASE_PATH')) {
   bottom: 20%;
   left: 50%;
   transform: translateX(-50%);
-  width: 28px;
-  height: 12px;
+  width: 32px;
+  height: 14px;
   background: #2d1b3a;
-  border-radius: 0 0 25px 25px;
+  border-radius: 0 0 30px 30px;
   transition: height 0.15s, border-radius 0.15s;
   opacity: 0.8;
   z-index: 2;
@@ -189,176 +171,178 @@ if (!defined('BASE_PATH')) {
 }
 
 #companionAvatar.talking .companion-mouth {
-  height: 22px;
+  height: 26px;
   border-radius: 50% / 60% 60% 20% 20%;
   animation: mouthTalk 0.3s infinite alternate;
 }
 
 @keyframes mouthTalk {
-  0% { height: 12px; border-radius: 0 0 25px 25px; }
-  100% { height: 26px; border-radius: 50% / 60% 60% 20% 20%; }
+  0% { height: 14px; border-radius: 0 0 30px 30px; }
+  100% { height: 30px; border-radius: 50% / 60% 60% 20% 20%; }
 }
 
 /* ===== اليدين ===== */
 .companion-hand {
   position: absolute;
-  width: 30px;
-  height: 30px;
-  background: rgba(255,255,255,0.08);
+  width: 36px;
+  height: 36px;
+  background: rgba(255,255,255,0.1);
   border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.1);
-  backdrop-filter: blur(2px);
+  border: 2px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(4px);
   transition: transform 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 22px;
   color: #fff;
   z-index: 3;
   pointer-events: none;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
 .companion-hand-left {
   bottom: 2%;
-  left: -5%;
+  left: -6%;
   transform-origin: center;
 }
 
 .companion-hand-right {
   bottom: 2%;
-  right: -5%;
+  right: -6%;
   transform-origin: center;
 }
 
 .companion-hand-left::after {
   content: "✋";
-  font-size: 16px;
-  opacity: 0.7;
+  font-size: 18px;
+  opacity: 0.8;
 }
 .companion-hand-right::after {
   content: "✋";
-  font-size: 16px;
-  opacity: 0.7;
+  font-size: 18px;
+  opacity: 0.8;
 }
 
 #companionAvatar.talking .companion-hand-left {
-  animation: handWaveLeft 0.4s infinite alternate;
+  animation: handWaveLeft 0.5s infinite alternate;
 }
 #companionAvatar.talking .companion-hand-right {
-  animation: handWaveRight 0.4s infinite alternate;
+  animation: handWaveRight 0.5s infinite alternate;
 }
 
 @keyframes handWaveLeft {
   0% { transform: rotate(0deg) translateY(0); }
-  100% { transform: rotate(-18deg) translateY(-10px); }
+  100% { transform: rotate(-20deg) translateY(-12px); }
 }
 @keyframes handWaveRight {
   0% { transform: rotate(0deg) translateY(0); }
-  100% { transform: rotate(18deg) translateY(-10px); }
+  100% { transform: rotate(20deg) translateY(-12px); }
 }
 
 /* ===== فقاعة الكلام ===== */
 #companionBubble {
-  background: rgba(20, 10, 42, 0.9);
+  background: rgba(20, 10, 42, 0.92);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(167, 139, 250, 0.2);
+  border: 1px solid rgba(167, 139, 250, 0.25);
   border-radius: 20px 20px 4px 20px;
-  padding: 14px 20px;
-  max-width: 260px;
+  padding: 14px 22px;
+  max-width: 280px;
   color: #f1f5f9;
   font-size: 16px;
-  line-height: 1.7;
+  line-height: 1.8;
   display: none;
-  margin-bottom: 6px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  margin-bottom: 8px;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.7);
   pointer-events: none;
 }
 
 #companionBubble.show {
   display: block;
-  animation: bubbleAppear 0.3s ease;
+  animation: bubbleAppear 0.35s ease;
 }
 
 @keyframes bubbleAppear {
-  0% { opacity: 0; transform: translateY(15px) scale(0.9); }
+  0% { opacity: 0; transform: translateY(20px) scale(0.9); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ===== حركات الشخصية الأساسية ===== */
+/* ===== حركات الشخصية الأساسية (تبقى كما هي مع زيادة السعة) ===== */
 .move-wiggle {
   animation: wiggle 2s infinite ease-in-out;
 }
 .move-bounce {
-  animation: bounce 2s infinite ease;
+  animation: bounce 2.2s infinite ease;
 }
 .move-dash {
-  animation: dash 3s infinite linear;
+  animation: dash 3.5s infinite linear;
 }
 .move-float {
-  animation: float 3s infinite ease-in-out;
+  animation: float 3.5s infinite ease-in-out;
 }
 .move-hop {
-  animation: hop 1.8s infinite ease;
+  animation: hop 2s infinite ease;
 }
 .move-stomp {
-  animation: stomp 2s infinite ease;
+  animation: stomp 2.2s infinite ease;
 }
 
 @keyframes wiggle {
-  0%,100% { transform: rotate(-4deg) translateY(0); }
-  50% { transform: rotate(4deg) translateY(-8px); }
+  0%,100% { transform: rotate(-5deg) translateY(0); }
+  50% { transform: rotate(5deg) translateY(-10px); }
 }
 @keyframes bounce {
   0%,100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+  50% { transform: translateY(-25px); }
 }
 @keyframes dash {
   0% { transform: translateX(0); }
-  50% { transform: translateX(20px); }
+  50% { transform: translateX(25px); }
   100% { transform: translateX(0); }
 }
 @keyframes float {
   0%,100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-25px) rotate(5deg); }
+  50% { transform: translateY(-30px) rotate(6deg); }
 }
 @keyframes hop {
   0%,100% { transform: translateY(0) scale(1,1); }
-  30% { transform: translateY(-25px) scale(1.1,0.9); }
+  30% { transform: translateY(-30px) scale(1.12,0.88); }
   60% { transform: translateY(0) scale(0.95,1.05); }
 }
 @keyframes stomp {
   0%,100% { transform: translateY(0); }
-  50% { transform: translateY(-12px) scale(1.05,0.95); }
+  50% { transform: translateY(-15px) scale(1.06,0.94); }
 }
 
 /* استجابة للشاشات الصغيرة */
 @media (max-width: 480px) {
   #companionAvatar {
-    width: 90px;
-    height: 90px;
+    width: 100px;
+    height: 100px;
+    padding: 6px;
+    margin: -6px;
   }
   #companionAvatar .char-emoji {
-    font-size: 70px;
+    font-size: 80px;
   }
   .companion-hand {
-    width: 24px;
-    height: 24px;
-    font-size: 16px;
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
   }
   .companion-hand-left::after,
   .companion-hand-right::after {
-    font-size: 13px;
+    font-size: 15px;
   }
   .companion-mouth {
-    width: 22px;
-    height: 10px;
+    width: 26px;
+    height: 12px;
     bottom: 18%;
   }
   #companionBubble {
     font-size: 14px;
-    max-width: 180px;
-    padding: 10px 14px;
+    max-width: 200px;
+    padding: 10px 16px;
   }
   #companionWidget {
     bottom: 15px;
@@ -372,46 +356,91 @@ if (!defined('BASE_PATH')) {
 document.addEventListener('DOMContentLoaded', function() {
     const avatar = document.getElementById('companionAvatar');
     const bubble = document.getElementById('companionBubble');
-    const swapBtn = document.getElementById('companionSwapBtn');
 
     if (!avatar) return;
 
-    // ----- 1. تفعيل حركة التحدث -----
+    // ===== 1. متغيرات التحكم =====
+    let talkTimeout = null;
+    let isTalking = false;
+
+    // ===== 2. وظائف حركة التحدث =====
     function startTalking() {
+        if (isTalking) return;
+        isTalking = true;
         avatar.classList.add('talking');
+        // إلغاء أي مؤقت سابق
+        if (talkTimeout) clearTimeout(talkTimeout);
+        // بعد 3 ثوانٍ نوقف الحركة
+        talkTimeout = setTimeout(function() {
+            stopTalking();
+        }, 3000);
     }
 
     function stopTalking() {
+        isTalking = false;
         avatar.classList.remove('talking');
+        if (talkTimeout) {
+            clearTimeout(talkTimeout);
+            talkTimeout = null;
+        }
     }
 
-    // ----- 2. ربط الحركة بـ SoundEngine -----
+    // ===== 3. ربط الحركة بـ SoundEngine =====
     if (window.SoundEngine && typeof SoundEngine.speak === 'function') {
         const originalSpeak = SoundEngine.speak;
         SoundEngine.speak = function(text, character, callback) {
-            startTalking();
-            const duration = Math.max(800, (text ? text.length : 0) * 70);
-            const timer = setTimeout(function() {
-                stopTalking();
-            }, duration);
-
+            startTalking(); // تشغيل الحركة لمدة 3 ثوانٍ
             const wrappedCallback = function() {
-                clearTimeout(timer);
                 stopTalking();
                 if (typeof callback === 'function') callback();
             };
-
             return originalSpeak.call(this, text, character, wrappedCallback);
         };
     } else {
-        // اختبار عند النقر على الرفيق
+        // اختبار عند النقر (ننشط الحركة لمدة 3 ثوانٍ)
         avatar.addEventListener('click', function() {
-            avatar.classList.toggle('talking');
-            setTimeout(() => avatar.classList.remove('talking'), 2500);
+            startTalking();
         });
     }
 
-    // ----- 3. فقاعة الكلام (دالة عالمية) -----
+    // ===== 4. تبديل الشخصية عند النقر على الرفيق =====
+    avatar.addEventListener('click', function(e) {
+        // منع تنفيذ الاختبار أعلاه إذا كان SoundEngine غير موجود
+        // لكننا نضيف وظيفة التبديل هنا
+        const char1 = parseInt(avatar.dataset.char1, 10);
+        const char2 = parseInt(avatar.dataset.char2, 10);
+        if (char1 && char2 && char1 !== char2) {
+            // نعرض رسالة تبديل
+            window.showCompanionBubble('🔄 جارٍ تبديل الرفيق...');
+            // استدعاء دالة التبديل (نفترض وجودها في التطبيق)
+            if (window.swapCompanion) {
+                window.swapCompanion();
+            } else {
+                // بديل: إرسال طلب إلى الخادم لتبديل الشخصية
+                fetch(window.KIDAURA_BASE + '/api/swap-companion.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        window.showCompanionBubble('⚠️ لم نتمكن من التبديل، حاول مرة أخرى.');
+                    }
+                })
+                .catch(() => {
+                    window.showCompanionBubble('⚠️ حدث خطأ، حاول لاحقاً.');
+                });
+            }
+        } else {
+            // إذا كان هناك شخصية واحدة فقط، نعرض رسالة ترحيبية
+            window.showCompanionBubble('👋 أنا هنا لمساعدتك!');
+        }
+    });
+
+    // ===== 5. فقاعة الكلام (دالة عالمية) =====
     window.showCompanionBubble = function(message, duration) {
         if (!bubble) return;
         bubble.textContent = message || 'مرحباً!';
@@ -422,22 +451,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }, duration || 4000);
     };
 
-    // ----- 4. تبديل الشخصية -----
-    if (swapBtn) {
-        swapBtn.addEventListener('click', function() {
-            if (window.swapCompanion) {
-                window.swapCompanion();
-            } else {
-                alert('وظيفة تبديل الرفيق غير متاحة حالياً.');
-            }
-        });
-    }
-
-    // ----- 5. رسالة ترحيب -----
+    // ===== 6. رسالة ترحيب بعد 2 ثانية =====
     setTimeout(function() {
         const charName = <?php echo json_encode($activeChar['name'] ?? 'الرفيق'); ?>;
         window.showCompanionBubble('👋 أنا ' + charName + '، أنا معك في كل خطوة!');
+        // تشغيل حركة التحدث للترحيب
+        startTalking();
     }, 2000);
+
+    // ===== 7. إيقاف الحركة عند مغادرة الصفحة (تنظيف) =====
+    window.addEventListener('beforeunload', function() {
+        if (talkTimeout) clearTimeout(talkTimeout);
+        stopTalking();
+    });
 });
 </script>
 <?php else: ?>
