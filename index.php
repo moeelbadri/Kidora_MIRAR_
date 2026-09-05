@@ -141,8 +141,6 @@ require_once __DIR__ . '/includes/navbar.php';
         --bg-card-hover: rgba(255,255,255,0.06);
         --text-primary: #f1f5f9;
         --text-secondary: #c4b5d4;
-        /* كان #8b7aa8 وتباينه 2.7:1 فوق أفتح طور من الخلفية المتحركة — أقل من
-           4.5:1 المطلوبة لنص صغير (تسميات الأرقام، التذييل، سطر التنبيه). */
         --text-muted: #b9abd4;
         --primary: #a78bfa;
         --primary-dark: #7c3aed;
@@ -210,14 +208,9 @@ require_once __DIR__ . '/includes/navbar.php';
         line-height: 1.1;
         margin-bottom: 10px;
         letter-spacing: -1px;
-        /* ظل خفيف يثبّت قراءة العنوان عندما يمرّ أفتح جزء من التدرّج المتحرك تحته */
         text-shadow: 0 2px 14px rgba(10,6,26,.55);
     }
     .hero-content h1 .highlight {
-        /* الطرف الغامق من التدرّج السابق (--purple-dark #7c3aed) كان يختفي على
-           الخلفية البنفسجية. الطرفان الآن فاتحان.
-           لا تُستخدم background المختصرة — فهي تصفّر background-clip:text
-           فيظهر التدرّج كمستطيل صلب بدل أن يُقصّ على شكل الحروف. */
         background-image: linear-gradient(135deg, #ffffff, #c4b5fd);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -388,60 +381,168 @@ require_once __DIR__ . '/includes/navbar.php';
     }
 
     /* ============================================================
-       الشخصيات
+       الشخصيات – سكرول أفقي حيوي (معدل)
        ============================================================ */
-    .characters-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 20px;
-        margin-top: 10px;
+    .characters-scroll-wrapper {
+        position: relative;
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: visible;
+        padding: 20px 0 30px;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+        mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
     }
-    .character-card {
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        padding: 18px 12px 16px;
+
+    .characters-track {
+        display: flex;
+        gap: 28px;
+        padding: 10px 20px;
+        width: max-content;
+        animation: autoScroll 30s linear infinite;
+    }
+
+    .characters-track:hover {
+        animation-play-state: paused;
+    }
+
+    .characters-scroll-wrapper:has(.character-card-enhanced:hover) .characters-track {
+        animation-play-state: paused;
+    }
+
+    @keyframes autoScroll {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+
+    .character-card-enhanced {
+        flex: 0 0 220px;
+        scroll-snap-align: start;
+        border-radius: 28px;
+        padding: 20px 14px 18px;
         text-align: center;
-        transition: var(--transition);
-        border: 1px solid var(--border-light);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        position: relative;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        border: 1px solid rgba(255,255,255,0.06);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        overflow: hidden;
         cursor: default;
+        backdrop-filter: blur(4px);
+        transform: scale(0.95);
+        opacity: 0.8;
     }
-    .character-card:hover {
-        transform: translateY(-6px);
-        border-color: rgba(167,139,250,0.15);
-        background: var(--bg-card-hover);
-        box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+
+    .character-card-enhanced:hover {
+        transform: scale(1.05) translateY(-12px);
+        opacity: 1;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 40px var(--char-glow);
+        border-color: var(--char-color);
+        z-index: 10;
     }
-    .character-card .char-media {
+
+    .character-card-enhanced .char-glow-ring {
+        position: absolute;
+        inset: -2px;
+        border-radius: 28px;
+        background: radial-gradient(circle at 30% 20%, var(--char-color), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+
+    .character-card-enhanced:hover .char-glow-ring {
+        opacity: 0.6;
+    }
+
+    .char-media {
         aspect-ratio: 1/1;
         border-radius: 50%;
         overflow: hidden;
-        background: rgba(255,255,255,0.02);
-        margin: 0 auto 12px;
+        margin: 0 auto 14px;
+        width: 100px;
+        height: 100px;
+        background: rgba(0,0,0,0.3);
+        border: 3px solid rgba(255,255,255,0.08);
+        transition: all 0.4s;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 48px;
-        border: 2px solid rgba(255,255,255,0.04);
-        transition: 0.3s;
+        position: relative;
     }
-    .character-card:hover .char-media {
-        border-color: rgba(167,139,250,0.1);
+
+    .character-card-enhanced:hover .char-media {
+        border-color: var(--char-color);
+        box-shadow: 0 0 30px var(--char-glow);
     }
-    .character-card .char-media img {
+
+    .char-media img {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        transition: transform 0.4s;
     }
-    .character-card .name {
-        font-weight: 700;
-        color: var(--text-primary);
-        font-size: 16px;
+
+    .character-card-enhanced:hover .char-media img {
+        transform: scale(1.08);
+    }
+
+    .char-emoji {
+        font-size: 48px;
+    }
+
+    .char-info .name {
+        font-weight: 900;
+        font-size: 20px;
+        color: #fff;
         margin-bottom: 2px;
+        text-shadow: 0 2px 8px rgba(0,0,0,0.6);
     }
-    .character-card .title {
+
+    .char-info .title {
+        font-size: 13px;
+        color: #c4b5d4;
+        margin-bottom: 6px;
+        line-height: 1.3;
+    }
+
+    .char-trait {
+        display: inline-block;
+        background: rgba(255,255,255,0.05);
+        padding: 2px 14px;
+        border-radius: 20px;
         font-size: 12px;
-        color: var(--text-secondary);
+        color: var(--char-color);
+        border: 1px solid rgba(255,255,255,0.03);
+        font-weight: 600;
+    }
+
+    .char-hover-reveal {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: all 0.5s ease;
+        margin-top: 0;
+    }
+
+    .character-card-enhanced:hover .char-hover-reveal {
+        max-height: 120px;
+        opacity: 1;
+        margin-top: 14px;
+    }
+
+    .char-hover-reveal blockquote {
+        font-size: 14px;
+        font-style: italic;
+        color: #d9d0ff;
+        border-right: 3px solid var(--char-color);
+        padding-right: 12px;
+        margin: 0;
+        line-height: 1.6;
+        background: rgba(0,0,0,0.2);
+        border-radius: 12px;
+        padding: 10px 14px;
     }
 
     /* ============================================================
@@ -830,6 +931,17 @@ require_once __DIR__ . '/includes/navbar.php';
         .auth-card { padding: 20px 16px; }
         .characters-grid.pickable-grid { grid-template-columns: repeat(3, 1fr); }
         .features-grid { grid-template-columns: 1fr 1fr; }
+        .character-card-enhanced {
+            flex: 0 0 170px;
+            padding: 14px 10px;
+        }
+        .char-media {
+            width: 80px;
+            height: 80px;
+        }
+        .char-info .name {
+            font-size: 17px;
+        }
     }
     @media (max-width: 480px) {
         .hero-content h1 { font-size: 32px; }
@@ -844,6 +956,24 @@ require_once __DIR__ . '/includes/navbar.php';
         .auth-logo { font-size: 24px; }
         .field input, .field select { font-size: 15px; padding: 10px 12px; }
         .characters-grid.pickable-grid { grid-template-columns: repeat(3, 1fr); }
+        .character-card-enhanced {
+            flex: 0 0 140px;
+            padding: 10px 8px;
+        }
+        .char-media {
+            width: 70px;
+            height: 70px;
+        }
+        .char-info .name {
+            font-size: 15px;
+        }
+        .char-info .title {
+            font-size: 11px;
+        }
+        .char-hover-reveal blockquote {
+            font-size: 12px;
+            padding: 6px 10px;
+        }
     }
 </style>
 
@@ -888,20 +1018,21 @@ require_once __DIR__ . '/includes/navbar.php';
             </div>
         </div>
     </section>
-<!-- فيديو تعريفي -->
-<section class="video-section" id="video">
-    <div class="section-head">
-        <div class="eyebrow">شاهد</div>
-        <h2 class="section-title">فيديو تعريفي للمنصة</h2>
-    </div>
-    <div class="video-wrapper">
-        <iframe src="<?php echo h(youtube_embed_url('XIQBQk6F-ok')); ?>"
-                title="Kidora"
-                loading="lazy"
-                allowfullscreen>
-        </iframe>
-    </div>
-</section>
+
+    <!-- فيديو تعريفي -->
+    <section class="video-section" id="video">
+        <div class="section-head">
+            <div class="eyebrow">شاهد</div>
+            <h2 class="section-title">فيديو تعريفي للمنصة</h2>
+        </div>
+        <div class="video-wrapper">
+            <iframe src="<?php echo h(youtube_embed_url('XIQBQk6F-ok')); ?>"
+                    title="Kidora"
+                    loading="lazy"
+                    allowfullscreen>
+            </iframe>
+        </div>
+    </section>
 
     <!-- المميزات -->
     <section class="features-section" id="features">
@@ -944,7 +1075,7 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
     </section>
 
-    <!-- ===== قسم الذكاء الاصطناعي – توليد قصة مخصصة ===== -->
+    <!-- قسم الذكاء الاصطناعي – توليد قصة مخصصة -->
     <section class="ai-section" id="ai">
         <div class="ai-icon">🤖</div>
         <h2>قصص مخصصة بذكاء اصطناعي</h2>
@@ -960,27 +1091,80 @@ require_once __DIR__ . '/includes/navbar.php';
         <p style="font-size:14px; color:var(--text-muted); margin-top:14px;">⚠️ هذه القصة مثال، سيتم توليد قصة فريدة لكل طفل بعد التسجيل.</p>
     </section>
 
-    <!-- الشخصيات -->
-    <section class="characters-section">
+    <!-- ============================================================
+         الشخصيات – عرض حيوي مع سكرول تلقائي (معدل)
+         ============================================================ -->
+    <section class="characters-section" id="characters">
         <div class="section-head">
             <div class="eyebrow">رفقاؤك في الرحلة</div>
             <h2 class="section-title">اختر شخصيتك المفضلة</h2>
             <p class="section-sub">شخصيات كرتونية مرافقة، تتفاعل معك وتشجعك في كل خطوة</p>
         </div>
-        <div class="characters-grid">
-            <?php foreach ($characters as $c): ?>
-                <div class="character-card">
-                    <div class="char-media">
-                        <?php if (!empty($c['image_path'])): ?>
-                            <img src="<?php echo h($c['image_path']); ?>" alt="<?php echo h($c['name']); ?>">
-                        <?php else: ?>
-                            <span style="font-size:48px;"><?php echo character_icons($c)[0] ?? '✨'; ?></span>
-                        <?php endif; ?>
+
+        <div class="characters-scroll-wrapper">
+            <div class="characters-track" id="charactersTrack">
+                <?php foreach ($characters as $c): 
+                    $color = $c['color'] ?? '#a78bfa';
+                    $icon = character_icons($c)[0] ?? '✨';
+                    $trait = $c['trait'] ?? 'مميز';
+                    $quote = $c['quote'] ?? 'مرحباً!';
+                ?>
+                    <div class="character-card-enhanced" 
+                         style="--char-color: <?php echo h($color); ?>; 
+                                --char-glow: <?php echo h($color); ?>40;
+                                background: radial-gradient(circle at 30% 20%, <?php echo h($color); ?>30, transparent 70%), 
+                                            radial-gradient(circle at 80% 80%, <?php echo h($color); ?>20, transparent 60%),
+                                            #1a1020;">
+                        <div class="char-glow-ring"></div>
+                        <div class="char-media">
+                            <?php if (!empty($c['image_path'])): ?>
+                                <img src="<?php echo h($c['image_path']); ?>" alt="<?php echo h($c['name']); ?>">
+                            <?php else: ?>
+                                <span class="char-emoji"><?php echo $icon; ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="char-info">
+                            <div class="name"><?php echo h($c['name']); ?></div>
+                            <div class="title"><?php echo h($c['title']); ?></div>
+                            <div class="char-trait">🎯 <?php echo h($trait); ?></div>
+                        </div>
+                        <div class="char-hover-reveal">
+                            <blockquote>“<?php echo h($quote); ?>”</blockquote>
+                        </div>
                     </div>
-                    <div class="name"><?php echo h($c['name']); ?></div>
-                    <div class="title"><?php echo h($c['title']); ?></div>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+                <!-- نكرر نفس العناصر لإكمال الحلقة اللانهائية (لتكرار السكرول) -->
+                <?php foreach ($characters as $c): 
+                    $color = $c['color'] ?? '#a78bfa';
+                    $icon = character_icons($c)[0] ?? '✨';
+                    $trait = $c['trait'] ?? 'مميز';
+                    $quote = $c['quote'] ?? 'مرحباً!';
+                ?>
+                    <div class="character-card-enhanced" 
+                         style="--char-color: <?php echo h($color); ?>; 
+                                --char-glow: <?php echo h($color); ?>40;
+                                background: radial-gradient(circle at 30% 20%, <?php echo h($color); ?>30, transparent 70%), 
+                                            radial-gradient(circle at 80% 80%, <?php echo h($color); ?>20, transparent 60%),
+                                            #1a1020;">
+                        <div class="char-glow-ring"></div>
+                        <div class="char-media">
+                            <?php if (!empty($c['image_path'])): ?>
+                                <img src="<?php echo h($c['image_path']); ?>" alt="<?php echo h($c['name']); ?>">
+                            <?php else: ?>
+                                <span class="char-emoji"><?php echo $icon; ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="char-info">
+                            <div class="name"><?php echo h($c['name']); ?></div>
+                            <div class="title"><?php echo h($c['title']); ?></div>
+                            <div class="char-trait">🎯 <?php echo h($trait); ?></div>
+                        </div>
+                        <div class="char-hover-reveal">
+                            <blockquote>“<?php echo h($quote); ?>”</blockquote>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
         </div>
     </section>
 
@@ -1103,7 +1287,7 @@ require_once __DIR__ . '/includes/navbar.php';
 </div>
 
 <!-- ============================================================
-     JavaScript – اختيار الشخصيات للتسجيل
+     JavaScript – اختيار الشخصيات للتسجيل + تحسين السكرول التلقائي
      ============================================================ -->
 <script>
     // تبديل التبويبات
@@ -1148,8 +1332,23 @@ require_once __DIR__ . '/includes/navbar.php';
             alert('الرجاء اختيار شخصيتين بالضبط قبل المتابعة.');
         }
     });
+
+    // تحسين السكرول التلقائي للشخصيات (إيقاف الحركة عند hover)
+    document.addEventListener('DOMContentLoaded', function() {
+        const track = document.querySelector('.characters-track');
+        if (!track) return;
+
+        // إيقاف الحركة عند hover على أي كرت
+        const cards = document.querySelectorAll('.character-card-enhanced');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                track.style.animationPlayState = 'paused';
+            });
+            card.addEventListener('mouseleave', () => {
+                track.style.animationPlayState = 'running';
+            });
+        });
+    });
 </script>
-
-
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
