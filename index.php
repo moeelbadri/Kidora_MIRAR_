@@ -1,5 +1,5 @@
 <?php
-// index.php - Landing Page + Login/Register (نسخة بنفسجية غامقة)
+// index.php - Landing Page + Login/Register (نسخة بنفسجية غامقة) - متجاوبة بالكامل
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 }
 
 // ============================================================
-// معالجة التسجيل — الشخصيتان أولاً، ثم بيانات الحساب
+// معالجة التسجيل
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $name = trim($_POST['child_name'] ?? '');
@@ -125,7 +125,7 @@ $charDataForJS = array_map(function($c){
     ];
 }, $characters);
 
-// تحضير الشخصيات للكاروسيل (مع الصور)
+// تحضير الشخصيات للكاروسيل
 $carouselChars = [];
 foreach ($characters as $c) {
     $carouselChars[] = [
@@ -187,20 +187,21 @@ require_once __DIR__ . '/includes/navbar.php';
     }
 
     /* ============================================================
-       القسم الرئيسي (Hero) – إصدار محسّن للجوال + 3D
+       القسم الرئيسي (Hero) – محسّن للجوال
        ============================================================ */
     .hero-section {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        justify-content: space-between;
-        padding: 30px 0 40px;
-        gap: 30px;
+        justify-content: center;
+        padding: 20px 0 30px;
+        gap: 20px;
         min-height: auto;
     }
     .hero-content {
         flex: 1 1 400px;
         order: 1;
+        text-align: center;
     }
     .hero-badge {
         display: inline-block;
@@ -240,14 +241,15 @@ require_once __DIR__ . '/includes/navbar.php';
         font-size: 18px;
         color: #d9d0ff;
         max-width: 520px;
+        margin: 0 auto 30px;
         line-height: 1.9;
-        margin-bottom: 30px;
         text-shadow: 0 1px 10px rgba(10,6,26,.5);
     }
     .hero-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 16px;
+        justify-content: center;
     }
     .hero-actions .btn-large {
         padding: 16px 40px;
@@ -334,7 +336,6 @@ require_once __DIR__ . '/includes/navbar.php';
         line-height: 1;
         filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
     }
-    /* اسم الشخصية يظهر أسفل الكاروسيل */
     .hero-char-name {
         position: relative;
         z-index: 2;
@@ -391,11 +392,11 @@ require_once __DIR__ . '/includes/navbar.php';
     }
 
     /* ============================================================
-       باقي الأقسام (كما هي مع بعض التحسينات البسيطة)
+       باقي الأقسام (محسنة للجوال)
        ============================================================ */
     .section-head {
         text-align: center;
-        margin: 50px 0 30px;
+        margin: 40px 0 25px;
     }
     .eyebrow {
         color: var(--primary);
@@ -410,6 +411,7 @@ require_once __DIR__ . '/includes/navbar.php';
         font-weight: 900;
         color: var(--text-primary);
         margin: 6px 0 8px;
+        line-height: 1.2;
     }
     .section-sub {
         color: var(--text-secondary);
@@ -417,6 +419,7 @@ require_once __DIR__ . '/includes/navbar.php';
         max-width: 600px;
         margin: 0 auto;
         line-height: 1.7;
+        padding: 0 10px;
     }
 
     .features-grid {
@@ -475,7 +478,7 @@ require_once __DIR__ . '/includes/navbar.php';
     }
 
     /* ============================================================
-       الشخصيات – سكرول أفقي حيوي (كما هو)
+       الشخصيات – سكرول أفقي حيوي
        ============================================================ */
     .characters-scroll-wrapper {
         position: relative;
@@ -756,6 +759,7 @@ require_once __DIR__ . '/includes/navbar.php';
         padding: 32px 30px;
         border: 1px solid var(--border-light);
         box-shadow: var(--shadow-heavy);
+        box-sizing: border-box;
     }
     .auth-logo {
         font-size: 32px;
@@ -823,6 +827,7 @@ require_once __DIR__ . '/includes/navbar.php';
         font-size: 16px;
         transition: 0.3s;
         font-family: inherit;
+        box-sizing: border-box;
     }
     .field input:focus, .field select:focus {
         outline: none;
@@ -990,7 +995,6 @@ require_once __DIR__ . '/includes/navbar.php';
         .hero-content h1 { font-size: 40px; }
         .hero-subtitle { font-size: 22px; }
         .hero-description { font-size: 16px; }
-        .hero-visual .big-emoji { font-size: 90px; }
         .hero-actions .btn-large { padding: 14px 28px; font-size: 18px; }
         .section-title { font-size: 28px; }
         .auth-card { padding: 20px 16px; }
@@ -1035,11 +1039,16 @@ require_once __DIR__ . '/includes/navbar.php';
         .hero-char-name {
             font-size: 17px;
         }
+        .hero-section {
+            gap: 20px;
+            padding: 15px 0 20px;
+        }
     }
+
     @media (max-width: 480px) {
         .hero-content h1 { font-size: 32px; }
         .hero-subtitle { font-size: 18px; }
-        .hero-visual .big-emoji { font-size: 70px; }
+        .hero-description { font-size: 15px; }
         .hero-actions .btn-large { 
             padding: 12px 20px; 
             font-size: 16px; 
@@ -1109,13 +1118,15 @@ require_once __DIR__ . '/includes/navbar.php';
         }
         .hero-content {
             order: 2;
+            padding: 0 10px;
         }
         .hero-visual {
             order: 1;
+            width: 100%;
         }
         .hero-section {
-            padding: 10px 0 20px;
-            gap: 20px;
+            padding: 10px 0 15px;
+            gap: 15px;
         }
         .hero-actions {
             flex-direction: column;
@@ -1125,6 +1136,12 @@ require_once __DIR__ . '/includes/navbar.php';
             width: 100%;
             justify-content: center;
         }
+        .hero-description {
+            padding: 0 10px;
+        }
+        .section-sub {
+            font-size: 15px;
+        }
     }
 </style>
 
@@ -1133,7 +1150,7 @@ require_once __DIR__ . '/includes/navbar.php';
      ============================================================ -->
 <div class="landing-page">
 
-    <!-- القسم الرئيسي (Hero) – إصدار جديد مع كاروسيل 3D -->
+    <!-- القسم الرئيسي (Hero) -->
     <section class="hero-section">
         <div class="hero-content">
             <div class="hero-badge">🚀 منصة تربوية ذكية</div>
@@ -1260,7 +1277,7 @@ require_once __DIR__ . '/includes/navbar.php';
         <p style="font-size:14px; color:var(--text-muted); margin-top:14px;">⚠️ هذه القصة مثال، سيتم توليد قصة فريدة لكل طفل بعد التسجيل.</p>
     </section>
 
-    <!-- الشخصيات – سكرول أفقي حيوي (كما هو) -->
+    <!-- الشخصيات – سكرول أفقي حيوي -->
     <section class="characters-section" id="characters">
         <div class="section-head">
             <div class="eyebrow">رفقاؤك في الرحلة</div>
@@ -1443,7 +1460,7 @@ require_once __DIR__ . '/includes/navbar.php';
      JavaScript – اختيار الشخصيات + الكاروسيل 3D
      ============================================================ -->
 <script>
-    // 1. تبديل التبويبات (كما هو)
+    // 1. تبديل التبويبات
     document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.addEventListener('click', function () {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
@@ -1456,7 +1473,7 @@ require_once __DIR__ . '/includes/navbar.php';
         document.querySelector('.auth-tab[data-tab="register"]').click();
     <?php endif; ?>
 
-    // 2. اختيار شخصيتين (كما هو)
+    // 2. اختيار شخصيتين
     const CHAR_DATA = <?php echo json_encode($charDataForJS, JSON_UNESCAPED_UNICODE); ?>;
     let picked = [];
     function toggleCharPick(el) {
@@ -1486,7 +1503,7 @@ require_once __DIR__ . '/includes/navbar.php';
         }
     });
 
-    // 3. تحسين السكرول التلقائي للشخصيات (كما هو)
+    // 3. تحسين السكرول التلقائي للشخصيات
     document.addEventListener('DOMContentLoaded', function() {
         const track = document.querySelector('.characters-track');
         if (track) {
@@ -1498,7 +1515,7 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         // ============================================================
-        // 4. كاروسيل 3D للشخصيات في القسم الرئيسي (جديد)
+        // 4. كاروسيل 3D للشخصيات في القسم الرئيسي
         // ============================================================
         const carousel = document.getElementById('heroCarousel');
         const items = carousel ? carousel.querySelectorAll('.hero-carousel-item') : [];
@@ -1510,29 +1527,22 @@ require_once __DIR__ . '/includes/navbar.php';
             let intervalId = null;
             let isPaused = false;
 
-            // دالة تحديث الكاروسيل
             function goToIndex(index) {
-                // إزالة الكلاس active من الكل
                 items.forEach(item => item.classList.remove('active'));
-                // إضافة الكلاس active للعنصر الحالي
                 const target = items[index];
                 if (target) {
                     target.classList.add('active');
-                    // تحديث اسم الشخصية
                     const name = target.dataset.name || target.querySelector('img')?.alt || 'بطل';
                     if (nameDisplay) nameDisplay.textContent = name;
-                    // تحديث لون التوهج (اختياري)
                     const color = target.dataset.color || '#a78bfa';
                     if (visual) {
                         visual.style.setProperty('--glow-color', color);
-                        // تغيير لون الإطار الخفيف
                         visual.style.borderColor = color + '40';
                     }
                 }
                 currentIndex = index;
             }
 
-            // الانتقال للعنصر التالي
             function nextItem() {
                 if (isPaused) return;
                 let next = currentIndex + 1;
@@ -1540,13 +1550,11 @@ require_once __DIR__ . '/includes/navbar.php';
                 goToIndex(next);
             }
 
-            // بدء التبديل التلقائي كل 4 ثوانٍ
             function startAutoPlay() {
                 if (intervalId) clearInterval(intervalId);
                 intervalId = setInterval(nextItem, 4000);
             }
 
-            // إيقاف التبديل التلقائي مؤقتاً
             function pauseAutoPlay() {
                 isPaused = true;
                 if (intervalId) {
@@ -1555,7 +1563,6 @@ require_once __DIR__ . '/includes/navbar.php';
                 }
             }
 
-            // استئناف التبديل التلقائي
             function resumeAutoPlay() {
                 isPaused = false;
                 if (!intervalId) {
@@ -1563,9 +1570,8 @@ require_once __DIR__ . '/includes/navbar.php';
                 }
             }
 
-            // تأثير 3D: تتبع حركة الماوس (إمالة الكاروسيل)
+            // تأثير 3D بتتبع الماوس
             if (carousel && visual) {
-                // نطبق التأثير على حاوية الكاروسيل نفسها
                 carousel.addEventListener('mousemove', function(e) {
                     if (isPaused) return;
                     const rect = this.getBoundingClientRect();
@@ -1573,34 +1579,26 @@ require_once __DIR__ . '/includes/navbar.php';
                     const y = e.clientY - rect.top;
                     const centerX = rect.width / 2;
                     const centerY = rect.height / 2;
-                    // حساب زاوية الإمالة (حد أقصى 15 درجة)
-                    const rotateX = ((y - centerY) / centerY) * -10; // إمالة لأعلى/أسفل
-                    const rotateY = ((x - centerX) / centerX) * 10;  // إمالة لليسار/لليمين
+                    const rotateX = ((y - centerY) / centerY) * -10;
+                    const rotateY = ((x - centerX) / centerX) * 10;
                     this.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
                 });
 
                 carousel.addEventListener('mouseleave', function() {
                     this.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale(1)';
                 });
-
-                // للجوال: إمالة بسيطة بناءً على إمالة الجهاز (اختياري)
-                // نكتفي بالتأثير على سطح المكتب حالياً.
             }
 
-            // إيقاف التشغيل التلقائي عند التفاعل مع الكاروسيل (hover)
             carousel.addEventListener('mouseenter', pauseAutoPlay);
             carousel.addEventListener('mouseleave', resumeAutoPlay);
 
-            // بدء التشغيل
             goToIndex(0);
             startAutoPlay();
 
-            // تنظيف عند مغادرة الصفحة
             window.addEventListener('beforeunload', function() {
                 if (intervalId) clearInterval(intervalId);
             });
 
-            // نعرض الكاروسيل للاستخدام العالمي إن احتاجه شيء آخر
             window.heroCarousel = {
                 goTo: goToIndex,
                 next: nextItem,
