@@ -1,5 +1,5 @@
 <?php
-// index.php - Landing Page + Login/Register (نسخة بنفسجية غامقة) - متجاوبة بالكامل
+// index.php - Landing Page + Login/Register (نسخة بنفسجية غامقة)
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 }
 
 // ============================================================
-// معالجة التسجيل
+// معالجة التسجيل — الشخصيتان أولاً، ثم بيانات الحساب
 // ============================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $name = trim($_POST['child_name'] ?? '');
@@ -187,40 +187,39 @@ require_once __DIR__ . '/includes/navbar.php';
     }
 
     /* ============================================================
-       القسم الرئيسي (Hero) – محسّن للجوال
+       القسم الرئيسي (Hero) – متجاوب بالكامل
        ============================================================ */
     .hero-section {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
         padding: 20px 0 30px;
-        gap: 20px;
+        gap: 24px;
         min-height: auto;
     }
     .hero-content {
         flex: 1 1 400px;
         order: 1;
-        text-align: center;
     }
     .hero-badge {
         display: inline-block;
         background: var(--primary-glow);
         color: var(--primary);
-        padding: 6px 18px;
+        padding: 4px 14px;
         border-radius: 40px;
         font-weight: 700;
-        font-size: 13px;
+        font-size: 12px;
         border: 1px solid rgba(167,139,250,0.15);
         letter-spacing: 0.5px;
-        margin-bottom: 16px;
+        margin-bottom: 12px;
         backdrop-filter: blur(4px);
     }
     .hero-content h1 {
-        font-size: 56px;
+        font-size: 52px;
         font-weight: 900;
         line-height: 1.1;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         letter-spacing: -1px;
         text-shadow: 0 2px 14px rgba(10,6,26,.55);
     }
@@ -231,29 +230,28 @@ require_once __DIR__ . '/includes/navbar.php';
         background-clip: text;
     }
     .hero-subtitle {
-        font-size: 26px;
+        font-size: 24px;
         font-weight: 600;
         color: var(--text-primary);
-        margin-bottom: 14px;
+        margin-bottom: 10px;
         text-shadow: 0 2px 14px rgba(10,6,26,.55);
     }
     .hero-description {
-        font-size: 18px;
+        font-size: 17px;
         color: #d9d0ff;
         max-width: 520px;
-        margin: 0 auto 30px;
-        line-height: 1.9;
+        line-height: 1.8;
+        margin-bottom: 24px;
         text-shadow: 0 1px 10px rgba(10,6,26,.5);
     }
     .hero-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 16px;
-        justify-content: center;
+        gap: 12px;
     }
     .hero-actions .btn-large {
-        padding: 16px 40px;
-        font-size: 20px;
+        padding: 14px 32px;
+        font-size: 18px;
         font-weight: 800;
         border-radius: 60px;
     }
@@ -265,12 +263,12 @@ require_once __DIR__ . '/includes/navbar.php';
         background: var(--bg-card);
         backdrop-filter: blur(12px);
         border-radius: var(--radius-xl);
-        padding: 30px 20px 25px;
+        padding: 24px 16px 20px;
         border: 1px solid var(--border-light);
         position: relative;
         box-shadow: var(--shadow-soft);
         order: 2;
-        min-height: 350px;
+        min-height: 300px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -290,9 +288,9 @@ require_once __DIR__ . '/includes/navbar.php';
     .hero-carousel {
         position: relative;
         width: 100%;
-        max-width: 200px;
-        height: 200px;
-        margin: 0 auto 10px;
+        max-width: 180px;
+        height: 180px;
+        margin: 0 auto 8px;
         z-index: 1;
         transform-style: preserve-3d;
         transition: transform 0.1s ease-out;
@@ -305,15 +303,15 @@ require_once __DIR__ . '/includes/navbar.php';
         position: absolute;
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%) scale(0.6);
+        transform: translate(-50%, -50%) scale(0.5);
         opacity: 0;
-        transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
-        width: 160px;
-        height: 160px;
+        transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        width: 140px;
+        height: 140px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 100px;
+        font-size: 80px;
         border-radius: 0;
         filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
         pointer-events: none;
@@ -332,7 +330,7 @@ require_once __DIR__ . '/includes/navbar.php';
         filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
     }
     .hero-carousel-item .char-emoji {
-        font-size: 120px;
+        font-size: 100px;
         line-height: 1;
         filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
     }
@@ -340,17 +338,17 @@ require_once __DIR__ . '/includes/navbar.php';
         position: relative;
         z-index: 2;
         font-weight: 800;
-        font-size: 20px;
+        font-size: 18px;
         color: var(--text-primary);
         margin-top: 0;
         background: rgba(0,0,0,0.3);
-        padding: 4px 20px;
+        padding: 4px 16px;
         border-radius: 40px;
         backdrop-filter: blur(4px);
         border: 1px solid rgba(255,255,255,0.05);
         display: inline-block;
         transition: all 0.5s;
-        min-height: 40px;
+        min-height: 34px;
         line-height: 1.4;
     }
     .hero-char-name span {
@@ -361,8 +359,8 @@ require_once __DIR__ . '/includes/navbar.php';
     .hero-stats {
         display: flex;
         justify-content: center;
-        gap: 30px;
-        margin-top: 15px;
+        gap: 20px;
+        margin-top: 12px;
         position: relative;
         z-index: 1;
         flex-wrap: wrap;
@@ -370,69 +368,67 @@ require_once __DIR__ . '/includes/navbar.php';
     .hero-stats .stat {
         text-align: center;
         background: rgba(255,255,255,0.03);
-        padding: 6px 16px;
+        padding: 4px 14px;
         border-radius: 40px;
         border: 1px solid rgba(255,255,255,0.03);
         backdrop-filter: blur(4px);
-        min-width: 70px;
+        min-width: 60px;
     }
     .hero-stats .stat .number {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 900;
         color: var(--primary);
         display: block;
         line-height: 1.2;
     }
     .hero-stats .stat .label {
-        font-size: 13px;
+        font-size: 11px;
         color: var(--text-muted);
         font-weight: 600;
         display: block;
-        line-height: 1.4;
+        line-height: 1.3;
     }
 
     /* ============================================================
-       باقي الأقسام (محسنة للجوال)
+       باقي الأقسام
        ============================================================ */
     .section-head {
         text-align: center;
-        margin: 40px 0 25px;
+        margin: 40px 0 24px;
     }
     .eyebrow {
         color: var(--primary);
         font-weight: 700;
-        font-size: 13px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 2px;
         margin-bottom: 4px;
     }
     .section-title {
-        font-size: 34px;
+        font-size: 30px;
         font-weight: 900;
         color: var(--text-primary);
         margin: 6px 0 8px;
-        line-height: 1.2;
     }
     .section-sub {
         color: var(--text-secondary);
-        font-size: 17px;
+        font-size: 16px;
         max-width: 600px;
         margin: 0 auto;
         line-height: 1.7;
-        padding: 0 10px;
     }
 
     .features-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 24px;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
         margin-top: 10px;
     }
     .feature-card {
         background: var(--bg-card);
         backdrop-filter: blur(8px);
         border-radius: var(--radius-lg);
-        padding: 28px 20px 24px;
+        padding: 24px 16px 20px;
         text-align: center;
         border: 1px solid var(--border-light);
         transition: var(--transition);
@@ -445,18 +441,18 @@ require_once __DIR__ . '/includes/navbar.php';
         box-shadow: 0 16px 50px rgba(0,0,0,0.4);
     }
     .feature-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
+        font-size: 40px;
+        margin-bottom: 12px;
     }
     .feature-card h3 {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 800;
         color: var(--text-primary);
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
     .feature-card p {
         color: var(--text-secondary);
-        font-size: 15px;
+        font-size: 14px;
         line-height: 1.7;
         margin: 0;
     }
@@ -485,7 +481,7 @@ require_once __DIR__ . '/includes/navbar.php';
         width: 100%;
         overflow-x: auto;
         overflow-y: visible;
-        padding: 20px 0 30px;
+        padding: 16px 0 24px;
         scroll-behavior: smooth;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: x mandatory;
@@ -494,8 +490,8 @@ require_once __DIR__ . '/includes/navbar.php';
     }
     .characters-track {
         display: flex;
-        gap: 28px;
-        padding: 10px 20px;
+        gap: 20px;
+        padding: 8px 16px;
         width: max-content;
         animation: autoScroll 30s linear infinite;
     }
@@ -510,10 +506,10 @@ require_once __DIR__ . '/includes/navbar.php';
         100% { transform: translateX(-50%); }
     }
     .character-card-enhanced {
-        flex: 0 0 220px;
+        flex: 0 0 180px;
         scroll-snap-align: start;
-        border-radius: 28px;
-        padding: 20px 14px 18px;
+        border-radius: 24px;
+        padding: 16px 12px 14px;
         text-align: center;
         position: relative;
         transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -535,7 +531,7 @@ require_once __DIR__ . '/includes/navbar.php';
     .character-card-enhanced .char-glow-ring {
         position: absolute;
         inset: -2px;
-        border-radius: 28px;
+        border-radius: 24px;
         background: radial-gradient(circle at 30% 20%, var(--char-color), transparent 70%);
         opacity: 0;
         transition: opacity 0.4s;
@@ -548,9 +544,9 @@ require_once __DIR__ . '/includes/navbar.php';
         aspect-ratio: 1/1;
         border-radius: 50%;
         overflow: hidden;
-        margin: 0 auto 14px;
-        width: 100px;
-        height: 100px;
+        margin: 0 auto 10px;
+        width: 80px;
+        height: 80px;
         background: rgba(0,0,0,0.3);
         border: 3px solid rgba(255,255,255,0.08);
         transition: all 0.4s;
@@ -573,27 +569,27 @@ require_once __DIR__ . '/includes/navbar.php';
         transform: scale(1.08);
     }
     .char-emoji {
-        font-size: 48px;
+        font-size: 40px;
     }
     .char-info .name {
         font-weight: 900;
-        font-size: 20px;
+        font-size: 17px;
         color: #fff;
         margin-bottom: 2px;
         text-shadow: 0 2px 8px rgba(0,0,0,0.6);
     }
     .char-info .title {
-        font-size: 13px;
+        font-size: 12px;
         color: #c4b5d4;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         line-height: 1.3;
     }
     .char-trait {
         display: inline-block;
         background: rgba(255,255,255,0.05);
-        padding: 2px 14px;
+        padding: 2px 12px;
         border-radius: 20px;
-        font-size: 12px;
+        font-size: 11px;
         color: var(--char-color);
         border: 1px solid rgba(255,255,255,0.03);
         font-weight: 600;
@@ -606,21 +602,21 @@ require_once __DIR__ . '/includes/navbar.php';
         margin-top: 0;
     }
     .character-card-enhanced:hover .char-hover-reveal {
-        max-height: 120px;
+        max-height: 100px;
         opacity: 1;
-        margin-top: 14px;
+        margin-top: 10px;
     }
     .char-hover-reveal blockquote {
-        font-size: 14px;
+        font-size: 12px;
         font-style: italic;
         color: #d9d0ff;
         border-right: 3px solid var(--char-color);
-        padding-right: 12px;
+        padding-right: 10px;
         margin: 0;
         line-height: 1.6;
         background: rgba(0,0,0,0.2);
         border-radius: 12px;
-        padding: 10px 14px;
+        padding: 8px 12px;
     }
 
     /* ============================================================
@@ -628,15 +624,15 @@ require_once __DIR__ . '/includes/navbar.php';
        ============================================================ */
     .plans-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 24px;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
         margin-top: 10px;
     }
     .plan-card {
         background: var(--bg-card);
         backdrop-filter: blur(8px);
         border-radius: var(--radius-lg);
-        padding: 26px 20px;
+        padding: 22px 16px;
         text-align: center;
         border: 1px solid var(--border-light);
         transition: var(--transition);
@@ -648,27 +644,27 @@ require_once __DIR__ . '/includes/navbar.php';
         box-shadow: 0 16px 40px rgba(0,0,0,0.3);
     }
     .plan-card h3 {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 800;
         color: var(--text-primary);
         margin-bottom: 4px;
     }
     .plan-card .price {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 900;
         color: var(--primary);
-        margin-bottom: 16px;
+        margin-bottom: 14px;
     }
     .plan-card ul {
         list-style: none;
         padding: 0;
-        margin: 0 0 16px;
+        margin: 0 0 14px;
         text-align: right;
     }
     .plan-card ul li {
         color: var(--text-secondary);
-        font-size: 14px;
-        padding: 6px 0;
+        font-size: 13px;
+        padding: 4px 0;
         border-bottom: 1px solid rgba(255,255,255,0.03);
     }
     .plan-card ul li:last-child {
@@ -678,14 +674,14 @@ require_once __DIR__ . '/includes/navbar.php';
     .ai-section {
         background: linear-gradient(145deg, rgba(167,139,250,0.03), rgba(124,58,237,0.03));
         border-radius: var(--radius-xl);
-        padding: 40px 30px;
+        padding: 32px 20px;
         border: 1px solid var(--border-light);
         text-align: center;
-        margin: 40px 0 20px;
+        margin: 32px 0 16px;
         box-shadow: var(--shadow-soft);
     }
     .ai-section .ai-icon {
-        font-size: 60px;
+        font-size: 50px;
         animation: pulse 2.5s ease-in-out infinite;
     }
     @keyframes pulse {
@@ -693,22 +689,22 @@ require_once __DIR__ . '/includes/navbar.php';
         50% { transform: scale(1.08); opacity: 1; }
     }
     .ai-section h2 {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 900;
         color: var(--text-primary);
-        margin: 12px 0 8px;
+        margin: 10px 0 6px;
     }
     .ai-section p {
         color: var(--text-secondary);
-        font-size: 17px;
+        font-size: 15px;
         max-width: 550px;
-        margin: 0 auto 16px;
+        margin: 0 auto 14px;
         line-height: 1.8;
     }
     .ai-preview {
         background: rgba(255,255,255,0.02);
         border-radius: var(--radius-lg);
-        padding: 24px;
+        padding: 20px;
         max-width: 550px;
         margin: 0 auto;
         border: 1px dashed rgba(167,139,250,0.15);
@@ -717,22 +713,22 @@ require_once __DIR__ . '/includes/navbar.php';
     .ai-preview .story-title {
         font-weight: 800;
         color: var(--primary);
-        font-size: 20px;
-        margin-bottom: 6px;
+        font-size: 18px;
+        margin-bottom: 4px;
     }
     .ai-preview .story-snippet {
         color: var(--text-secondary);
-        font-size: 15px;
+        font-size: 14px;
         line-height: 1.8;
     }
     .ai-preview .story-tag {
         display: inline-block;
         background: var(--primary-glow);
         color: var(--primary);
-        font-size: 12px;
-        padding: 4px 16px;
+        font-size: 11px;
+        padding: 4px 14px;
         border-radius: 30px;
-        margin-top: 12px;
+        margin-top: 10px;
         font-weight: 600;
     }
 
@@ -740,29 +736,28 @@ require_once __DIR__ . '/includes/navbar.php';
        نموذج تسجيل الدخول / إنشاء حساب
        ============================================================ */
     .auth-section {
-        margin-top: 60px;
+        margin-top: 40px;
         border-top: 1px solid var(--border-light);
-        padding-top: 40px;
+        padding-top: 32px;
     }
     .auth-wrap {
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        padding: 10px 0 30px;
+        padding: 6px 0 20px;
     }
     .auth-card {
-        max-width: 640px;
+        max-width: 600px;
         width: 100%;
         background: var(--bg-card);
         backdrop-filter: blur(16px);
         border-radius: var(--radius-xl);
-        padding: 32px 30px;
+        padding: 28px 24px;
         border: 1px solid var(--border-light);
         box-shadow: var(--shadow-heavy);
-        box-sizing: border-box;
     }
     .auth-logo {
-        font-size: 32px;
+        font-size: 28px;
         font-weight: 900;
         color: var(--primary);
         text-align: center;
@@ -771,14 +766,14 @@ require_once __DIR__ . '/includes/navbar.php';
     .auth-sub {
         text-align: center;
         color: var(--text-secondary);
-        font-size: 16px;
-        margin-bottom: 24px;
+        font-size: 15px;
+        margin-bottom: 20px;
         line-height: 1.6;
     }
     .auth-tabs {
         display: flex;
-        gap: 8px;
-        margin-bottom: 24px;
+        gap: 6px;
+        margin-bottom: 20px;
         background: rgba(255,255,255,0.03);
         border-radius: 60px;
         padding: 4px;
@@ -786,7 +781,7 @@ require_once __DIR__ . '/includes/navbar.php';
     }
     .auth-tab {
         flex: 1;
-        padding: 10px;
+        padding: 8px;
         border: none;
         background: transparent;
         color: var(--text-secondary);
@@ -794,7 +789,7 @@ require_once __DIR__ . '/includes/navbar.php';
         border-radius: 40px;
         cursor: pointer;
         transition: 0.3s;
-        font-size: 16px;
+        font-size: 14px;
     }
     .auth-tab.active {
         background: linear-gradient(135deg, var(--primary), var(--purple-dark));
@@ -802,32 +797,31 @@ require_once __DIR__ . '/includes/navbar.php';
         box-shadow: 0 4px 15px rgba(167,139,250,0.2);
     }
     .auth-form {
-        margin-top: 10px;
+        margin-top: 8px;
     }
     .auth-form.hidden {
         display: none;
     }
     .field {
-        margin-bottom: 16px;
+        margin-bottom: 14px;
     }
     .field label {
         display: block;
         font-weight: 600;
         color: var(--text-primary);
-        margin-bottom: 5px;
-        font-size: 14px;
+        margin-bottom: 4px;
+        font-size: 13px;
     }
     .field input, .field select {
         width: 100%;
-        padding: 12px 14px;
+        padding: 10px 12px;
         background: rgba(255,255,255,0.04);
         border: 1px solid var(--border-light);
         border-radius: var(--radius-md);
         color: var(--text-primary);
-        font-size: 16px;
+        font-size: 15px;
         transition: 0.3s;
         font-family: inherit;
-        box-sizing: border-box;
     }
     .field input:focus, .field select:focus {
         outline: none;
@@ -843,24 +837,25 @@ require_once __DIR__ . '/includes/navbar.php';
         background: rgba(239,68,68,0.08);
         border: 1px solid rgba(239,68,68,0.15);
         border-radius: var(--radius-md);
-        padding: 12px 16px;
+        padding: 10px 14px;
         color: #f87171;
-        margin-bottom: 16px;
+        margin-bottom: 14px;
         font-weight: 600;
+        font-size: 14px;
     }
     .btn-block {
         width: 100%;
         justify-content: center;
-        padding: 14px;
-        font-size: 18px;
+        padding: 12px;
+        font-size: 16px;
         margin-top: 4px;
         border-radius: 60px;
     }
     .auth-toggle {
         text-align: center;
-        margin-top: 20px;
+        margin-top: 16px;
         color: var(--text-secondary);
-        font-size: 14px;
+        font-size: 13px;
     }
     .auth-toggle a {
         color: var(--primary);
@@ -878,15 +873,16 @@ require_once __DIR__ . '/includes/navbar.php';
         color: var(--primary);
         background: rgba(167,139,250,0.06);
         border-radius: 40px;
-        padding: 8px 12px;
-        margin-bottom: 16px;
+        padding: 6px 10px;
+        margin-bottom: 14px;
         border: 1px solid rgba(167,139,250,0.05);
+        font-size: 14px;
     }
     .characters-grid.pickable-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-        gap: 12px;
-        margin-bottom: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
     }
     .character-card.pickable {
         cursor: pointer;
@@ -895,7 +891,7 @@ require_once __DIR__ . '/includes/navbar.php';
         position: relative;
         background: var(--bg-card);
         border-radius: var(--radius-md);
-        padding: 12px 10px;
+        padding: 10px 8px;
         text-align: center;
     }
     .character-card.pickable:hover {
@@ -913,24 +909,24 @@ require_once __DIR__ . '/includes/navbar.php';
     }
     .character-card.pickable .mini-char-badge {
         position: absolute;
-        top: 6px;
-        left: 6px;
+        top: 4px;
+        left: 4px;
         background: rgba(15,23,42,0.8);
         color: var(--primary);
-        font-size: 10px;
-        padding: 2px 10px;
+        font-size: 9px;
+        padding: 2px 8px;
         border-radius: 30px;
         z-index: 2;
     }
     .character-card.pickable .char-media {
         border-radius: var(--radius-md);
-        font-size: 36px;
+        font-size: 32px;
         border: none;
         background: rgba(255,255,255,0.02);
-        margin-bottom: 6px;
+        margin-bottom: 4px;
     }
     .character-card.pickable .name {
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .btn-primary-gradient {
@@ -938,15 +934,15 @@ require_once __DIR__ . '/includes/navbar.php';
         border: none;
         color: #fff;
         font-weight: 800;
-        padding: 12px 28px;
+        padding: 10px 24px;
         border-radius: 60px;
         cursor: pointer;
         transition: var(--transition);
         display: inline-flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         text-decoration: none;
-        font-size: 16px;
+        font-size: 15px;
         box-shadow: 0 8px 30px rgba(167,139,250,0.2);
     }
     .btn-primary-gradient:hover {
@@ -954,22 +950,22 @@ require_once __DIR__ . '/includes/navbar.php';
         box-shadow: 0 12px 40px rgba(167,139,250,0.3);
     }
     .btn-primary-gradient.btn-large {
-        padding: 16px 40px;
-        font-size: 20px;
+        padding: 14px 32px;
+        font-size: 18px;
     }
     .btn-outline {
         background: rgba(255,255,255,0.03);
         border: 1px solid var(--border-light);
         color: var(--text-primary);
-        padding: 12px 28px;
+        padding: 10px 24px;
         border-radius: 60px;
         cursor: pointer;
         transition: var(--transition);
         display: inline-flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         text-decoration: none;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
     }
     .btn-outline:hover {
@@ -981,167 +977,143 @@ require_once __DIR__ . '/includes/navbar.php';
 
     .landing-footer {
         text-align: center;
-        padding: 40px 0 20px;
+        padding: 32px 0 16px;
         color: var(--text-muted);
-        font-size: 14px;
+        font-size: 13px;
         border-top: 1px solid var(--border-light);
-        margin-top: 40px;
+        margin-top: 32px;
     }
 
     /* ============================================================
-       استجابة محسّنة للجوال
+       استجابة محسّنة للجوال (هنا الحل الأساسي)
        ============================================================ */
-    @media (max-width: 768px) {
-        .hero-content h1 { font-size: 40px; }
+    @media (max-width: 992px) {
+        .hero-content h1 { font-size: 44px; }
         .hero-subtitle { font-size: 22px; }
-        .hero-description { font-size: 16px; }
-        .hero-actions .btn-large { padding: 14px 28px; font-size: 18px; }
-        .section-title { font-size: 28px; }
-        .auth-card { padding: 20px 16px; }
-        .characters-grid.pickable-grid { grid-template-columns: repeat(3, 1fr); }
-        .features-grid { grid-template-columns: 1fr 1fr; }
-        .character-card-enhanced {
-            flex: 0 0 170px;
-            padding: 14px 10px;
-        }
-        .char-media {
-            width: 80px;
-            height: 80px;
-        }
-        .char-info .name {
-            font-size: 17px;
-        }
-        .hero-visual {
-            padding: 20px 15px;
-            min-height: 280px;
-        }
-        .hero-carousel {
-            max-width: 150px;
-            height: 150px;
-        }
-        .hero-carousel-item {
-            width: 120px;
-            height: 120px;
-            font-size: 80px;
-        }
-        .hero-carousel-item .char-emoji {
-            font-size: 90px;
-        }
-        .hero-stats {
-            gap: 15px;
-        }
-        .hero-stats .stat .number {
-            font-size: 22px;
-        }
-        .hero-stats .stat .label {
-            font-size: 12px;
-        }
-        .hero-char-name {
-            font-size: 17px;
-        }
-        .hero-section {
-            gap: 20px;
-            padding: 15px 0 20px;
-        }
+        .hero-visual { min-height: 280px; }
     }
 
-    @media (max-width: 480px) {
-        .hero-content h1 { font-size: 32px; }
-        .hero-subtitle { font-size: 18px; }
-        .hero-description { font-size: 15px; }
-        .hero-actions .btn-large { 
-            padding: 12px 20px; 
-            font-size: 16px; 
-            width: 100%; 
-            justify-content: center; 
+    @media (max-width: 768px) {
+        .hero-section {
+            flex-direction: column;
+            padding: 12px 0 20px;
+            gap: 16px;
         }
-        .section-title { font-size: 24px; }
-        .features-grid { grid-template-columns: 1fr; }
-        .plans-grid { grid-template-columns: 1fr; }
-        .characters-grid { grid-template-columns: repeat(3, 1fr); }
-        .auth-card { padding: 16px 12px; }
-        .auth-logo { font-size: 24px; }
-        .field input, .field select { font-size: 15px; padding: 10px 12px; }
-        .characters-grid.pickable-grid { grid-template-columns: repeat(3, 1fr); }
-        .character-card-enhanced {
-            flex: 0 0 140px;
-            padding: 10px 8px;
-        }
-        .char-media {
-            width: 70px;
-            height: 70px;
-        }
-        .char-info .name {
-            font-size: 15px;
-        }
-        .char-info .title {
-            font-size: 11px;
-        }
-        .char-hover-reveal blockquote {
-            font-size: 12px;
-            padding: 6px 10px;
+        .hero-content {
+            order: 2;
+            flex: none;
+            width: 100%;
+            text-align: center;
         }
         .hero-visual {
-            padding: 16px 10px;
-            min-height: 220px;
-            border-radius: 20px;
+            order: 1;
+            flex: none;
+            width: 100%;
+            min-height: 240px;
+            padding: 16px 12px;
+            border-radius: 24px;
+        }
+        .hero-content h1 { font-size: 36px; }
+        .hero-subtitle { font-size: 20px; }
+        .hero-description {
+            font-size: 15px;
+            max-width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hero-actions {
+            justify-content: center;
+        }
+        .hero-actions .btn-large {
+            padding: 12px 24px;
+            font-size: 16px;
         }
         .hero-carousel {
-            max-width: 110px;
-            height: 110px;
+            max-width: 140px;
+            height: 140px;
         }
         .hero-carousel-item {
-            width: 90px;
-            height: 90px;
+            width: 110px;
+            height: 110px;
             font-size: 60px;
         }
         .hero-carousel-item .char-emoji {
-            font-size: 70px;
+            font-size: 80px;
+        }
+        .hero-char-name {
+            font-size: 16px;
+            min-height: 30px;
+            padding: 2px 14px;
         }
         .hero-stats {
-            gap: 10px;
+            gap: 12px;
         }
         .hero-stats .stat {
-            padding: 4px 10px;
+            padding: 4px 12px;
             min-width: 50px;
         }
         .hero-stats .stat .number {
-            font-size: 18px;
+            font-size: 20px;
         }
         .hero-stats .stat .label {
             font-size: 10px;
         }
-        .hero-char-name {
-            font-size: 14px;
-            padding: 2px 14px;
-            min-height: 30px;
-        }
-        .hero-content {
-            order: 2;
-            padding: 0 10px;
-        }
-        .hero-visual {
-            order: 1;
-            width: 100%;
-        }
-        .hero-section {
-            padding: 10px 0 15px;
-            gap: 15px;
-        }
-        .hero-actions {
-            flex-direction: column;
-            width: 100%;
-        }
-        .hero-actions .btn-large {
-            width: 100%;
-            justify-content: center;
-        }
-        .hero-description {
-            padding: 0 10px;
-        }
-        .section-sub {
-            font-size: 15px;
-        }
+
+        .section-title { font-size: 26px; }
+        .section-sub { font-size: 15px; }
+        .features-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+        .feature-card { padding: 20px 14px; }
+        .feature-icon { font-size: 34px; }
+        .feature-card h3 { font-size: 16px; }
+        .feature-card p { font-size: 13px; }
+        .character-card-enhanced { flex: 0 0 150px; padding: 12px 10px; }
+        .char-media { width: 70px; height: 70px; }
+        .char-info .name { font-size: 15px; }
+        .char-info .title { font-size: 11px; }
+        .plans-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+        .plan-card { padding: 18px 14px; }
+        .plan-card h3 { font-size: 16px; }
+        .plan-card .price { font-size: 20px; }
+        .auth-card { padding: 20px 16px; }
+        .auth-logo { font-size: 24px; }
+        .auth-sub { font-size: 14px; }
+        .characters-grid.pickable-grid { grid-template-columns: repeat(3, 1fr); }
+        .hero-actions .btn-large { width: 100%; justify-content: center; }
+        .hero-actions { flex-direction: column; width: 100%; }
+        .btn-primary-gradient.btn-large { width: 100%; justify-content: center; }
+    }
+
+    @media (max-width: 480px) {
+        .hero-content h1 { font-size: 28px; }
+        .hero-subtitle { font-size: 17px; }
+        .hero-description { font-size: 14px; }
+        .hero-visual { min-height: 200px; padding: 12px 8px; border-radius: 20px; }
+        .hero-carousel { max-width: 100px; height: 100px; }
+        .hero-carousel-item { width: 80px; height: 80px; font-size: 40px; }
+        .hero-carousel-item .char-emoji { font-size: 60px; }
+        .hero-char-name { font-size: 13px; min-height: 24px; padding: 2px 10px; }
+        .hero-stats { gap: 8px; }
+        .hero-stats .stat { padding: 2px 8px; min-width: 40px; }
+        .hero-stats .stat .number { font-size: 16px; }
+        .hero-stats .stat .label { font-size: 9px; }
+        .hero-actions .btn-large { padding: 10px 16px; font-size: 14px; }
+        .section-title { font-size: 22px; }
+        .section-sub { font-size: 14px; }
+        .features-grid { grid-template-columns: 1fr; }
+        .plans-grid { grid-template-columns: 1fr; }
+        .characters-grid.pickable-grid { grid-template-columns: repeat(3, 1fr); }
+        .auth-card { padding: 14px 10px; }
+        .auth-logo { font-size: 20px; }
+        .field input, .field select { font-size: 14px; padding: 8px 10px; }
+        .character-card-enhanced { flex: 0 0 120px; padding: 8px 6px; }
+        .char-media { width: 60px; height: 60px; }
+        .char-info .name { font-size: 13px; }
+        .char-info .title { font-size: 10px; }
+        .char-hover-reveal blockquote { font-size: 11px; padding: 4px 8px; }
+        .btn-primary-gradient { font-size: 13px; padding: 8px 18px; }
+        .btn-outline { font-size: 13px; padding: 8px 18px; }
+        .characters-track { gap: 12px; padding: 4px 8px; }
+        .characters-scroll-wrapper { padding: 10px 0 16px; }
     }
 </style>
 
@@ -1169,7 +1141,6 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
         <div class="hero-visual" id="heroVisual">
             <div class="glow-ring"></div>
-            <!-- كاروسيل الشخصيات 3D -->
             <div class="hero-carousel" id="heroCarousel">
                 <?php 
                 $first = true;
@@ -1183,11 +1154,9 @@ require_once __DIR__ . '/includes/navbar.php';
                 </div>
                 <?php endforeach; ?>
             </div>
-            <!-- اسم الشخصية الحالية -->
             <div class="hero-char-name" id="heroCharName">
                 <span id="heroCharNameText"><?php echo htmlspecialchars($carouselChars[0]['name']); ?></span>
             </div>
-            <!-- الإحصائيات -->
             <div class="hero-stats">
                 <div class="stat">
                     <span class="number">100+</span>
@@ -1274,10 +1243,10 @@ require_once __DIR__ . '/includes/navbar.php';
             </div>
             <div class="story-tag">✨ قصة مخصصة ليوسف (7 سنوات)</div>
         </div>
-        <p style="font-size:14px; color:var(--text-muted); margin-top:14px;">⚠️ هذه القصة مثال، سيتم توليد قصة فريدة لكل طفل بعد التسجيل.</p>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:12px;">⚠️ هذه القصة مثال، سيتم توليد قصة فريدة لكل طفل بعد التسجيل.</p>
     </section>
 
-    <!-- الشخصيات – سكرول أفقي حيوي -->
+    <!-- الشخصيات -->
     <section class="characters-section" id="characters">
         <div class="section-head">
             <div class="eyebrow">رفقاؤك في الرحلة</div>
@@ -1372,8 +1341,8 @@ require_once __DIR__ . '/includes/navbar.php';
                 </div>
             <?php endforeach; ?>
         </div>
-        <div style="text-align:center; margin-top:28px;">
-            <a href="#auth" class="btn btn-primary-gradient" style="font-size:18px; padding:14px 40px;">🚀 ابدأ مغامرتك الآن</a>
+        <div style="text-align:center; margin-top:24px;">
+            <a href="#auth" class="btn btn-primary-gradient" style="font-size:16px; padding:12px 32px;">🚀 ابدأ مغامرتك الآن</a>
         </div>
     </section>
 
@@ -1403,8 +1372,8 @@ require_once __DIR__ . '/includes/navbar.php';
                 </div>
                 <div id="register-tab" class="auth-form hidden">
                     <?php if ($registerError): ?><div class="auth-error">❌ <?php echo h($registerError); ?></div><?php endif; ?>
-                    <p style="text-align:center;font-weight:800;color:var(--text-primary);">1) اختر شخصيتين ترافقان طفلك من باقة الشخصيات المجانية</p>
-                    <p style="text-align:center;color:var(--text-secondary);font-size:13px;">الشخصيات المقفلة 🔒 تُفتح تلقائياً بعد تفعيل اشتراك مدفوع من ملفه الشخصي</p>
+                    <p style="text-align:center;font-weight:800;color:var(--text-primary);font-size:15px;">1) اختر شخصيتين ترافقان طفلك من باقة الشخصيات المجانية</p>
+                    <p style="text-align:center;color:var(--text-secondary);font-size:12px;">الشخصيات المقفلة 🔒 تُفتح تلقائياً بعد تفعيل اشتراك مدفوع</p>
                     <div class="two-char-note" id="selCountLabel">0 / 2 مختارة</div>
                     <div class="characters-grid pickable-grid" id="regCharGrid">
                         <?php foreach ($characters as $c): $locked = (bool)$c['is_premium']; ?>
@@ -1418,17 +1387,17 @@ require_once __DIR__ . '/includes/navbar.php';
                                     <?php if (!empty($c['image_path'])): ?>
                                         <img src="<?php echo h($c['image_path']); ?>" alt="<?php echo h($c['name']); ?>">
                                     <?php else: ?>
-                                        <span style="font-size:36px;"><?php echo character_icons($c)[0] ?? '✨'; ?></span>
+                                        <span style="font-size:32px;"><?php echo character_icons($c)[0] ?? '✨'; ?></span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="name"><?php echo h($c['name']); ?></div>
                             </div>
                         <?php endforeach; ?>
                     </div>
-                    <form method="POST" id="registerForm" style="margin-top:22px;">
+                    <form method="POST" id="registerForm" style="margin-top:18px;">
                         <input type="hidden" name="character_1" id="character_1">
                         <input type="hidden" name="character_2" id="character_2">
-                        <p style="font-weight:800;color:var(--text-primary);margin-top:20px;">2) بيانات الحساب</p>
+                        <p style="font-weight:800;color:var(--text-primary);margin-top:16px;font-size:15px;">2) بيانات الحساب</p>
                         <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" required value="<?php echo h($_POST['child_name'] ?? ''); ?>"></div>
                         <div class="field"><label>عمر الطفل</label>
                             <select name="child_age" required>
@@ -1457,7 +1426,7 @@ require_once __DIR__ . '/includes/navbar.php';
 </div>
 
 <!-- ============================================================
-     JavaScript – اختيار الشخصيات + الكاروسيل 3D
+     JavaScript
      ============================================================ -->
 <script>
     // 1. تبديل التبويبات
@@ -1478,7 +1447,7 @@ require_once __DIR__ . '/includes/navbar.php';
     let picked = [];
     function toggleCharPick(el) {
         if (el.dataset.locked === '1') {
-            alert('هذه الشخصية تُفتح بعد تفعيل اشتراك مدفوع 🔒 — اختر من الشخصيات المجانية الآن، وبإمكانك ترقية طفلك لاحقاً من ملفه الشخصي.');
+            alert('هذه الشخصية تُفتح بعد تفعيل اشتراك مدفوع 🔒 — اختر من الشخصيات المجانية الآن.');
             return;
         }
         const id = parseInt(el.dataset.id, 10);
@@ -1503,7 +1472,7 @@ require_once __DIR__ . '/includes/navbar.php';
         }
     });
 
-    // 3. تحسين السكرول التلقائي للشخصيات
+    // 3. سكرول الشخصيات التلقائي
     document.addEventListener('DOMContentLoaded', function() {
         const track = document.querySelector('.characters-track');
         if (track) {
@@ -1514,9 +1483,7 @@ require_once __DIR__ . '/includes/navbar.php';
             });
         }
 
-        // ============================================================
-        // 4. كاروسيل 3D للشخصيات في القسم الرئيسي
-        // ============================================================
+        // 4. كاروسيل 3D
         const carousel = document.getElementById('heroCarousel');
         const items = carousel ? carousel.querySelectorAll('.hero-carousel-item') : [];
         const nameDisplay = document.getElementById('heroCharNameText');
@@ -1536,7 +1503,6 @@ require_once __DIR__ . '/includes/navbar.php';
                     if (nameDisplay) nameDisplay.textContent = name;
                     const color = target.dataset.color || '#a78bfa';
                     if (visual) {
-                        visual.style.setProperty('--glow-color', color);
                         visual.style.borderColor = color + '40';
                     }
                 }
@@ -1557,20 +1523,14 @@ require_once __DIR__ . '/includes/navbar.php';
 
             function pauseAutoPlay() {
                 isPaused = true;
-                if (intervalId) {
-                    clearInterval(intervalId);
-                    intervalId = null;
-                }
+                if (intervalId) { clearInterval(intervalId); intervalId = null; }
             }
 
             function resumeAutoPlay() {
                 isPaused = false;
-                if (!intervalId) {
-                    startAutoPlay();
-                }
+                if (!intervalId) startAutoPlay();
             }
 
-            // تأثير 3D بتتبع الماوس
             if (carousel && visual) {
                 carousel.addEventListener('mousemove', function(e) {
                     if (isPaused) return;
@@ -1579,11 +1539,10 @@ require_once __DIR__ . '/includes/navbar.php';
                     const y = e.clientY - rect.top;
                     const centerX = rect.width / 2;
                     const centerY = rect.height / 2;
-                    const rotateX = ((y - centerY) / centerY) * -10;
-                    const rotateY = ((x - centerX) / centerX) * 10;
+                    const rotateX = ((y - centerY) / centerY) * -8;
+                    const rotateY = ((x - centerX) / centerX) * 8;
                     this.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
                 });
-
                 carousel.addEventListener('mouseleave', function() {
                     this.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale(1)';
                 });
@@ -1598,13 +1557,6 @@ require_once __DIR__ . '/includes/navbar.php';
             window.addEventListener('beforeunload', function() {
                 if (intervalId) clearInterval(intervalId);
             });
-
-            window.heroCarousel = {
-                goTo: goToIndex,
-                next: nextItem,
-                pause: pauseAutoPlay,
-                resume: resumeAutoPlay
-            };
         }
     });
 </script>
