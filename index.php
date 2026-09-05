@@ -125,6 +125,18 @@ $charDataForJS = array_map(function($c){
     ];
 }, $characters);
 
+// تحضير الشخصيات للكاروسيل (مع الصور)
+$carouselChars = [];
+foreach ($characters as $c) {
+    $carouselChars[] = [
+        'name' => $c['name'],
+        'image' => $c['image_path'],
+        'icon' => character_icons($c)[0] ?? '✨',
+        'color' => $c['color'] ?? '#a78bfa',
+        'trait' => $c['trait'] ?? 'مميز'
+    ];
+}
+
 $__pageTitle = 'Kidora — منصة التعلم بالمغامرة';
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
@@ -175,19 +187,20 @@ require_once __DIR__ . '/includes/navbar.php';
     }
 
     /* ============================================================
-       القسم الرئيسي (Hero)
+       القسم الرئيسي (Hero) – إصدار محسّن للجوال + 3D
        ============================================================ */
     .hero-section {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        padding: 40px 0 50px;
-        gap: 40px;
-        min-height: 70vh;
+        padding: 30px 0 40px;
+        gap: 30px;
+        min-height: auto;
     }
     .hero-content {
         flex: 1 1 400px;
+        order: 1;
     }
     .hero-badge {
         display: inline-block;
@@ -243,16 +256,24 @@ require_once __DIR__ . '/includes/navbar.php';
         border-radius: 60px;
     }
 
+    /* ===== القسم البصري (الشخصية والإحصائيات) ===== */
     .hero-visual {
         flex: 1 1 300px;
         text-align: center;
         background: var(--bg-card);
         backdrop-filter: blur(12px);
         border-radius: var(--radius-xl);
-        padding: 30px 20px;
+        padding: 30px 20px 25px;
         border: 1px solid var(--border-light);
         position: relative;
         box-shadow: var(--shadow-soft);
+        order: 2;
+        min-height: 350px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        perspective: 1000px;
     }
     .hero-visual .glow-ring {
         position: absolute;
@@ -262,39 +283,115 @@ require_once __DIR__ . '/includes/navbar.php';
         pointer-events: none;
         z-index: 0;
     }
-    .hero-visual .big-emoji {
-        font-size: 130px;
-        animation: float 4s ease-in-out infinite;
+
+    /* ===== كاروسيل الشخصيات 3D ===== */
+    .hero-carousel {
         position: relative;
+        width: 100%;
+        max-width: 200px;
+        height: 200px;
+        margin: 0 auto 10px;
         z-index: 1;
-        display: block;
+        transform-style: preserve-3d;
+        transition: transform 0.1s ease-out;
+        cursor: grab;
     }
-    @keyframes float {
-        0%,100% { transform: translateY(0) rotate(-4deg); }
-        50% { transform: translateY(-18px) rotate(4deg); }
+    .hero-carousel:active {
+        cursor: grabbing;
+    }
+    .hero-carousel-item {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.6);
+        opacity: 0;
+        transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+        width: 160px;
+        height: 160px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 100px;
+        border-radius: 0;
+        filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+        pointer-events: none;
+    }
+    .hero-carousel-item.active {
+        transform: translate(-50%, -50%) scale(1) rotateY(0deg);
+        opacity: 1;
+        z-index: 10;
+        filter: drop-shadow(0 20px 40px rgba(167,139,250,0.4));
+    }
+    .hero-carousel-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 0;
+        filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
+    }
+    .hero-carousel-item .char-emoji {
+        font-size: 120px;
+        line-height: 1;
+        filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
+    }
+    /* اسم الشخصية يظهر أسفل الكاروسيل */
+    .hero-char-name {
+        position: relative;
+        z-index: 2;
+        font-weight: 800;
+        font-size: 20px;
+        color: var(--text-primary);
+        margin-top: 0;
+        background: rgba(0,0,0,0.3);
+        padding: 4px 20px;
+        border-radius: 40px;
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,0.05);
+        display: inline-block;
+        transition: all 0.5s;
+        min-height: 40px;
+        line-height: 1.4;
+    }
+    .hero-char-name span {
+        color: var(--primary);
     }
 
+    /* ===== الإحصائيات ===== */
     .hero-stats {
         display: flex;
         justify-content: center;
         gap: 30px;
-        margin-top: 20px;
+        margin-top: 15px;
         position: relative;
         z-index: 1;
+        flex-wrap: wrap;
+    }
+    .hero-stats .stat {
+        text-align: center;
+        background: rgba(255,255,255,0.03);
+        padding: 6px 16px;
+        border-radius: 40px;
+        border: 1px solid rgba(255,255,255,0.03);
+        backdrop-filter: blur(4px);
+        min-width: 70px;
     }
     .hero-stats .stat .number {
         font-size: 28px;
         font-weight: 900;
         color: var(--primary);
+        display: block;
+        line-height: 1.2;
     }
     .hero-stats .stat .label {
         font-size: 13px;
         color: var(--text-muted);
         font-weight: 600;
+        display: block;
+        line-height: 1.4;
     }
 
     /* ============================================================
-       المميزات
+       باقي الأقسام (كما هي مع بعض التحسينات البسيطة)
        ============================================================ */
     .section-head {
         text-align: center;
@@ -361,9 +458,6 @@ require_once __DIR__ . '/includes/navbar.php';
         margin: 0;
     }
 
-    /* ============================================================
-       فيديو
-       ============================================================ */
     .video-wrapper {
         max-width: 800px;
         margin: 0 auto;
@@ -381,7 +475,7 @@ require_once __DIR__ . '/includes/navbar.php';
     }
 
     /* ============================================================
-       الشخصيات – سكرول أفقي حيوي (معدل)
+       الشخصيات – سكرول أفقي حيوي (كما هو)
        ============================================================ */
     .characters-scroll-wrapper {
         position: relative;
@@ -395,7 +489,6 @@ require_once __DIR__ . '/includes/navbar.php';
         mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
     }
-
     .characters-track {
         display: flex;
         gap: 28px;
@@ -403,20 +496,16 @@ require_once __DIR__ . '/includes/navbar.php';
         width: max-content;
         animation: autoScroll 30s linear infinite;
     }
-
     .characters-track:hover {
         animation-play-state: paused;
     }
-
     .characters-scroll-wrapper:has(.character-card-enhanced:hover) .characters-track {
         animation-play-state: paused;
     }
-
     @keyframes autoScroll {
         0% { transform: translateX(0); }
         100% { transform: translateX(-50%); }
     }
-
     .character-card-enhanced {
         flex: 0 0 220px;
         scroll-snap-align: start;
@@ -433,7 +522,6 @@ require_once __DIR__ . '/includes/navbar.php';
         transform: scale(0.95);
         opacity: 0.8;
     }
-
     .character-card-enhanced:hover {
         transform: scale(1.05) translateY(-12px);
         opacity: 1;
@@ -441,7 +529,6 @@ require_once __DIR__ . '/includes/navbar.php';
         border-color: var(--char-color);
         z-index: 10;
     }
-
     .character-card-enhanced .char-glow-ring {
         position: absolute;
         inset: -2px;
@@ -451,11 +538,9 @@ require_once __DIR__ . '/includes/navbar.php';
         transition: opacity 0.4s;
         pointer-events: none;
     }
-
     .character-card-enhanced:hover .char-glow-ring {
         opacity: 0.6;
     }
-
     .char-media {
         aspect-ratio: 1/1;
         border-radius: 50%;
@@ -471,27 +556,22 @@ require_once __DIR__ . '/includes/navbar.php';
         justify-content: center;
         position: relative;
     }
-
     .character-card-enhanced:hover .char-media {
         border-color: var(--char-color);
         box-shadow: 0 0 30px var(--char-glow);
     }
-
     .char-media img {
         width: 100%;
         height: 100%;
         object-fit: cover;
         transition: transform 0.4s;
     }
-
     .character-card-enhanced:hover .char-media img {
         transform: scale(1.08);
     }
-
     .char-emoji {
         font-size: 48px;
     }
-
     .char-info .name {
         font-weight: 900;
         font-size: 20px;
@@ -499,14 +579,12 @@ require_once __DIR__ . '/includes/navbar.php';
         margin-bottom: 2px;
         text-shadow: 0 2px 8px rgba(0,0,0,0.6);
     }
-
     .char-info .title {
         font-size: 13px;
         color: #c4b5d4;
         margin-bottom: 6px;
         line-height: 1.3;
     }
-
     .char-trait {
         display: inline-block;
         background: rgba(255,255,255,0.05);
@@ -517,7 +595,6 @@ require_once __DIR__ . '/includes/navbar.php';
         border: 1px solid rgba(255,255,255,0.03);
         font-weight: 600;
     }
-
     .char-hover-reveal {
         max-height: 0;
         opacity: 0;
@@ -525,13 +602,11 @@ require_once __DIR__ . '/includes/navbar.php';
         transition: all 0.5s ease;
         margin-top: 0;
     }
-
     .character-card-enhanced:hover .char-hover-reveal {
         max-height: 120px;
         opacity: 1;
         margin-top: 14px;
     }
-
     .char-hover-reveal blockquote {
         font-size: 14px;
         font-style: italic;
@@ -597,9 +672,6 @@ require_once __DIR__ . '/includes/navbar.php';
         border-bottom: none;
     }
 
-    /* ============================================================
-       قسم الذكاء الاصطناعي
-       ============================================================ */
     .ai-section {
         background: linear-gradient(145deg, rgba(167,139,250,0.03), rgba(124,58,237,0.03));
         border-radius: var(--radius-xl);
@@ -795,7 +867,6 @@ require_once __DIR__ . '/includes/navbar.php';
         text-decoration: underline;
     }
 
-    /* اختيار الشخصيات للتسجيل */
     .two-char-note {
         text-align: center;
         font-weight: 700;
@@ -857,9 +928,6 @@ require_once __DIR__ . '/includes/navbar.php';
         font-size: 13px;
     }
 
-    /* ============================================================
-       الأزرار (موحدة)
-       ============================================================ */
     .btn-primary-gradient {
         background: linear-gradient(135deg, var(--primary), var(--purple-dark));
         border: none;
@@ -906,9 +974,6 @@ require_once __DIR__ . '/includes/navbar.php';
         transform: translateY(-2px);
     }
 
-    /* ============================================================
-       التذييل
-       ============================================================ */
     .landing-footer {
         text-align: center;
         padding: 40px 0 20px;
@@ -919,7 +984,7 @@ require_once __DIR__ . '/includes/navbar.php';
     }
 
     /* ============================================================
-       استجابة
+       استجابة محسّنة للجوال
        ============================================================ */
     @media (max-width: 768px) {
         .hero-content h1 { font-size: 40px; }
@@ -942,12 +1007,45 @@ require_once __DIR__ . '/includes/navbar.php';
         .char-info .name {
             font-size: 17px;
         }
+        .hero-visual {
+            padding: 20px 15px;
+            min-height: 280px;
+        }
+        .hero-carousel {
+            max-width: 150px;
+            height: 150px;
+        }
+        .hero-carousel-item {
+            width: 120px;
+            height: 120px;
+            font-size: 80px;
+        }
+        .hero-carousel-item .char-emoji {
+            font-size: 90px;
+        }
+        .hero-stats {
+            gap: 15px;
+        }
+        .hero-stats .stat .number {
+            font-size: 22px;
+        }
+        .hero-stats .stat .label {
+            font-size: 12px;
+        }
+        .hero-char-name {
+            font-size: 17px;
+        }
     }
     @media (max-width: 480px) {
         .hero-content h1 { font-size: 32px; }
         .hero-subtitle { font-size: 18px; }
         .hero-visual .big-emoji { font-size: 70px; }
-        .hero-actions .btn-large { padding: 12px 20px; font-size: 16px; width: 100%; justify-content: center; }
+        .hero-actions .btn-large { 
+            padding: 12px 20px; 
+            font-size: 16px; 
+            width: 100%; 
+            justify-content: center; 
+        }
         .section-title { font-size: 24px; }
         .features-grid { grid-template-columns: 1fr; }
         .plans-grid { grid-template-columns: 1fr; }
@@ -974,6 +1072,59 @@ require_once __DIR__ . '/includes/navbar.php';
             font-size: 12px;
             padding: 6px 10px;
         }
+        .hero-visual {
+            padding: 16px 10px;
+            min-height: 220px;
+            border-radius: 20px;
+        }
+        .hero-carousel {
+            max-width: 110px;
+            height: 110px;
+        }
+        .hero-carousel-item {
+            width: 90px;
+            height: 90px;
+            font-size: 60px;
+        }
+        .hero-carousel-item .char-emoji {
+            font-size: 70px;
+        }
+        .hero-stats {
+            gap: 10px;
+        }
+        .hero-stats .stat {
+            padding: 4px 10px;
+            min-width: 50px;
+        }
+        .hero-stats .stat .number {
+            font-size: 18px;
+        }
+        .hero-stats .stat .label {
+            font-size: 10px;
+        }
+        .hero-char-name {
+            font-size: 14px;
+            padding: 2px 14px;
+            min-height: 30px;
+        }
+        .hero-content {
+            order: 2;
+        }
+        .hero-visual {
+            order: 1;
+        }
+        .hero-section {
+            padding: 10px 0 20px;
+            gap: 20px;
+        }
+        .hero-actions {
+            flex-direction: column;
+            width: 100%;
+        }
+        .hero-actions .btn-large {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
 
@@ -982,7 +1133,7 @@ require_once __DIR__ . '/includes/navbar.php';
      ============================================================ -->
 <div class="landing-page">
 
-    <!-- القسم الرئيسي (Hero) -->
+    <!-- القسم الرئيسي (Hero) – إصدار جديد مع كاروسيل 3D -->
     <section class="hero-section">
         <div class="hero-content">
             <div class="hero-badge">🚀 منصة تربوية ذكية</div>
@@ -999,21 +1150,39 @@ require_once __DIR__ . '/includes/navbar.php';
                 <a href="#features" class="btn btn-outline btn-large">تعرف أكثر</a>
             </div>
         </div>
-        <div class="hero-visual">
+        <div class="hero-visual" id="heroVisual">
             <div class="glow-ring"></div>
-            <span class="big-emoji">🧙‍♂️</span>
+            <!-- كاروسيل الشخصيات 3D -->
+            <div class="hero-carousel" id="heroCarousel">
+                <?php 
+                $first = true;
+                foreach ($carouselChars as $index => $char): 
+                    $activeClass = $first ? 'active' : '';
+                    $first = false;
+                    $img = !empty($char['image']) ? '<img src="' . htmlspecialchars(BASE_PATH . '/' . $char['image']) . '" alt="' . htmlspecialchars($char['name']) . '">' : '<span class="char-emoji">' . htmlspecialchars($char['icon']) . '</span>';
+                ?>
+                <div class="hero-carousel-item <?php echo $activeClass; ?>" data-index="<?php echo $index; ?>" data-color="<?php echo htmlspecialchars($char['color']); ?>">
+                    <?php echo $img; ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <!-- اسم الشخصية الحالية -->
+            <div class="hero-char-name" id="heroCharName">
+                <span id="heroCharNameText"><?php echo htmlspecialchars($carouselChars[0]['name']); ?></span>
+            </div>
+            <!-- الإحصائيات -->
             <div class="hero-stats">
                 <div class="stat">
-                    <div class="number">100+</div>
-                    <div class="label">قصة تفاعلية</div>
+                    <span class="number">100+</span>
+                    <span class="label">قصة تفاعلية</span>
                 </div>
                 <div class="stat">
-                    <div class="number">10</div>
-                    <div class="label">شخصيات</div>
+                    <span class="number"><?php echo count($characters); ?></span>
+                    <span class="label">شخصيات</span>
                 </div>
                 <div class="stat">
-                    <div class="number">✨ AI</div>
-                    <div class="label">قصص مخصصة</div>
+                    <span class="number">✨ AI</span>
+                    <span class="label">قصص مخصصة</span>
                 </div>
             </div>
         </div>
@@ -1075,7 +1244,7 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
     </section>
 
-    <!-- قسم الذكاء الاصطناعي – توليد قصة مخصصة -->
+    <!-- قسم الذكاء الاصطناعي -->
     <section class="ai-section" id="ai">
         <div class="ai-icon">🤖</div>
         <h2>قصص مخصصة بذكاء اصطناعي</h2>
@@ -1091,16 +1260,13 @@ require_once __DIR__ . '/includes/navbar.php';
         <p style="font-size:14px; color:var(--text-muted); margin-top:14px;">⚠️ هذه القصة مثال، سيتم توليد قصة فريدة لكل طفل بعد التسجيل.</p>
     </section>
 
-    <!-- ============================================================
-         الشخصيات – عرض حيوي مع سكرول تلقائي (معدل)
-         ============================================================ -->
+    <!-- الشخصيات – سكرول أفقي حيوي (كما هو) -->
     <section class="characters-section" id="characters">
         <div class="section-head">
             <div class="eyebrow">رفقاؤك في الرحلة</div>
             <h2 class="section-title">اختر شخصيتك المفضلة</h2>
             <p class="section-sub">شخصيات كرتونية مرافقة، تتفاعل معك وتشجعك في كل خطوة</p>
         </div>
-
         <div class="characters-scroll-wrapper">
             <div class="characters-track" id="charactersTrack">
                 <?php foreach ($characters as $c): 
@@ -1133,7 +1299,6 @@ require_once __DIR__ . '/includes/navbar.php';
                         </div>
                     </div>
                 <?php endforeach; ?>
-                <!-- نكرر نفس العناصر لإكمال الحلقة اللانهائية (لتكرار السكرول) -->
                 <?php foreach ($characters as $c): 
                     $color = $c['color'] ?? '#a78bfa';
                     $icon = character_icons($c)[0] ?? '✨';
@@ -1195,27 +1360,21 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
     </section>
 
-    <!-- ============================================================
-         نموذج تسجيل الدخول / إنشاء حساب (بنفس التصميم القديم)
-         ============================================================ -->
+    <!-- نموذج تسجيل الدخول / إنشاء حساب -->
     <section class="auth-section" id="auth">
         <div class="section-head">
             <div class="eyebrow">انضم إلينا</div>
             <h2 class="section-title">سجّل الدخول أو أنشئ حساباً</h2>
             <p class="section-sub">ابدأ رحلة طفلك في عالم Kidora المليء بالمغامرات والتعلم.</p>
         </div>
-
         <div class="auth-wrap">
             <div class="auth-card">
                 <div class="auth-logo">🌟 Kidora</div>
                 <p class="auth-sub">منصة ذكية تحوّل طفلك إلى بطل حقيقي عبر مهام وقصص ومغامرات آمنة</p>
-
                 <div class="auth-tabs">
                     <button type="button" class="auth-tab active" data-tab="login">تسجيل الدخول</button>
                     <button type="button" class="auth-tab" data-tab="register">إنشاء حساب</button>
                 </div>
-
-                <!-- تسجيل الدخول -->
                 <div id="login-tab" class="auth-form">
                     <?php if ($loginError): ?><div class="auth-error">❌ <?php echo h($loginError); ?></div><?php endif; ?>
                     <form method="POST">
@@ -1225,11 +1384,8 @@ require_once __DIR__ . '/includes/navbar.php';
                     </form>
                     <div class="auth-toggle">مسؤول المنصة؟ <a href="admin/login.php">دخول لوحة الإدارة</a></div>
                 </div>
-
-                <!-- إنشاء حساب -->
                 <div id="register-tab" class="auth-form hidden">
                     <?php if ($registerError): ?><div class="auth-error">❌ <?php echo h($registerError); ?></div><?php endif; ?>
-
                     <p style="text-align:center;font-weight:800;color:var(--text-primary);">1) اختر شخصيتين ترافقان طفلك من باقة الشخصيات المجانية</p>
                     <p style="text-align:center;color:var(--text-secondary);font-size:13px;">الشخصيات المقفلة 🔒 تُفتح تلقائياً بعد تفعيل اشتراك مدفوع من ملفه الشخصي</p>
                     <div class="two-char-note" id="selCountLabel">0 / 2 مختارة</div>
@@ -1252,11 +1408,9 @@ require_once __DIR__ . '/includes/navbar.php';
                             </div>
                         <?php endforeach; ?>
                     </div>
-
                     <form method="POST" id="registerForm" style="margin-top:22px;">
                         <input type="hidden" name="character_1" id="character_1">
                         <input type="hidden" name="character_2" id="character_2">
-
                         <p style="font-weight:800;color:var(--text-primary);margin-top:20px;">2) بيانات الحساب</p>
                         <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" required value="<?php echo h($_POST['child_name'] ?? ''); ?>"></div>
                         <div class="field"><label>عمر الطفل</label>
@@ -1279,7 +1433,6 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
     </section>
 
-    <!-- حقوق النشر -->
     <footer class="landing-footer">
         <p>© 2026 Kidora. جميع الحقوق محفوظة.</p>
     </footer>
@@ -1287,10 +1440,10 @@ require_once __DIR__ . '/includes/navbar.php';
 </div>
 
 <!-- ============================================================
-     JavaScript – اختيار الشخصيات للتسجيل + تحسين السكرول التلقائي
+     JavaScript – اختيار الشخصيات + الكاروسيل 3D
      ============================================================ -->
 <script>
-    // تبديل التبويبات
+    // 1. تبديل التبويبات (كما هو)
     document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.addEventListener('click', function () {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
@@ -1303,7 +1456,7 @@ require_once __DIR__ . '/includes/navbar.php';
         document.querySelector('.auth-tab[data-tab="register"]').click();
     <?php endif; ?>
 
-    // اختيار شخصيتين بالضبط
+    // 2. اختيار شخصيتين (كما هو)
     const CHAR_DATA = <?php echo json_encode($charDataForJS, JSON_UNESCAPED_UNICODE); ?>;
     let picked = [];
     function toggleCharPick(el) {
@@ -1333,21 +1486,128 @@ require_once __DIR__ . '/includes/navbar.php';
         }
     });
 
-    // تحسين السكرول التلقائي للشخصيات (إيقاف الحركة عند hover)
+    // 3. تحسين السكرول التلقائي للشخصيات (كما هو)
     document.addEventListener('DOMContentLoaded', function() {
         const track = document.querySelector('.characters-track');
-        if (!track) return;
+        if (track) {
+            const cards = document.querySelectorAll('.character-card-enhanced');
+            cards.forEach(card => {
+                card.addEventListener('mouseenter', () => { track.style.animationPlayState = 'paused'; });
+                card.addEventListener('mouseleave', () => { track.style.animationPlayState = 'running'; });
+            });
+        }
 
-        // إيقاف الحركة عند hover على أي كرت
-        const cards = document.querySelectorAll('.character-card-enhanced');
-        cards.forEach(card => {
-            card.addEventListener('mouseenter', () => {
-                track.style.animationPlayState = 'paused';
+        // ============================================================
+        // 4. كاروسيل 3D للشخصيات في القسم الرئيسي (جديد)
+        // ============================================================
+        const carousel = document.getElementById('heroCarousel');
+        const items = carousel ? carousel.querySelectorAll('.hero-carousel-item') : [];
+        const nameDisplay = document.getElementById('heroCharNameText');
+        const visual = document.getElementById('heroVisual');
+
+        if (items.length > 0) {
+            let currentIndex = 0;
+            let intervalId = null;
+            let isPaused = false;
+
+            // دالة تحديث الكاروسيل
+            function goToIndex(index) {
+                // إزالة الكلاس active من الكل
+                items.forEach(item => item.classList.remove('active'));
+                // إضافة الكلاس active للعنصر الحالي
+                const target = items[index];
+                if (target) {
+                    target.classList.add('active');
+                    // تحديث اسم الشخصية
+                    const name = target.dataset.name || target.querySelector('img')?.alt || 'بطل';
+                    if (nameDisplay) nameDisplay.textContent = name;
+                    // تحديث لون التوهج (اختياري)
+                    const color = target.dataset.color || '#a78bfa';
+                    if (visual) {
+                        visual.style.setProperty('--glow-color', color);
+                        // تغيير لون الإطار الخفيف
+                        visual.style.borderColor = color + '40';
+                    }
+                }
+                currentIndex = index;
+            }
+
+            // الانتقال للعنصر التالي
+            function nextItem() {
+                if (isPaused) return;
+                let next = currentIndex + 1;
+                if (next >= items.length) next = 0;
+                goToIndex(next);
+            }
+
+            // بدء التبديل التلقائي كل 4 ثوانٍ
+            function startAutoPlay() {
+                if (intervalId) clearInterval(intervalId);
+                intervalId = setInterval(nextItem, 4000);
+            }
+
+            // إيقاف التبديل التلقائي مؤقتاً
+            function pauseAutoPlay() {
+                isPaused = true;
+                if (intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                }
+            }
+
+            // استئناف التبديل التلقائي
+            function resumeAutoPlay() {
+                isPaused = false;
+                if (!intervalId) {
+                    startAutoPlay();
+                }
+            }
+
+            // تأثير 3D: تتبع حركة الماوس (إمالة الكاروسيل)
+            if (carousel && visual) {
+                // نطبق التأثير على حاوية الكاروسيل نفسها
+                carousel.addEventListener('mousemove', function(e) {
+                    if (isPaused) return;
+                    const rect = this.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    // حساب زاوية الإمالة (حد أقصى 15 درجة)
+                    const rotateX = ((y - centerY) / centerY) * -10; // إمالة لأعلى/أسفل
+                    const rotateY = ((x - centerX) / centerX) * 10;  // إمالة لليسار/لليمين
+                    this.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+                });
+
+                carousel.addEventListener('mouseleave', function() {
+                    this.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale(1)';
+                });
+
+                // للجوال: إمالة بسيطة بناءً على إمالة الجهاز (اختياري)
+                // نكتفي بالتأثير على سطح المكتب حالياً.
+            }
+
+            // إيقاف التشغيل التلقائي عند التفاعل مع الكاروسيل (hover)
+            carousel.addEventListener('mouseenter', pauseAutoPlay);
+            carousel.addEventListener('mouseleave', resumeAutoPlay);
+
+            // بدء التشغيل
+            goToIndex(0);
+            startAutoPlay();
+
+            // تنظيف عند مغادرة الصفحة
+            window.addEventListener('beforeunload', function() {
+                if (intervalId) clearInterval(intervalId);
             });
-            card.addEventListener('mouseleave', () => {
-                track.style.animationPlayState = 'running';
-            });
-        });
+
+            // نعرض الكاروسيل للاستخدام العالمي إن احتاجه شيء آخر
+            window.heroCarousel = {
+                goTo: goToIndex,
+                next: nextItem,
+                pause: pauseAutoPlay,
+                resume: resumeAutoPlay
+            };
+        }
     });
 </script>
 
