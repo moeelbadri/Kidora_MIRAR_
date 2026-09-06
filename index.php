@@ -1,5 +1,5 @@
 <?php
-// index.php - Landing Page + Login/Register (نسخة بنفسجية غامقة مع فيديو في الأعلى)
+// index.php - Landing Page محسّنة مع فيديو + كاروسيل 3D
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
@@ -20,11 +20,10 @@ if (!empty($_SESSION['child_id'])) {
     exit;
 }
 
-// جلب البيانات للـ Landing
+// جلب البيانات
 $characters = all_characters($pdo);
 $plans = $pdo->query("SELECT * FROM subscription_plans ORDER BY sort_order ASC")->fetchAll();
 
-// متغيرات الـ Login/Register
 $loginError = null;
 $registerError = null;
 
@@ -34,14 +33,12 @@ $registerError = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
-
     if ($email === '' || $password === '') {
         $loginError = 'الرجاء ملء جميع الحقول.';
     } else {
         $stmt = $pdo->prepare("SELECT id, name, password FROM children WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
-
         if ($user && password_verify($password, $user['password'])) {
             $_SESSION['child_id'] = $user['id'];
             $_SESSION['child_name'] = $user['name'];
@@ -94,13 +91,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                                        VALUES (?,?,?,?,?,?,?,?,?)");
                 $ins->execute([$name, $email, $hashed, $age, $parentName, $parentPhone, $char1, $char2, $char1]);
                 $childId = (int)$pdo->lastInsertId();
-
                 $freePlan = $pdo->query("SELECT id FROM subscription_plans ORDER BY sort_order ASC LIMIT 1")->fetch();
                 if ($freePlan) {
                     $subIns = $pdo->prepare("INSERT INTO subscriptions (child_id, plan_id, status, activated_at, activated_by) VALUES (?,?,'active',CURRENT_TIMESTAMP,'system')");
                     $subIns->execute([$childId, $freePlan['id']]);
                 }
-
                 $_SESSION['child_id'] = $childId;
                 $_SESSION['child_name'] = $name;
                 header('Location: subscriptions.php?welcome=1');
@@ -123,7 +118,6 @@ $charDataForJS = array_map(function($c){
     ];
 }, $characters);
 
-// تحضير الشخصيات للكاروسيل
 $carouselChars = [];
 foreach ($characters as $c) {
     $carouselChars[] = [
@@ -148,7 +142,7 @@ require_once __DIR__ . '/includes/navbar.php';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         /* ============================================================
-           الأنماط العامة – خلفية بنفسجية غامقة مع لمسات ذهبية
+           الأنماط العامة
            ============================================================ */
         :root {
             --bg-primary: #0a061a;
@@ -174,7 +168,6 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         html { scroll-behavior: smooth; }
 
         body {
@@ -189,54 +182,71 @@ require_once __DIR__ . '/includes/navbar.php';
             overflow-x: hidden;
         }
 
+        .landing-page { max-width: 1400px; margin: 0 auto; padding: 0 20px 40px; }
+
         /* ============================================================
-           SECTION 1: الفيديو – Hero Fullscreen
+           HERO: فيديو خلفية + كاروسيل 3D
            ============================================================ */
-        .video-hero {
+        .hero-wrapper {
             position: relative;
             width: 100%;
-            height: 100vh;
-            min-height: 500px;
-            max-height: 900px;
-            overflow: hidden;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #000;
+            overflow: hidden;
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+            margin-bottom: 20px;
         }
 
-        .video-hero video {
+        .hero-wrapper video {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             min-width: 100%;
             min-height: 100%;
-            width: auto;
-            height: auto;
             object-fit: cover;
             z-index: 0;
-            filter: brightness(0.7) saturate(0.9);
+            filter: brightness(0.6) saturate(0.8);
         }
 
-        .video-hero .overlay {
+        .hero-wrapper .video-fallback {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: linear-gradient(135deg, #0a061a 0%, #1a0a2e 50%, #2d1b4e 100%);
+            display: none;
+        }
+
+        .hero-wrapper .overlay {
             position: absolute;
             inset: 0;
             background: linear-gradient(180deg,
-                rgba(10,6,26,0.3) 0%,
-                rgba(10,6,26,0.5) 40%,
+                rgba(10,6,26,0.2) 0%,
+                rgba(10,6,26,0.4) 40%,
                 rgba(10,6,26,0.85) 85%,
                 rgba(10,6,26,1) 100%
             );
             z-index: 1;
         }
 
-        .video-hero .content {
+        .hero-container {
             position: relative;
             z-index: 2;
-            text-align: center;
-            max-width: 800px;
-            padding: 0 24px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+            padding: 40px 20px;
+        }
+
+        .hero-content {
+            flex: 1 1 400px;
+            text-align: right;
             animation: fadeUp 1.2s ease forwards;
         }
 
@@ -245,7 +255,7 @@ require_once __DIR__ . '/includes/navbar.php';
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .video-hero .content .badge {
+        .hero-content .badge {
             display: inline-block;
             background: var(--gold-glow);
             color: var(--gold);
@@ -259,42 +269,39 @@ require_once __DIR__ . '/includes/navbar.php';
             margin-bottom: 16px;
         }
 
-        .video-hero .content h1 {
-            font-size: clamp(48px, 10vw, 80px);
+        .hero-content h1 {
+            font-size: clamp(48px, 8vw, 72px);
             font-weight: 900;
             line-height: 1.05;
-            margin-bottom: 10px;
             text-shadow: 0 4px 30px rgba(0,0,0,0.6);
         }
 
-        .video-hero .content h1 .highlight {
+        .hero-content h1 .highlight {
             background: linear-gradient(135deg, #fff 20%, var(--gold) 80%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        .video-hero .content .subtitle {
-            font-size: clamp(20px, 3.5vw, 32px);
+        .hero-content .subtitle {
+            font-size: clamp(20px, 3vw, 28px);
             font-weight: 600;
             color: #e8e0ff;
-            margin-bottom: 6px;
             text-shadow: 0 2px 20px rgba(0,0,0,0.5);
         }
 
-        .video-hero .content .desc {
-            font-size: clamp(15px, 1.6vw, 20px);
+        .hero-content .desc {
+            font-size: clamp(15px, 1.4vw, 18px);
             color: #d9d0ff;
-            max-width: 600px;
-            margin: 12px auto 28px;
+            max-width: 500px;
+            margin: 12px 0 28px;
             line-height: 1.8;
             text-shadow: 0 2px 15px rgba(0,0,0,0.5);
         }
 
-        .video-hero .content .actions {
+        .hero-content .actions {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
             gap: 14px;
         }
 
@@ -332,15 +339,136 @@ require_once __DIR__ . '/includes/navbar.php';
         }
         .btn-outline:hover { background: rgba(255,255,255,0.12); transform: scale(1.04); }
 
-        .btn-lg { padding: 16px 44px; font-size: 18px; }
-        .btn-sm { padding: 10px 24px; font-size: 14px; }
+        /* ===== كاروسيل 3D (الجانب الأيمن) ===== */
+        .hero-visual {
+            flex: 1 1 300px;
+            text-align: center;
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border-radius: var(--radius-xl);
+            padding: 24px 16px 20px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-soft);
+            min-height: 320px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
 
-        /* زر "تخطي" في الفيديو */
-        .video-hero .skip-btn {
+        .hero-visual .glow-ring {
+            position: absolute;
+            inset: -2px;
+            border-radius: var(--radius-xl);
+            background: radial-gradient(circle at 30% 40%, var(--gold-glow), transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero-carousel {
+            position: relative;
+            width: 100%;
+            max-width: 180px;
+            height: 180px;
+            margin: 0 auto 8px;
+            z-index: 1;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+            cursor: grab;
+        }
+        .hero-carousel:active { cursor: grabbing; }
+
+        .hero-carousel-item {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.4);
+            opacity: 0;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 140px;
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+            pointer-events: none;
+        }
+        .hero-carousel-item.active {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            z-index: 10;
+            filter: drop-shadow(0 20px 40px var(--gold-glow));
+        }
+        .hero-carousel-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
+        }
+        .hero-carousel-item .char-emoji {
+            font-size: 100px;
+            line-height: 1;
+            filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
+        }
+
+        .hero-char-name {
+            position: relative;
+            z-index: 2;
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--text-primary);
+            background: rgba(0,0,0,0.3);
+            padding: 4px 16px;
+            border-radius: 40px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.05);
+            display: inline-block;
+            transition: all 0.5s;
+            min-height: 34px;
+        }
+        .hero-char-name span { color: var(--gold); }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 12px;
+            position: relative;
+            z-index: 1;
+            flex-wrap: wrap;
+        }
+        .hero-stats .stat {
+            text-align: center;
+            background: rgba(255,255,255,0.03);
+            padding: 4px 14px;
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.03);
+            backdrop-filter: blur(4px);
+            min-width: 60px;
+        }
+        .hero-stats .stat .number {
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--gold);
+            display: block;
+            line-height: 1.2;
+        }
+        .hero-stats .stat .label {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            display: block;
+            line-height: 1.3;
+        }
+
+        /* زر تخطي الفيديو */
+        .skip-btn {
             position: absolute;
             bottom: 30px;
             right: 30px;
-            z-index: 3;
+            z-index: 5;
             background: rgba(255,255,255,0.08);
             backdrop-filter: blur(8px);
             border: 1px solid rgba(255,255,255,0.08);
@@ -352,233 +480,10 @@ require_once __DIR__ . '/includes/navbar.php';
             cursor: pointer;
             transition: 0.3s;
         }
-        .video-hero .skip-btn:hover { background: rgba(255,255,255,0.16); }
+        .skip-btn:hover { background: rgba(255,255,255,0.16); }
 
         /* ============================================================
-           SECTION 2: كروسيل الشخصيات – Netflix Style
-           ============================================================ */
-        .characters-carousel-section {
-            padding: 40px 0 20px;
-            margin-top: -2px;
-            background: var(--bg-primary);
-            position: relative;
-            z-index: 5;
-        }
-
-        .carousel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            padding: 0 20px 16px 20px;
-            max-width: 1400px;
-            margin: 0 auto;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .carousel-header h2 {
-            font-size: clamp(26px, 4vw, 38px);
-            font-weight: 900;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .carousel-header h2 span { color: var(--gold); }
-
-        .carousel-header .view-all {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .carousel-header .view-all:hover { color: var(--gold); }
-
-        .carousel-wrapper {
-            position: relative;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 10px;
-        }
-
-        .carousel-track {
-            display: flex;
-            gap: 16px;
-            overflow-x: auto;
-            padding: 12px 16px 30px 16px;
-            scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
-            scroll-snap-type: x mandatory;
-            scrollbar-width: none;
-        }
-        .carousel-track::-webkit-scrollbar { display: none; }
-
-        .char-card-netflix {
-            flex: 0 0 clamp(180px, 18vw, 260px);
-            scroll-snap-align: start;
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            background: var(--bg-card);
-            border: 1px solid var(--border-light);
-            transition: var(--transition);
-            cursor: pointer;
-            position: relative;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-            transform: scale(0.98);
-            opacity: 0.85;
-        }
-
-        .char-card-netflix:hover {
-            transform: scale(1.04) translateY(-12px);
-            opacity: 1;
-            border-color: var(--gold);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px var(--gold-glow);
-            z-index: 10;
-        }
-
-        .char-card-netflix .card-image {
-            width: 100%;
-            aspect-ratio: 3/4;
-            overflow: hidden;
-            background: rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .char-card-netflix .card-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.6s;
-        }
-        .char-card-netflix:hover .card-image img { transform: scale(1.08); }
-
-        .char-card-netflix .card-image .char-emoji {
-            font-size: clamp(60px, 10vw, 90px);
-        }
-
-        .char-card-netflix .card-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: var(--gold);
-            color: #1a1a2e;
-            padding: 2px 14px;
-            border-radius: 30px;
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: 0.3px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        .char-card-netflix .card-lock {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px);
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 11px;
-            color: var(--gold);
-            border: 1px solid rgba(251,191,36,0.15);
-        }
-
-        .char-card-netflix .card-body {
-            padding: 14px 14px 18px;
-            text-align: center;
-            background: rgba(10,6,26,0.6);
-            backdrop-filter: blur(4px);
-        }
-
-        .char-card-netflix .card-body .name {
-            font-weight: 800;
-            font-size: clamp(15px, 1.6vw, 20px);
-            color: #fff;
-            margin-bottom: 2px;
-        }
-
-        .char-card-netflix .card-body .trait {
-            font-size: 12px;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .char-card-netflix .card-body .trait .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--gold);
-            display: inline-block;
-        }
-
-        .char-card-netflix .card-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(0deg, rgba(10,6,26,0.9) 0%, transparent 60%);
-            opacity: 0;
-            transition: 0.4s;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding: 20px;
-        }
-        .char-card-netflix:hover .card-overlay { opacity: 1; }
-
-        .char-card-netflix .card-overlay .play-btn {
-            background: var(--gold);
-            color: #1a1a2e;
-            border: none;
-            padding: 8px 24px;
-            border-radius: 40px;
-            font-weight: 800;
-            font-size: 14px;
-            cursor: pointer;
-            transition: 0.3s;
-            transform: translateY(10px);
-            opacity: 0;
-        }
-        .char-card-netflix:hover .card-overlay .play-btn {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        .char-card-netflix .card-overlay .play-btn:hover { transform: scale(1.05); }
-
-        /* أزرار التنقل في الكاروسيل */
-        .carousel-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 20;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.06);
-            color: #fff;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 18px;
-        }
-        .carousel-nav:hover { background: var(--gold); color: #1a1a2e; }
-        .carousel-nav.prev { left: 0; }
-        .carousel-nav.next { right: 0; }
-
-        /* ============================================================
-           SECTION 3: باقي الأقسام (مميزات، AI، خطط، تسجيل)
+           باقي الأقسام
            ============================================================ */
         .section-head {
             text-align: center;
@@ -634,7 +539,34 @@ require_once __DIR__ . '/includes/navbar.php';
         .feature-card h3 { font-size: 20px; font-weight: 800; }
         .feature-card p { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
 
-        /* AI Section */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto 20px;
+            padding: 0 20px;
+        }
+        .plan-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(8px);
+            border-radius: var(--radius-lg);
+            padding: 28px 18px;
+            text-align: center;
+            border: 1px solid var(--border-light);
+            transition: var(--transition);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .plan-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--gold);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+        }
+        .plan-card h3 { font-size: 22px; font-weight: 800; }
+        .plan-card .price { font-size: 30px; font-weight: 900; color: var(--gold); margin: 10px 0; }
+        .plan-card ul { list-style: none; padding: 0; text-align: right; }
+        .plan-card ul li { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); font-size: 14px; }
+
         .ai-section {
             max-width: 1000px;
             margin: 20px auto;
@@ -670,36 +602,9 @@ require_once __DIR__ . '/includes/navbar.php';
             font-weight: 600;
         }
 
-        /* Plans */
-        .plans-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 24px;
-            max-width: 1200px;
-            margin: 0 auto 20px;
-            padding: 0 20px;
-        }
-        .plan-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(8px);
-            border-radius: var(--radius-lg);
-            padding: 28px 18px;
-            text-align: center;
-            border: 1px solid var(--border-light);
-            transition: var(--transition);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
-        .plan-card:hover {
-            transform: translateY(-8px);
-            border-color: var(--gold);
-            box-shadow: 0 16px 40px rgba(0,0,0,0.3);
-        }
-        .plan-card h3 { font-size: 22px; font-weight: 800; }
-        .plan-card .price { font-size: 30px; font-weight: 900; color: var(--gold); margin: 10px 0; }
-        .plan-card ul { list-style: none; padding: 0; text-align: right; }
-        .plan-card ul li { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); font-size: 14px; }
-
-        /* Auth */
+        /* ============================================================
+           نموذج التسجيل
+           ============================================================ */
         .auth-section {
             max-width: 640px;
             margin: 40px auto 20px;
@@ -776,11 +681,9 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         .btn-block { width: 100%; justify-content: center; padding: 14px; font-size: 16px; }
-
         .auth-toggle { text-align: center; margin-top: 16px; color: var(--text-secondary); font-size: 13px; }
         .auth-toggle a { color: var(--gold); text-decoration: none; font-weight: 700; }
 
-        /* Pickable characters in register */
         .pickable-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
@@ -825,9 +728,6 @@ require_once __DIR__ . '/includes/navbar.php';
             font-size: 14px;
         }
 
-        /* ============================================================
-           Footer
-           ============================================================ */
         .landing-footer {
             text-align: center;
             padding: 32px 0 16px;
@@ -841,21 +741,21 @@ require_once __DIR__ . '/includes/navbar.php';
            استجابة
            ============================================================ */
         @media (max-width: 992px) {
-            .video-hero .content h1 { font-size: clamp(40px, 8vw, 60px); }
-            .char-card-netflix { flex: 0 0 clamp(150px, 22vw, 200px); }
+            .hero-container { flex-direction: column; text-align: center; }
+            .hero-content .desc { max-width: 100%; margin: 12px auto 28px; }
+            .hero-content .actions { justify-content: center; }
+            .hero-visual { width: 100%; max-width: 400px; }
         }
 
         @media (max-width: 768px) {
-            .video-hero { height: 90vh; min-height: 450px; }
-            .video-hero .content .desc { font-size: 15px; }
-            .video-hero .content .actions { flex-direction: column; align-items: center; }
-            .video-hero .content .actions .btn { width: 100%; justify-content: center; }
-            .video-hero .skip-btn { bottom: 16px; right: 16px; font-size: 11px; padding: 6px 14px; }
-
-            .carousel-header h2 { font-size: 22px; }
-            .char-card-netflix { flex: 0 0 clamp(130px, 30vw, 160px); }
-            .carousel-nav { width: 32px; height: 32px; font-size: 13px; }
-
+            .hero-wrapper { min-height: auto; padding: 40px 0; }
+            .hero-content h1 { font-size: 36px; }
+            .hero-content .subtitle { font-size: 18px; }
+            .hero-content .desc { font-size: 14px; }
+            .hero-visual { min-height: 250px; }
+            .hero-carousel { max-width: 140px; height: 140px; }
+            .hero-carousel-item { width: 110px; height: 110px; font-size: 60px; }
+            .skip-btn { bottom: 16px; right: 16px; font-size: 11px; padding: 6px 14px; }
             .features-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
             .plans-grid { grid-template-columns: 1fr; }
             .auth-card { padding: 20px 16px; }
@@ -863,11 +763,10 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         @media (max-width: 480px) {
-            .video-hero .content h1 { font-size: 32px; }
-            .video-hero .content .subtitle { font-size: 18px; }
-            .video-hero .content .desc { font-size: 14px; }
-            .char-card-netflix { flex: 0 0 120px; }
-            .char-card-netflix .card-body .name { font-size: 13px; }
+            .hero-content h1 { font-size: 28px; }
+            .hero-content .subtitle { font-size: 16px; }
+            .hero-carousel { max-width: 100px; height: 100px; }
+            .hero-carousel-item { width: 80px; height: 80px; font-size: 40px; }
             .features-grid { grid-template-columns: 1fr; }
             .pickable-grid { grid-template-columns: repeat(3, 1fr); }
         }
@@ -875,93 +774,79 @@ require_once __DIR__ . '/includes/navbar.php';
 </head>
 <body>
 
+<div class="landing-page">
+
     <!-- ==========================================================
-    SECTION 1: فيديو كامل الشاشة في الأعلى
+    HERO: فيديو + كاروسيل 3D
     ========================================================== -->
-    <section class="video-hero" id="heroVideo">
-        <!-- الفيديو – ضع مسار الفيديو الخاص بك هنا -->
-        <video autoplay muted playsinline loop id="bgVideo">
-            <source src="https://youtu.be/XIQBQk6F-ok?si=vUZst00Z2VZxo9WL" type="video/mp4">
-            <!-- في حال عدم وجود فيديو، استخدم صورة خلفية -->
+    <div class="hero-wrapper" id="heroWrapper">
+        <!-- الفيديو -->
+        <video autoplay muted playsinline loop id="bgVideo" poster="assets/images/hero-poster.jpg">
+            <source src="assets/videos/hero.mp4" type="video/mp4">
+            <!-- إذا لم يوجد فيديو، تظهر الصورة البديلة -->
         </video>
+        <div class="video-fallback" id="videoFallback"></div>
         <div class="overlay"></div>
 
-        <div class="content">
-            <div class="badge">🚀 منصة تربوية ذكية</div>
-            <h1><span class="highlight">Kidora</span></h1>
-            <p class="subtitle">حيث يتحول التعلم إلى مغامرة بطولية</p>
-            <p class="desc">
-                مهام يومية، قصص ملهمة، ألعاب تفاعلية، وشخصيات مرافقة.
-                منصة متكاملة تنمي مهارات طفلك وتصنع منه بطلاً حقيقياً.
-            </p>
-            <div class="actions">
-                <a href="#carousel" class="btn btn-gold btn-lg">🎮 استكشف الشخصيات</a>
-                <a href="#auth" class="btn btn-outline btn-lg">🚀 سجل وابدأ</a>
+        <button class="skip-btn" onclick="skipVideo()">⏭ تخطي الفيديو</button>
+
+        <div class="hero-container">
+            <!-- النص -->
+            <div class="hero-content">
+                <div class="badge">🚀 منصة تربوية ذكية</div>
+                <h1><span class="highlight">Kidora</span></h1>
+                <p class="subtitle">حيث يتحول التعلم إلى مغامرة بطولية</p>
+                <p class="desc">
+                    مهام يومية، قصص ملهمة، ألعاب تفاعلية، وشخصيات مرافقة.
+                    منصة متكاملة تنمي مهارات طفلك وتصنع منه بطلاً حقيقياً.
+                </p>
+                <div class="actions">
+                    <a href="#auth" class="btn btn-gold">🚀 ابدأ مغامرتك الآن</a>
+                    <a href="#features" class="btn btn-outline">تعرف أكثر</a>
+                </div>
             </div>
-        </div>
 
-        <button class="skip-btn" onclick="skipVideo()">تخطي الفيديو ⏭</button>
-    </section>
-
-    <!-- ==========================================================
-    SECTION 2: كروسيل الشخصيات – Netflix Style
-    ========================================================== -->
-    <section class="characters-carousel-section" id="carousel">
-        <div class="carousel-header">
-            <h2>🌟 شخصياتك المفضلة <span>✦</span></h2>
-            <a href="#auth" class="view-all">اختر شخصيتك <i class="fas fa-arrow-left"></i></a>
-        </div>
-
-        <div class="carousel-wrapper">
-            <button class="carousel-nav prev" onclick="scrollCarousel(-1)"><i class="fas fa-chevron-left"></i></button>
-            <button class="carousel-nav next" onclick="scrollCarousel(1)"><i class="fas fa-chevron-right"></i></button>
-
-            <div class="carousel-track" id="charTrack">
-                <?php foreach ($characters as $c):
-                    $color = $c['color'] ?? '#a78bfa';
-                    $icon = character_icons($c)[0] ?? '🌟';
-                    $locked = (bool)$c['is_premium'];
-                ?>
-                    <div class="char-card-netflix" style="--char-color: <?= h($color) ?>;">
-                        <div class="card-image">
-                            <?php if (!empty($c['image_path'])): ?>
-                                <img src="<?= h($c['image_path']) ?>" alt="<?= h($c['name']) ?>">
-                            <?php else: ?>
-                                <span class="char-emoji"><?= $icon ?></span>
-                            <?php endif; ?>
-
-                            <?php if (!$locked): ?>
-                                <span class="card-badge">مجانية</span>
-                            <?php else: ?>
-                                <span class="card-lock">🔒 مدفوعة</span>
-                            <?php endif; ?>
+            <!-- كاروسيل 3D -->
+            <div class="hero-visual" id="heroVisual">
+                <div class="glow-ring"></div>
+                <div class="hero-carousel" id="heroCarousel">
+                    <?php
+                    $first = true;
+                    foreach ($carouselChars as $index => $char):
+                        $activeClass = $first ? 'active' : '';
+                        $first = false;
+                        $img = !empty($char['image']) ? '<img src="' . htmlspecialchars(BASE_PATH . '/' . $char['image']) . '" alt="' . htmlspecialchars($char['name']) . '">' : '<span class="char-emoji">' . htmlspecialchars($char['icon']) . '</span>';
+                    ?>
+                        <div class="hero-carousel-item <?php echo $activeClass; ?>" data-index="<?php echo $index; ?>" data-color="<?php echo htmlspecialchars($char['color']); ?>">
+                            <?php echo $img; ?>
                         </div>
-
-                        <div class="card-body">
-                            <div class="name"><?= h($c['name']) ?></div>
-                            <div class="trait">
-                                <span class="dot"></span>
-                                <?= h($c['trait'] ?? 'مميز') ?>
-                            </div>
-                        </div>
-
-                        <div class="card-overlay">
-                            <?php if ($locked): ?>
-                                <button class="play-btn" onclick="alert('🔓 اشترك الآن لفتح هذه الشخصية!')">🔓 اشترك</button>
-                            <?php else: ?>
-                                <button class="play-btn" onclick="alert('✅ اختر هذه الشخصية عند التسجيل!')">✅ اخترها</button>
-                            <?php endif; ?>
-                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="hero-char-name" id="heroCharName">
+                    <span id="heroCharNameText"><?php echo htmlspecialchars($carouselChars[0]['name']); ?></span>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="number">100+</span>
+                        <span class="label">قصة تفاعلية</span>
                     </div>
-                <?php endforeach; ?>
+                    <div class="stat">
+                        <span class="number"><?php echo count($characters); ?></span>
+                        <span class="label">شخصيات</span>
+                    </div>
+                    <div class="stat">
+                        <span class="number">✨ AI</span>
+                        <span class="label">قصص مخصصة</span>
+                    </div>
+                </div>
             </div>
         </div>
-    </section>
+    </div>
 
     <!-- ==========================================================
-    SECTION 3: المميزات
+    المميزات
     ========================================================== -->
-    <div class="section-head">
+    <div class="section-head" id="features">
         <div class="eyebrow">✨ لماذا Kidora</div>
         <h2>مغامرة تعلم متكاملة</h2>
         <p class="sub">كل عنصر في المنصة صمم ليكون ممتعاً ومفيداً في آن واحد</p>
@@ -976,7 +861,7 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
 
     <!-- ==========================================================
-    SECTION 4: الذكاء الاصطناعي
+    الذكاء الاصطناعي
     ========================================================== -->
     <div class="ai-section">
         <div class="ai-icon">🤖</div>
@@ -992,7 +877,7 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
 
     <!-- ==========================================================
-    SECTION 5: خطط الاشتراك
+    خطط الاشتراك
     ========================================================== -->
     <div class="section-head">
         <div class="eyebrow">📦 خطط الاشتراك</div>
@@ -1016,7 +901,7 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
 
     <!-- ==========================================================
-    SECTION 6: تسجيل الدخول / إنشاء حساب
+    تسجيل الدخول / إنشاء حساب
     ========================================================== -->
     <section class="auth-section" id="auth">
         <div class="auth-card">
@@ -1094,99 +979,159 @@ require_once __DIR__ . '/includes/navbar.php';
         <p>© 2026 Kidora. جميع الحقوق محفوظة.</p>
     </footer>
 
-    <!-- ==========================================================
-    JavaScript
-    ========================================================== -->
-    <script>
-        // ===== تخطي الفيديو =====
-        function skipVideo() {
-            const video = document.getElementById('bgVideo');
-            if (video) video.pause();
-            document.getElementById('heroVideo').style.height = 'auto';
-            document.getElementById('heroVideo').style.minHeight = 'auto';
-            document.getElementById('heroVideo').style.maxHeight = 'none';
-            document.getElementById('heroVideo').querySelector('.overlay').style.opacity = '0';
-            document.getElementById('carousel').scrollIntoView({ behavior: 'smooth' });
-        }
+</div>
 
-        // ===== كروسيل الشخصيات =====
-        function scrollCarousel(direction) {
-            const track = document.getElementById('charTrack');
-            const cardWidth = track.querySelector('.char-card-netflix')?.offsetWidth || 200;
-            const gap = 16;
-            const scrollAmount = (cardWidth + gap) * direction * 2;
-            track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-        }
-
-        // ===== تبديل التبويبات =====
-        document.querySelectorAll('.auth-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-                const tabName = this.dataset.tab;
-                document.getElementById('login-tab').classList.toggle('active', tabName === 'login');
-                document.getElementById('register-tab').classList.toggle('active', tabName === 'register');
-            });
+<!-- ==========================================================
+JavaScript
+========================================================== -->
+<script>
+    // ===== حل مشكلة الفيديو (إذا لم يكن موجوداً) =====
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('bgVideo');
+        // إذا فشل تحميل الفيديو، أظهر الخلفية البديلة
+        video.addEventListener('error', function() {
+            document.getElementById('videoFallback').style.display = 'block';
+            video.style.display = 'none';
         });
-
-        <?php if ($registerError): ?>
-            document.querySelector('.auth-tab[data-tab="register"]').click();
-        <?php endif; ?>
-
-        // ===== اختيار شخصيتين للتسجيل =====
-        const CHAR_DATA = <?= json_encode($charDataForJS, JSON_UNESCAPED_UNICODE) ?>;
-        let picked = [];
-
-        function toggleCharPick(el) {
-            if (el.dataset.locked === '1') {
-                alert('🔒 هذه الشخصية مدفوعة، اشترك لفتحها.');
-                return;
-            }
-            const id = parseInt(el.dataset.id, 10);
-            const idx = picked.indexOf(id);
-            if (idx > -1) {
-                picked.splice(idx, 1);
-                el.classList.remove('selected');
-            } else {
-                if (picked.length >= 2) return;
-                picked.push(id);
-                el.classList.add('selected');
-            }
-            document.getElementById('selCountLabel').textContent = picked.length + ' / 2 مختارة';
-            document.getElementById('character_1').value = picked[0] || '';
-            document.getElementById('character_2').value = picked[1] || '';
-        }
-
-        document.getElementById('registerForm').addEventListener('submit', function(e) {
-            if (picked.length !== 2) {
-                e.preventDefault();
-                alert('الرجاء اختيار شخصيتين مجانيتين.');
-            }
+        // إذا لم يتمكن من التشغيل (مثل مشكلة في التنسيق)
+        video.addEventListener('stalled', function() {
+            document.getElementById('videoFallback').style.display = 'block';
+            video.style.display = 'none';
         });
+    });
 
-        // ===== كاروسيل 3D (هيرو) – تأثير حركي =====
-        document.addEventListener('DOMContentLoaded', function() {
-            const track = document.getElementById('charTrack');
-            if (track) {
-                // إيقاف التمرير التلقائي مؤقتاً عند hover
-                const cards = track.querySelectorAll('.char-card-netflix');
-                cards.forEach(card => {
-                    card.addEventListener('mouseenter', () => {
-                        // يمكن إضافة تأثير إضافي هنا
-                    });
+    // ===== تخطي الفيديو =====
+    function skipVideo() {
+        const video = document.getElementById('bgVideo');
+        if (video) video.pause();
+        document.getElementById('heroWrapper').style.minHeight = 'auto';
+        document.getElementById('heroWrapper').style.padding = '40px 0';
+        document.querySelector('.skip-btn').style.display = 'none';
+    }
+
+    // ===== كاروسيل 3D =====
+    document.addEventListener('DOMContentLoaded', function() {
+        const carousel = document.getElementById('heroCarousel');
+        const items = carousel ? carousel.querySelectorAll('.hero-carousel-item') : [];
+        const nameDisplay = document.getElementById('heroCharNameText');
+        const visual = document.getElementById('heroVisual');
+
+        if (items.length > 0) {
+            let currentIndex = 0;
+            let intervalId = null;
+            let isPaused = false;
+
+            function goToIndex(index) {
+                items.forEach(item => item.classList.remove('active'));
+                const target = items[index];
+                if (target) {
+                    target.classList.add('active');
+                    const name = target.dataset.name || target.querySelector('img')?.alt || 'بطل';
+                    if (nameDisplay) nameDisplay.textContent = name;
+                    const color = target.dataset.color || '#a78bfa';
+                    if (visual) {
+                        visual.style.borderColor = color + '40';
+                    }
+                }
+                currentIndex = index;
+            }
+
+            function nextItem() {
+                if (isPaused) return;
+                let next = currentIndex + 1;
+                if (next >= items.length) next = 0;
+                goToIndex(next);
+            }
+
+            function startAutoPlay() {
+                if (intervalId) clearInterval(intervalId);
+                intervalId = setInterval(nextItem, 4000);
+            }
+
+            function pauseAutoPlay() {
+                isPaused = true;
+                if (intervalId) { clearInterval(intervalId); intervalId = null; }
+            }
+
+            function resumeAutoPlay() {
+                isPaused = false;
+                if (!intervalId) startAutoPlay();
+            }
+
+            if (carousel && visual) {
+                carousel.addEventListener('mousemove', function(e) {
+                    if (isPaused) return;
+                    const rect = this.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    const rotateX = ((y - centerY) / centerY) * -8;
+                    const rotateY = ((x - centerX) / centerX) * 8;
+                    this.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+                });
+                carousel.addEventListener('mouseleave', function() {
+                    this.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale(1)';
                 });
             }
 
-            // تأثير الفيديو عند التمرير
-            const videoHero = document.getElementById('heroVideo');
-            let lastScroll = 0;
-            window.addEventListener('scroll', function() {
-                const scrollY = window.scrollY;
-                if (scrollY > 100 && videoHero) {
-                    videoHero.style.opacity = Math.max(0, 1 - (scrollY - 100) / 400);
-                }
+            carousel.addEventListener('mouseenter', pauseAutoPlay);
+            carousel.addEventListener('mouseleave', resumeAutoPlay);
+
+            goToIndex(0);
+            startAutoPlay();
+
+            window.addEventListener('beforeunload', function() {
+                if (intervalId) clearInterval(intervalId);
             });
+        }
+    });
+
+    // ===== تبديل التبويبات =====
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            const tabName = this.dataset.tab;
+            document.getElementById('login-tab').classList.toggle('active', tabName === 'login');
+            document.getElementById('register-tab').classList.toggle('active', tabName === 'register');
         });
-    </script>
+    });
+
+    <?php if ($registerError): ?>
+        document.querySelector('.auth-tab[data-tab="register"]').click();
+    <?php endif; ?>
+
+    // ===== اختيار شخصيتين للتسجيل =====
+    const CHAR_DATA = <?= json_encode($charDataForJS, JSON_UNESCAPED_UNICODE) ?>;
+    let picked = [];
+
+    function toggleCharPick(el) {
+        if (el.dataset.locked === '1') {
+            alert('🔒 هذه الشخصية مدفوعة، اشترك لفتحها.');
+            return;
+        }
+        const id = parseInt(el.dataset.id, 10);
+        const idx = picked.indexOf(id);
+        if (idx > -1) {
+            picked.splice(idx, 1);
+            el.classList.remove('selected');
+        } else {
+            if (picked.length >= 2) return;
+            picked.push(id);
+            el.classList.add('selected');
+        }
+        document.getElementById('selCountLabel').textContent = picked.length + ' / 2 مختارة';
+        document.getElementById('character_1').value = picked[0] || '';
+        document.getElementById('character_2').value = picked[1] || '';
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+        if (picked.length !== 2) {
+            e.preventDefault();
+            alert('الرجاء اختيار شخصيتين مجانيتين.');
+        }
+    });
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
