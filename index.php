@@ -881,7 +881,7 @@ require_once __DIR__ . '/includes/navbar.php';
     <section class="video-hero" id="heroVideo">
         <!-- الفيديو – ضع مسار الفيديو الخاص بك هنا -->
         <video autoplay muted playsinline loop id="bgVideo">
-            <source src="assets/videos/hero.mp4" type="video/mp4">
+            <source src="https://youtu.be/XIQBQk6F-ok?si=vUZst00Z2VZxo9WL" type="video/mp4">
             <!-- في حال عدم وجود فيديو، استخدم صورة خلفية -->
         </video>
         <div class="overlay"></div>
