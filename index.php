@@ -1,5 +1,5 @@
 <?php
-// index.php - الصفحة الرئيسية لمنصة Kidora (نسخة نهائية مع فيديو)
+// index.php - الصفحة الرئيسية مع فيديو خلفية ثابت
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
@@ -180,30 +180,20 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         /* ============================================================
-           SECTION 1: فيديو كامل الشاشة
+           فيديو الخلفية – ثابت (fixed)
            ============================================================ */
-        .video-fullscreen {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            min-height: 500px;
-            max-height: 900px;
-            overflow: hidden;
-            background: #0a061a;
-        }
-
-        .video-fullscreen .video-wrapper {
-            position: absolute;
+        .video-background {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            z-index: -1;
             overflow: hidden;
-            background: #000;
+            background: #0a061a;
         }
 
-        /* طريقة جديدة ومضمونة لعرض الفيديو */
-        .video-fullscreen .video-wrapper iframe {
+        .video-background iframe {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -215,83 +205,66 @@ require_once __DIR__ . '/includes/navbar.php';
             pointer-events: none;
         }
 
-        /* حل بديل باستخدام الفيديو المحلي */
-        .video-fullscreen .video-wrapper video {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            object-fit: cover;
-        }
-
-        .video-fullscreen .overlay {
+        .video-background .overlay {
             position: absolute;
             inset: 0;
             background: linear-gradient(180deg,
-                rgba(10,6,26,0.1) 0%,
-                rgba(10,6,26,0.2) 50%,
-                rgba(10,6,26,0.7) 85%,
-                rgba(10,6,26,1) 100%
+                rgba(10,6,26,0.3) 0%,
+                rgba(10,6,26,0.5) 50%,
+                rgba(10,6,26,0.8) 85%,
+                rgba(10,6,26,0.95) 100%
             );
             z-index: 1;
         }
 
-        .video-fullscreen .skip-btn {
-            position: absolute;
+        /* زر التحكم بالصوت */
+        .sound-toggle {
+            position: fixed;
             bottom: 30px;
             right: 30px;
-            z-index: 5;
+            z-index: 10;
             background: rgba(255,255,255,0.1);
             backdrop-filter: blur(8px);
             border: 1px solid rgba(255,255,255,0.1);
             color: #fff;
-            padding: 8px 20px;
+            padding: 10px 14px;
             border-radius: 40px;
-            font-weight: 600;
-            font-size: 13px;
+            font-size: 16px;
             cursor: pointer;
             transition: 0.3s;
-        }
-        .video-fullscreen .skip-btn:hover { background: rgba(255,255,255,0.2); }
-
-        .scroll-indicator {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 3;
-            color: rgba(255,255,255,0.5);
-            font-size: 14px;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 6px;
-            animation: bounceDown 2s ease-in-out infinite;
+            gap: 8px;
         }
-        .scroll-indicator i {
-            font-size: 24px;
-            color: rgba(255,255,255,0.4);
+        .sound-toggle:hover {
+            background: rgba(255,255,255,0.2);
         }
-        @keyframes bounceDown {
-            0%,100% { transform: translateX(-50%) translateY(0); }
-            50% { transform: translateX(-50%) translateY(8px); }
+        .sound-toggle i {
+            font-size: 20px;
         }
 
         /* ============================================================
-           SECTION 2: المحتوى التعريفي
+           المحتوى الرئيسي (يظهر فوق الفيديو)
            ============================================================ */
-        .hero-content-section {
-            padding: 60px 20px 40px;
-            max-width: 1200px;
+        .content-wrapper {
+            position: relative;
+            z-index: 2;
+            padding: 20px 0 40px;
+            max-width: 1400px;
             margin: 0 auto;
-            text-align: center;
         }
 
-        .hero-content-section .badge {
+        /* قسم الهيرو التعريفي */
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .hero-section .badge {
             display: inline-block;
             background: var(--gold-glow);
             color: var(--gold);
@@ -304,35 +277,38 @@ require_once __DIR__ . '/includes/navbar.php';
             margin-bottom: 16px;
         }
 
-        .hero-content-section h1 {
-            font-size: clamp(48px, 8vw, 72px);
+        .hero-section h1 {
+            font-size: clamp(48px, 8vw, 80px);
             font-weight: 900;
             line-height: 1.05;
+            text-shadow: 0 4px 30px rgba(0,0,0,0.6);
         }
 
-        .hero-content-section h1 .highlight {
+        .hero-section h1 .highlight {
             background: linear-gradient(135deg, #fff 20%, var(--gold) 80%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        .hero-content-section .subtitle {
-            font-size: clamp(20px, 3vw, 28px);
+        .hero-section .subtitle {
+            font-size: clamp(20px, 3vw, 30px);
             font-weight: 600;
             color: #e8e0ff;
             margin: 6px 0;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.5);
         }
 
-        .hero-content-section .desc {
-            font-size: clamp(15px, 1.4vw, 18px);
+        .hero-section .desc {
+            font-size: clamp(15px, 1.4vw, 20px);
             color: #d9d0ff;
             max-width: 600px;
             margin: 12px auto 28px;
             line-height: 1.8;
+            text-shadow: 0 2px 15px rgba(0,0,0,0.5);
         }
 
-        .hero-content-section .actions {
+        .hero-section .actions {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
@@ -374,8 +350,36 @@ require_once __DIR__ . '/includes/navbar.php';
         .btn-outline:hover { background: rgba(255,255,255,0.12); transform: scale(1.04); }
 
         /* ============================================================
-           SECTION 3: كروسيل الشخصيات
+           باقي الأقسام (كروسيل، مميزات، AI، خطط، تسجيل)
            ============================================================ */
+        .section-head {
+            text-align: center;
+            padding: 60px 20px 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section-head .eyebrow {
+            color: var(--gold);
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .section-head h2 {
+            font-size: clamp(30px, 5vw, 44px);
+            font-weight: 900;
+            color: #fff;
+            margin: 6px 0 10px;
+        }
+        .section-head .sub {
+            color: var(--text-secondary);
+            font-size: 18px;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        /* كروسيل الشخصيات */
         .characters-carousel-section {
             padding: 20px 0 40px;
         }
@@ -591,36 +595,7 @@ require_once __DIR__ . '/includes/navbar.php';
         .carousel-nav.prev { left: 0; }
         .carousel-nav.next { right: 0; }
 
-        /* ============================================================
-           باقي الأقسام
-           ============================================================ */
-        .section-head {
-            text-align: center;
-            padding: 60px 20px 30px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .section-head .eyebrow {
-            color: var(--gold);
-            font-weight: 700;
-            font-size: 13px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-        }
-        .section-head h2 {
-            font-size: clamp(30px, 5vw, 44px);
-            font-weight: 900;
-            color: #fff;
-            margin: 6px 0 10px;
-        }
-        .section-head .sub {
-            color: var(--text-secondary);
-            font-size: 18px;
-            max-width: 600px;
-            margin: 0 auto;
-            line-height: 1.7;
-        }
-
+        /* المميزات */
         .features-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -648,6 +623,7 @@ require_once __DIR__ . '/includes/navbar.php';
         .feature-card h3 { font-size: 20px; font-weight: 800; }
         .feature-card p { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
 
+        /* AI */
         .ai-section {
             max-width: 1000px;
             margin: 20px auto;
@@ -683,6 +659,7 @@ require_once __DIR__ . '/includes/navbar.php';
             font-weight: 600;
         }
 
+        /* خطط الاشتراك */
         .plans-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -711,9 +688,7 @@ require_once __DIR__ . '/includes/navbar.php';
         .plan-card ul { list-style: none; padding: 0; text-align: right; }
         .plan-card ul li { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); font-size: 14px; }
 
-        /* ============================================================
-           نموذج التسجيل
-           ============================================================ */
+        /* نموذج التسجيل */
         .auth-section {
             max-width: 640px;
             margin: 40px auto 20px;
@@ -850,13 +825,10 @@ require_once __DIR__ . '/includes/navbar.php';
            استجابة
            ============================================================ */
         @media (max-width: 768px) {
-            .video-fullscreen { height: 60vh; min-height: 350px; max-height: 600px; }
-            .scroll-indicator { bottom: 40px; font-size: 12px; }
-            .scroll-indicator i { font-size: 18px; }
-            .hero-content-section { padding: 40px 16px 30px; }
-            .hero-content-section h1 { font-size: 36px; }
-            .hero-content-section .subtitle { font-size: 18px; }
-            .hero-content-section .desc { font-size: 14px; }
+            .hero-section { min-height: auto; padding: 80px 20px 40px; }
+            .hero-section h1 { font-size: 36px; }
+            .hero-section .subtitle { font-size: 18px; }
+            .hero-section .desc { font-size: 14px; }
             .char-card-netflix { flex: 0 0 clamp(130px, 30vw, 160px); }
             .carousel-nav { width: 32px; height: 32px; font-size: 13px; }
             .features-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -866,9 +838,8 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         @media (max-width: 480px) {
-            .video-fullscreen { height: 50vh; min-height: 250px; }
-            .hero-content-section h1 { font-size: 28px; }
-            .hero-content-section .subtitle { font-size: 16px; }
+            .hero-section h1 { font-size: 28px; }
+            .hero-section .subtitle { font-size: 16px; }
             .char-card-netflix { flex: 0 0 120px; }
             .char-card-netflix .card-body .name { font-size: 13px; }
             .features-grid { grid-template-columns: 1fr; }
@@ -879,250 +850,274 @@ require_once __DIR__ . '/includes/navbar.php';
 <body>
 
     <!-- ==========================================================
-    SECTION 1: فيديو كامل الشاشة (بدون نصوص)
+    فيديو الخلفية الثابت (Fixed)
     ========================================================== -->
-    <section class="video-fullscreen" id="videoSection">
-        <div class="video-wrapper">
-            <!-- فيديو يوتيوب كخلفية -->
-            <iframe 
-                src="https://www.youtube.com/embed/XIQBQk6F-ok?autoplay=1&mute=1&loop=1&playlist=XIQBQk6F-ok&controls=0&showinfo=0&rel=0&modestbranding=1" 
-                frameborder="0" 
-                allow="autoplay; encrypted-media" 
-                allowfullscreen>
-            </iframe>
-        </div>
+    <div class="video-background" id="videoBackground">
+        <iframe 
+            src="https://www.youtube.com/embed/XIQBQk6F-ok?autoplay=1&mute=1&loop=1&playlist=XIQBQk6F-ok&controls=0&showinfo=0&rel=0&modestbranding=1" 
+            frameborder="0" 
+            allow="autoplay; encrypted-media" 
+            allowfullscreen>
+        </iframe>
         <div class="overlay"></div>
-
-        <button class="skip-btn" onclick="skipVideo()">⏭ تخطي</button>
-
-        <div class="scroll-indicator">
-            <span>تمرير للأسفل</span>
-            <i class="fas fa-chevron-down"></i>
-        </div>
-    </section>
-
-    <!-- ==========================================================
-    SECTION 2: المحتوى التعريفي
-    ========================================================== -->
-    <section class="hero-content-section" id="heroContent">
-        <div class="badge">🚀 منصة تربوية ذكية</div>
-        <h1><span class="highlight">Kidora</span></h1>
-        <p class="subtitle">حيث يتحول التعلم إلى مغامرة بطولية</p>
-        <p class="desc">
-            مهام يومية، قصص ملهمة، ألعاب تفاعلية، وشخصيات مرافقة.
-            منصة متكاملة تنمي مهارات طفلك وتصنع منه بطلاً حقيقياً.
-        </p>
-        <div class="actions">
-            <a href="#carousel" class="btn btn-gold">🎮 استكشف الشخصيات</a>
-            <a href="#auth" class="btn btn-outline">🚀 سجل وابدأ</a>
-        </div>
-    </section>
-
-    <!-- ==========================================================
-    SECTION 3: كروسيل الشخصيات
-    ========================================================== -->
-    <section class="characters-carousel-section" id="carousel">
-        <div class="carousel-header">
-            <h2>🌟 شخصياتك المفضلة <span>✦</span></h2>
-            <a href="#auth" class="view-all">اختر شخصيتك <i class="fas fa-arrow-left"></i></a>
-        </div>
-
-        <div class="carousel-wrapper">
-            <button class="carousel-nav prev" onclick="scrollCarousel(-1)"><i class="fas fa-chevron-left"></i></button>
-            <button class="carousel-nav next" onclick="scrollCarousel(1)"><i class="fas fa-chevron-right"></i></button>
-
-            <div class="carousel-track" id="charTrack">
-                <?php foreach ($characters as $c):
-                    $color = $c['color'] ?? '#a78bfa';
-                    $icon = character_icons($c)[0] ?? '🌟';
-                    $locked = (bool)$c['is_premium'];
-                ?>
-                    <div class="char-card-netflix" style="--char-color: <?= h($color) ?>;">
-                        <div class="card-image">
-                            <?php if (!empty($c['image_path'])): ?>
-                                <img src="<?= h($c['image_path']) ?>" alt="<?= h($c['name']) ?>">
-                            <?php else: ?>
-                                <span class="char-emoji"><?= $icon ?></span>
-                            <?php endif; ?>
-
-                            <?php if (!$locked): ?>
-                                <span class="card-badge">مجانية</span>
-                            <?php else: ?>
-                                <span class="card-lock">🔒 مدفوعة</span>
-                            <?php endif; ?>
-                        </div>
-
-                        <div class="card-body">
-                            <div class="name"><?= h($c['name']) ?></div>
-                            <div class="trait">
-                                <span class="dot"></span>
-                                <?= h($c['trait'] ?? 'مميز') ?>
-                            </div>
-                        </div>
-
-                        <div class="card-overlay">
-                            <?php if ($locked): ?>
-                                <button class="play-btn" onclick="alert('🔓 اشترك الآن لفتح هذه الشخصية!')">🔓 اشترك</button>
-                            <?php else: ?>
-                                <button class="play-btn" onclick="alert('✅ اختر هذه الشخصية عند التسجيل!')">✅ اخترها</button>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    </section>
-
-    <!-- ==========================================================
-    SECTION 4: المميزات
-    ========================================================== -->
-    <div class="section-head" id="features">
-        <div class="eyebrow">✨ لماذا Kidora</div>
-        <h2>مغامرة تعلم متكاملة</h2>
-        <p class="sub">كل عنصر في المنصة صمم ليكون ممتعاً ومفيداً في آن واحد</p>
-    </div>
-    <div class="features-grid">
-        <div class="feature-card"><div class="icon">📋</div><h3>مهام يومية</h3><p>4 مهام جديدة كل يوم</p></div>
-        <div class="feature-card"><div class="icon">📖</div><h3>قصص تفاعلية</h3><p>قصص صوتية ومرئية</p></div>
-        <div class="feature-card"><div class="icon">🎮</div><h3>ألعاب تعليمية</h3><p>تنمي الذاكرة والتركيز</p></div>
-        <div class="feature-card"><div class="icon">🏆</div><h3>مكافآت وتطور</h3><p>افتح شخصيات جديدة</p></div>
-        <div class="feature-card"><div class="icon">🧠</div><h3>ذكاء اصطناعي</h3><p>قصص مخصصة لكل طفل</p></div>
-        <div class="feature-card"><div class="icon">📲</div><h3>تقارير للوالدين</h3><p>تابع تقدم طفلك</p></div>
     </div>
 
-    <!-- ==========================================================
-    SECTION 5: الذكاء الاصطناعي
-    ========================================================== -->
-    <div class="ai-section">
-        <div class="ai-icon">🤖</div>
-        <h2>قصص مخصصة بذكاء اصطناعي</h2>
-        <p>نستخدم تقنيات الذكاء الاصطناعي لتوليد قصة فريدة لكل طفل، تتناسب مع عمره واهتماماته.</p>
-        <div class="ai-preview">
-            <div class="story-title">📖 مغامرة في مدينة النور</div>
-            <div class="story-snippet">
-                "في مدينة النور البعيدة، كان هناك طفل شجاع يدعى يوسف. ذات يوم، وجد خريطة قديمة تقوده إلى كنز الحكمة..."
-            </div>
-            <div class="story-tag">✨ قصة مخصصة ليوسف (7 سنوات)</div>
-        </div>
-    </div>
+    <!-- زر التحكم بالصوت -->
+    <button class="sound-toggle" id="soundToggle" onclick="toggleSound()">
+        <i class="fas fa-volume-mute"></i>
+        <span>تفعيل الصوت</span>
+    </button>
 
     <!-- ==========================================================
-    SECTION 6: خطط الاشتراك
+    المحتوى الرئيسي
     ========================================================== -->
-    <div class="section-head">
-        <div class="eyebrow">📦 خطط الاشتراك</div>
-        <h2>اختر ما يناسبك</h2>
-        <p class="sub">الخطة المجانية تمنحك تجربة رائعة، والمدفوعة تفتح لك المزيد من الشخصيات والمحتوى.</p>
-    </div>
-    <div class="plans-grid">
-        <?php foreach ($plans as $p):
-            $features = json_decode_safe($p['features_json'], []);
-        ?>
-            <div class="plan-card">
-                <h3><?= h($p['name']) ?></h3>
-                <div class="price"><?= (int)$p['price_ils'] === 0 ? 'مجانية' : (int)$p['price_ils'].' ₪' ?></div>
-                <ul>
-                    <?php foreach (array_slice($features, 0, 4) as $f): ?>
-                        <li>✅ <?= h($f) ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        <?php endforeach; ?>
-    </div>
+    <div class="content-wrapper">
 
-    <!-- ==========================================================
-    SECTION 7: تسجيل الدخول / إنشاء حساب
-    ========================================================== -->
-    <section class="auth-section" id="auth">
-        <div class="auth-card">
-            <div class="auth-logo">🌟 Kidora</div>
-            <p class="auth-sub">منصة ذكية تحوّل طفلك إلى بطل حقيقي</p>
-
-            <div class="auth-tabs">
-                <button type="button" class="auth-tab active" data-tab="login">تسجيل الدخول</button>
-                <button type="button" class="auth-tab" data-tab="register">إنشاء حساب</button>
-            </div>
-
-            <div id="login-tab" class="auth-form active">
-                <?php if ($loginError): ?><div class="auth-error">❌ <?= h($loginError) ?></div><?php endif; ?>
-                <form method="POST">
-                    <div class="field"><label>البريد الإلكتروني لولي الأمر</label><input type="email" name="email" required></div>
-                    <div class="field"><label>كلمة المرور</label><input type="password" name="password" required></div>
-                    <button type="submit" name="login" class="btn btn-gold btn-block">🚀 تسجيل الدخول</button>
-                </form>
-                <div class="auth-toggle">مسؤول المنصة؟ <a href="admin/login.php">دخول لوحة الإدارة</a></div>
-            </div>
-
-            <div id="register-tab" class="auth-form hidden">
-                <?php if ($registerError): ?><div class="auth-error">❌ <?= h($registerError) ?></div><?php endif; ?>
-                <p style="text-align:center;font-weight:700;color:var(--gold);font-size:15px;">
-                    1) اختر شخصيتين مجانيتين
+        <!-- قسم الهيرو التعريفي -->
+        <section class="hero-section" id="hero">
+            <div class="hero-content">
+                <div class="badge">🚀 منصة تربوية ذكية</div>
+                <h1><span class="highlight">Kidora</span></h1>
+                <p class="subtitle">حيث يتحول التعلم إلى مغامرة بطولية</p>
+                <p class="desc">
+                    مهام يومية، قصص ملهمة، ألعاب تفاعلية، وشخصيات مرافقة.
+                    منصة متكاملة تنمي مهارات طفلك وتصنع منه بطلاً حقيقياً.
                 </p>
-                <div class="two-char-note" id="selCountLabel">0 / 2 مختارة</div>
-                <div class="pickable-grid" id="regCharGrid">
-                    <?php foreach ($characters as $c): $locked = (bool)$c['is_premium']; ?>
-                        <div class="pickable <?= $locked ? 'locked' : '' ?>"
-                             data-id="<?= (int)$c['id'] ?>"
-                             data-locked="<?= $locked ? '1':'0' ?>"
-                             onclick="toggleCharPick(this)">
-                            <?php if ($locked): ?><div style="font-size:10px;color:var(--gold);">🔒</div><?php endif; ?>
-                            <div class="char-media">
+                <div class="actions">
+                    <a href="#carousel" class="btn btn-gold">🎮 استكشف الشخصيات</a>
+                    <a href="#auth" class="btn btn-outline">🚀 سجل وابدأ</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- كروسيل الشخصيات -->
+        <section class="characters-carousel-section" id="carousel">
+            <div class="carousel-header">
+                <h2>🌟 شخصياتك المفضلة <span>✦</span></h2>
+                <a href="#auth" class="view-all">اختر شخصيتك <i class="fas fa-arrow-left"></i></a>
+            </div>
+
+            <div class="carousel-wrapper">
+                <button class="carousel-nav prev" onclick="scrollCarousel(-1)"><i class="fas fa-chevron-left"></i></button>
+                <button class="carousel-nav next" onclick="scrollCarousel(1)"><i class="fas fa-chevron-right"></i></button>
+
+                <div class="carousel-track" id="charTrack">
+                    <?php foreach ($characters as $c):
+                        $color = $c['color'] ?? '#a78bfa';
+                        $icon = character_icons($c)[0] ?? '🌟';
+                        $locked = (bool)$c['is_premium'];
+                    ?>
+                        <div class="char-card-netflix" style="--char-color: <?= h($color) ?>;">
+                            <div class="card-image">
                                 <?php if (!empty($c['image_path'])): ?>
                                     <img src="<?= h($c['image_path']) ?>" alt="<?= h($c['name']) ?>">
                                 <?php else: ?>
-                                    <span style="font-size:28px;"><?= character_icons($c)[0] ?? '✨' ?></span>
+                                    <span class="char-emoji"><?= $icon ?></span>
+                                <?php endif; ?>
+
+                                <?php if (!$locked): ?>
+                                    <span class="card-badge">مجانية</span>
+                                <?php else: ?>
+                                    <span class="card-lock">🔒 مدفوعة</span>
                                 <?php endif; ?>
                             </div>
-                            <div class="name"><?= h($c['name']) ?></div>
+
+                            <div class="card-body">
+                                <div class="name"><?= h($c['name']) ?></div>
+                                <div class="trait">
+                                    <span class="dot"></span>
+                                    <?= h($c['trait'] ?? 'مميز') ?>
+                                </div>
+                            </div>
+
+                            <div class="card-overlay">
+                                <?php if ($locked): ?>
+                                    <button class="play-btn" onclick="alert('🔓 اشترك الآن لفتح هذه الشخصية!')">🔓 اشترك</button>
+                                <?php else: ?>
+                                    <button class="play-btn" onclick="alert('✅ اختر هذه الشخصية عند التسجيل!')">✅ اخترها</button>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
+            </div>
+        </section>
 
-                <form method="POST" id="registerForm" style="margin-top:16px;">
-                    <input type="hidden" name="character_1" id="character_1">
-                    <input type="hidden" name="character_2" id="character_2">
-                    <p style="font-weight:700;color:var(--text-primary);font-size:15px;">2) بيانات الحساب</p>
+        <!-- المميزات -->
+        <div class="section-head" id="features">
+            <div class="eyebrow">✨ لماذا Kidora</div>
+            <h2>مغامرة تعلم متكاملة</h2>
+            <p class="sub">كل عنصر في المنصة صمم ليكون ممتعاً ومفيداً في آن واحد</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card"><div class="icon">📋</div><h3>مهام يومية</h3><p>4 مهام جديدة كل يوم</p></div>
+            <div class="feature-card"><div class="icon">📖</div><h3>قصص تفاعلية</h3><p>قصص صوتية ومرئية</p></div>
+            <div class="feature-card"><div class="icon">🎮</div><h3>ألعاب تعليمية</h3><p>تنمي الذاكرة والتركيز</p></div>
+            <div class="feature-card"><div class="icon">🏆</div><h3>مكافآت وتطور</h3><p>افتح شخصيات جديدة</p></div>
+            <div class="feature-card"><div class="icon">🧠</div><h3>ذكاء اصطناعي</h3><p>قصص مخصصة لكل طفل</p></div>
+            <div class="feature-card"><div class="icon">📲</div><h3>تقارير للوالدين</h3><p>تابع تقدم طفلك</p></div>
+        </div>
 
-                    <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" required value="<?= h($_POST['child_name'] ?? '') ?>"></div>
-                    <div class="field"><label>عمر الطفل</label>
-                        <select name="child_age" required>
-                            <option value="">اختر العمر</option>
-                            <?php for ($a = 4; $a <= 12; $a++): ?>
-                                <option value="<?= $a ?>" <?= (($_POST['child_age'] ?? '') == $a) ? 'selected' : '' ?>><?= $a ?> سنوات</option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
-                    <div class="field"><label>اسم ولي الأمر</label><input type="text" name="parent_name" required value="<?= h($_POST['parent_name'] ?? '') ?>"></div>
-                    <div class="field"><label>رقم واتساب ولي الأمر</label><input type="tel" name="parent_phone" required placeholder="مثال: 0599123456" value="<?= h($_POST['parent_phone'] ?? '') ?>"></div>
-                    <div class="field"><label>البريد الإلكتروني</label><input type="email" name="email" required value="<?= h($_POST['email'] ?? '') ?>"></div>
-                    <div class="field"><label>كلمة المرور (6 أحرف)</label><input type="password" name="password" required minlength="6"></div>
-                    <div class="field"><label>تأكيد كلمة المرور</label><input type="password" name="confirm_password" required></div>
-                    <button type="submit" name="register" class="btn btn-gold btn-block">🌟 ابدأ المغامرة</button>
-                </form>
+        <!-- الذكاء الاصطناعي -->
+        <div class="ai-section">
+            <div class="ai-icon">🤖</div>
+            <h2>قصص مخصصة بذكاء اصطناعي</h2>
+            <p>نستخدم تقنيات الذكاء الاصطناعي لتوليد قصة فريدة لكل طفل، تتناسب مع عمره واهتماماته.</p>
+            <div class="ai-preview">
+                <div class="story-title">📖 مغامرة في مدينة النور</div>
+                <div class="story-snippet">
+                    "في مدينة النور البعيدة، كان هناك طفل شجاع يدعى يوسف. ذات يوم، وجد خريطة قديمة تقوده إلى كنز الحكمة..."
+                </div>
+                <div class="story-tag">✨ قصة مخصصة ليوسف (7 سنوات)</div>
             </div>
         </div>
-    </section>
 
-    <footer class="landing-footer">
-        <p>© 2026 Kidora. جميع الحقوق محفوظة.</p>
-    </footer>
+        <!-- خطط الاشتراك -->
+        <div class="section-head">
+            <div class="eyebrow">📦 خطط الاشتراك</div>
+            <h2>اختر ما يناسبك</h2>
+            <p class="sub">الخطة المجانية تمنحك تجربة رائعة، والمدفوعة تفتح لك المزيد من الشخصيات والمحتوى.</p>
+        </div>
+        <div class="plans-grid">
+            <?php foreach ($plans as $p):
+                $features = json_decode_safe($p['features_json'], []);
+            ?>
+                <div class="plan-card">
+                    <h3><?= h($p['name']) ?></h3>
+                    <div class="price"><?= (int)$p['price_ils'] === 0 ? 'مجانية' : (int)$p['price_ils'].' ₪' ?></div>
+                    <ul>
+                        <?php foreach (array_slice($features, 0, 4) as $f): ?>
+                            <li>✅ <?= h($f) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- تسجيل الدخول / إنشاء حساب -->
+        <section class="auth-section" id="auth">
+            <div class="auth-card">
+                <div class="auth-logo">🌟 Kidora</div>
+                <p class="auth-sub">منصة ذكية تحوّل طفلك إلى بطل حقيقي</p>
+
+                <div class="auth-tabs">
+                    <button type="button" class="auth-tab active" data-tab="login">تسجيل الدخول</button>
+                    <button type="button" class="auth-tab" data-tab="register">إنشاء حساب</button>
+                </div>
+
+                <div id="login-tab" class="auth-form active">
+                    <?php if ($loginError): ?><div class="auth-error">❌ <?= h($loginError) ?></div><?php endif; ?>
+                    <form method="POST">
+                        <div class="field"><label>البريد الإلكتروني لولي الأمر</label><input type="email" name="email" required></div>
+                        <div class="field"><label>كلمة المرور</label><input type="password" name="password" required></div>
+                        <button type="submit" name="login" class="btn btn-gold btn-block">🚀 تسجيل الدخول</button>
+                    </form>
+                    <div class="auth-toggle">مسؤول المنصة؟ <a href="admin/login.php">دخول لوحة الإدارة</a></div>
+                </div>
+
+                <div id="register-tab" class="auth-form hidden">
+                    <?php if ($registerError): ?><div class="auth-error">❌ <?= h($registerError) ?></div><?php endif; ?>
+                    <p style="text-align:center;font-weight:700;color:var(--gold);font-size:15px;">
+                        1) اختر شخصيتين مجانيتين
+                    </p>
+                    <div class="two-char-note" id="selCountLabel">0 / 2 مختارة</div>
+                    <div class="pickable-grid" id="regCharGrid">
+                        <?php foreach ($characters as $c): $locked = (bool)$c['is_premium']; ?>
+                            <div class="pickable <?= $locked ? 'locked' : '' ?>"
+                                 data-id="<?= (int)$c['id'] ?>"
+                                 data-locked="<?= $locked ? '1':'0' ?>"
+                                 onclick="toggleCharPick(this)">
+                                <?php if ($locked): ?><div style="font-size:10px;color:var(--gold);">🔒</div><?php endif; ?>
+                                <div class="char-media">
+                                    <?php if (!empty($c['image_path'])): ?>
+                                        <img src="<?= h($c['image_path']) ?>" alt="<?= h($c['name']) ?>">
+                                    <?php else: ?>
+                                        <span style="font-size:28px;"><?= character_icons($c)[0] ?? '✨' ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="name"><?= h($c['name']) ?></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <form method="POST" id="registerForm" style="margin-top:16px;">
+                        <input type="hidden" name="character_1" id="character_1">
+                        <input type="hidden" name="character_2" id="character_2">
+                        <p style="font-weight:700;color:var(--text-primary);font-size:15px;">2) بيانات الحساب</p>
+
+                        <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" required value="<?= h($_POST['child_name'] ?? '') ?>"></div>
+                        <div class="field"><label>عمر الطفل</label>
+                            <select name="child_age" required>
+                                <option value="">اختر العمر</option>
+                                <?php for ($a = 4; $a <= 12; $a++): ?>
+                                    <option value="<?= $a ?>" <?= (($_POST['child_age'] ?? '') == $a) ? 'selected' : '' ?>><?= $a ?> سنوات</option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                        <div class="field"><label>اسم ولي الأمر</label><input type="text" name="parent_name" required value="<?= h($_POST['parent_name'] ?? '') ?>"></div>
+                        <div class="field"><label>رقم واتساب ولي الأمر</label><input type="tel" name="parent_phone" required placeholder="مثال: 0599123456" value="<?= h($_POST['parent_phone'] ?? '') ?>"></div>
+                        <div class="field"><label>البريد الإلكتروني</label><input type="email" name="email" required value="<?= h($_POST['email'] ?? '') ?>"></div>
+                        <div class="field"><label>كلمة المرور (6 أحرف)</label><input type="password" name="password" required minlength="6"></div>
+                        <div class="field"><label>تأكيد كلمة المرور</label><input type="password" name="confirm_password" required></div>
+                        <button type="submit" name="register" class="btn btn-gold btn-block">🌟 ابدأ المغامرة</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <footer class="landing-footer">
+            <p>© 2026 Kidora. جميع الحقوق محفوظة.</p>
+        </footer>
+    </div>
 
     <!-- ==========================================================
     JavaScript
     ========================================================== -->
     <script>
-        // ===== تخطي الفيديو =====
-        function skipVideo() {
-            const iframe = document.querySelector('.video-fullscreen .video-wrapper iframe');
-            if (iframe) {
-                iframe.src = '';
+        // ===== التحكم بالصوت =====
+        let soundEnabled = false;
+
+        function toggleSound() {
+            const iframe = document.querySelector('.video-background iframe');
+            const btn = document.getElementById('soundToggle');
+            const icon = btn.querySelector('i');
+            const text = btn.querySelector('span');
+
+            if (!soundEnabled) {
+                // تفعيل الصوت: تغيير المصدر لإزالة mute وإضافة autoplay
+                if (iframe) {
+                    let src = iframe.src;
+                    if (src.includes('mute=1')) {
+                        src = src.replace('mute=1', 'mute=0');
+                    } else {
+                        src += '&mute=0';
+                    }
+                    // تأكد من وجود autoplay
+                    if (!src.includes('autoplay=1')) {
+                        src += '&autoplay=1';
+                    }
+                    iframe.src = src;
+                }
+                icon.className = 'fas fa-volume-up';
+                text.textContent = 'كتم الصوت';
+                soundEnabled = true;
+            } else {
+                // كتم الصوت
+                if (iframe) {
+                    let src = iframe.src;
+                    if (src.includes('mute=0')) {
+                        src = src.replace('mute=0', 'mute=1');
+                    } else if (src.includes('mute=1')) {
+                        // already muted
+                    } else {
+                        src += '&mute=1';
+                    }
+                    iframe.src = src;
+                }
+                icon.className = 'fas fa-volume-mute';
+                text.textContent = 'تفعيل الصوت';
+                soundEnabled = false;
             }
-            document.getElementById('videoSection').style.height = 'auto';
-            document.getElementById('videoSection').style.minHeight = 'auto';
-            document.getElementById('videoSection').style.maxHeight = 'none';
-            document.querySelector('.scroll-indicator').style.display = 'none';
-            document.querySelector('.skip-btn').style.display = 'none';
-            document.getElementById('heroContent').scrollIntoView({ behavior: 'smooth' });
         }
 
         // ===== كروسيل الشخصيات =====
@@ -1180,29 +1175,11 @@ require_once __DIR__ . '/includes/navbar.php';
             }
         });
 
-        // ===== تأثير ظهور المحتوى =====
+        // ===== تحميل الصفحة – التأكد من تشغيل الفيديو =====
         document.addEventListener('DOMContentLoaded', function() {
-            const heroContent = document.getElementById('heroContent');
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        heroContent.style.opacity = '1';
-                        heroContent.style.transform = 'translateY(0)';
-                    }
-                });
-            }, { threshold: 0.2 });
-
-            heroContent.style.opacity = '0';
-            heroContent.style.transform = 'translateY(30px)';
-            heroContent.style.transition = 'all 0.8s ease';
-            observer.observe(heroContent);
-        });
-
-        // ===== إصلاح مشكلة الفيديو (تأكد من ظهوره) =====
-        document.addEventListener('DOMContentLoaded', function() {
-            const iframe = document.querySelector('.video-fullscreen .video-wrapper iframe');
+            const iframe = document.querySelector('.video-background iframe');
             if (iframe) {
-                // تأكد من أن المصدر يحتوي على autoplay و mute
+                // إعادة تحميل المصدر مع muted لضمان التشغيل التلقائي
                 if (!iframe.src.includes('autoplay=1')) {
                     iframe.src += '&autoplay=1&mute=1';
                 }
