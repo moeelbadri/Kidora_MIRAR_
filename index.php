@@ -1,5 +1,5 @@
 <?php
-// index.php - Landing Page محسّنة مع فيديو + كاروسيل 3D
+// index.php - Landing Page محسّنة مع فيديو يوتيوب كخلفية
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
@@ -185,7 +185,7 @@ require_once __DIR__ . '/includes/navbar.php';
         .landing-page { max-width: 1400px; margin: 0 auto; padding: 0 20px 40px; }
 
         /* ============================================================
-           HERO: فيديو خلفية + كاروسيل 3D
+           HERO: فيديو يوتيوب كخلفية + كاروسيل 3D
            ============================================================ */
         .hero-wrapper {
             position: relative;
@@ -197,26 +197,46 @@ require_once __DIR__ . '/includes/navbar.php';
             overflow: hidden;
             border-radius: 0 0 var(--radius-xl) var(--radius-xl);
             margin-bottom: 20px;
+            background: #000;
         }
 
-        .hero-wrapper video {
+        /* حاوية الفيديو كخلفية */
+        .video-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .video-background iframe {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            min-width: 100%;
-            min-height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            filter: brightness(0.6) saturate(0.8);
+            width: 100vw;
+            height: 56.25vw; /* 100/16*9 = 56.25 */
+            min-height: 100vh;
+            min-width: 177.78vh; /* 100/9*16 = 177.78 */
+            pointer-events: none;
+            border: none;
         }
 
-        .hero-wrapper .video-fallback {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            background: linear-gradient(135deg, #0a061a 0%, #1a0a2e 50%, #2d1b4e 100%);
-            display: none;
+        /* تنسيقات إضافية لتغطية كاملة للفيديو */
+        @media (min-aspect-ratio: 16/9) {
+            .video-background iframe {
+                height: 300%;
+                top: -100%;
+            }
+        }
+        @media (max-aspect-ratio: 16/9) {
+            .video-background iframe {
+                width: 300%;
+                left: -100%;
+            }
         }
 
         .hero-wrapper .overlay {
@@ -777,15 +797,18 @@ require_once __DIR__ . '/includes/navbar.php';
 <div class="landing-page">
 
     <!-- ==========================================================
-    HERO: فيديو + كاروسيل 3D
+    HERO: فيديو يوتيوب كخلفية + كاروسيل 3D
     ========================================================== -->
     <div class="hero-wrapper" id="heroWrapper">
-        <!-- الفيديو -->
-        <video autoplay muted playsinline loop id="bgVideo" poster="assets/images/hero-poster.jpg">
-            <source src="assets/videos/hero.mp4" type="video/mp4">
-            <!-- إذا لم يوجد فيديو، تظهر الصورة البديلة -->
-        </video>
-        <div class="video-fallback" id="videoFallback"></div>
+        <!-- فيديو يوتيوب كخلفية -->
+        <div class="video-background">
+            <iframe 
+                src="https://www.youtube.com/embed/XIQBQk6F-ok?autoplay=1&mute=1&loop=1&playlist=XIQBQk6F-ok&controls=0&showinfo=0&rel=0&modestbranding=1" 
+                frameborder="0" 
+                allow="autoplay; encrypted-media" 
+                allowfullscreen>
+            </iframe>
+        </div>
         <div class="overlay"></div>
 
         <button class="skip-btn" onclick="skipVideo()">⏭ تخطي الفيديو</button>
@@ -985,25 +1008,15 @@ require_once __DIR__ . '/includes/navbar.php';
 JavaScript
 ========================================================== -->
 <script>
-    // ===== حل مشكلة الفيديو (إذا لم يكن موجوداً) =====
-    document.addEventListener('DOMContentLoaded', function() {
-        const video = document.getElementById('bgVideo');
-        // إذا فشل تحميل الفيديو، أظهر الخلفية البديلة
-        video.addEventListener('error', function() {
-            document.getElementById('videoFallback').style.display = 'block';
-            video.style.display = 'none';
-        });
-        // إذا لم يتمكن من التشغيل (مثل مشكلة في التنسيق)
-        video.addEventListener('stalled', function() {
-            document.getElementById('videoFallback').style.display = 'block';
-            video.style.display = 'none';
-        });
-    });
-
     // ===== تخطي الفيديو =====
     function skipVideo() {
-        const video = document.getElementById('bgVideo');
-        if (video) video.pause();
+        const iframe = document.querySelector('.video-background iframe');
+        if (iframe) {
+            // إيقاف الفيديو عن طريق تغيير المصدر
+            const src = iframe.src;
+            iframe.src = '';
+            iframe.src = src.replace('autoplay=1', 'autoplay=0');
+        }
         document.getElementById('heroWrapper').style.minHeight = 'auto';
         document.getElementById('heroWrapper').style.padding = '40px 0';
         document.querySelector('.skip-btn').style.display = 'none';
