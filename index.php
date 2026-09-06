@@ -180,7 +180,7 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         /* ============================================================
-           SECTION 1: فيديو كامل الشاشة (بدون نصوص)
+           SECTION 1: فيديو كامل الشاشة
            ============================================================ */
         .video-fullscreen {
             position: relative;
@@ -189,7 +189,7 @@ require_once __DIR__ . '/includes/navbar.php';
             min-height: 500px;
             max-height: 900px;
             overflow: hidden;
-            background: #000;
+            background: #0a061a;
         }
 
         .video-fullscreen .video-wrapper {
@@ -202,21 +202,20 @@ require_once __DIR__ . '/includes/navbar.php';
             background: #000;
         }
 
-        /* إطار الفيديو من يوتيوب */
+        /* طريقة جديدة ومضمونة لعرض الفيديو */
         .video-fullscreen .video-wrapper iframe {
             position: absolute;
             top: 50%;
             left: 50%;
+            width: 100%;
+            height: 100%;
             transform: translate(-50%, -50%);
-            width: 100vw;
-            height: 56.25vw; /* 100/16*9 = 56.25 */
-            min-height: 100vh;
-            min-width: 177.78vh; /* 100/9*16 = 177.78 */
-            pointer-events: none;
+            object-fit: cover;
             border: none;
+            pointer-events: none;
         }
 
-        /* فيديو احتياطي (محلي) */
+        /* حل بديل باستخدام الفيديو المحلي */
         .video-fullscreen .video-wrapper video {
             position: absolute;
             top: 50%;
@@ -227,22 +226,6 @@ require_once __DIR__ . '/includes/navbar.php';
             width: auto;
             height: auto;
             object-fit: cover;
-        }
-
-        /* تحسين العرض للشاشات العريضة جداً */
-        @media (min-aspect-ratio: 16/9) {
-            .video-fullscreen .video-wrapper iframe {
-                height: 300%;
-                top: -100%;
-            }
-        }
-
-        /* تحسين العرض للشاشات الطويلة (الجوال) */
-        @media (max-aspect-ratio: 16/9) {
-            .video-fullscreen .video-wrapper iframe {
-                width: 300%;
-                left: -100%;
-            }
         }
 
         .video-fullscreen .overlay {
@@ -262,9 +245,9 @@ require_once __DIR__ . '/includes/navbar.php';
             bottom: 30px;
             right: 30px;
             z-index: 5;
-            background: rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.1);
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
             color: #fff;
             padding: 8px 20px;
             border-radius: 40px;
@@ -273,9 +256,8 @@ require_once __DIR__ . '/includes/navbar.php';
             cursor: pointer;
             transition: 0.3s;
         }
-        .video-fullscreen .skip-btn:hover { background: rgba(255,255,255,0.16); }
+        .video-fullscreen .skip-btn:hover { background: rgba(255,255,255,0.2); }
 
-        /* مؤشر تمرير للأسفل */
         .scroll-indicator {
             position: absolute;
             bottom: 80px;
@@ -300,7 +282,7 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         /* ============================================================
-           SECTION 2: المحتوى التعريفي (يظهر تحت الفيديو)
+           SECTION 2: المحتوى التعريفي
            ============================================================ */
         .hero-content-section {
             padding: 60px 20px 40px;
@@ -392,7 +374,7 @@ require_once __DIR__ . '/includes/navbar.php';
         .btn-outline:hover { background: rgba(255,255,255,0.12); transform: scale(1.04); }
 
         /* ============================================================
-           SECTION 3: كروسيل الشخصيات – Netflix Style
+           SECTION 3: كروسيل الشخصيات
            ============================================================ */
         .characters-carousel-section {
             padding: 20px 0 40px;
@@ -610,7 +592,7 @@ require_once __DIR__ . '/includes/navbar.php';
         .carousel-nav.next { right: 0; }
 
         /* ============================================================
-           باقي الأقسام (مميزات، AI، خطط، تسجيل)
+           باقي الأقسام
            ============================================================ */
         .section-head {
             text-align: center;
@@ -865,16 +847,11 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         /* ============================================================
-           استجابة محسنة
+           استجابة
            ============================================================ */
-        @media (max-width: 992px) {
-            .hero-content-section h1 { font-size: 48px; }
-            .hero-content-section .subtitle { font-size: 22px; }
-        }
-
         @media (max-width: 768px) {
-            .video-fullscreen { height: 70vh; min-height: 350px; max-height: 600px; }
-            .scroll-indicator { bottom: 60px; font-size: 12px; }
+            .video-fullscreen { height: 60vh; min-height: 350px; max-height: 600px; }
+            .scroll-indicator { bottom: 40px; font-size: 12px; }
             .scroll-indicator i { font-size: 18px; }
             .hero-content-section { padding: 40px 16px 30px; }
             .hero-content-section h1 { font-size: 36px; }
@@ -889,21 +866,13 @@ require_once __DIR__ . '/includes/navbar.php';
         }
 
         @media (max-width: 480px) {
-            .video-fullscreen { height: 60vh; min-height: 300px; }
+            .video-fullscreen { height: 50vh; min-height: 250px; }
             .hero-content-section h1 { font-size: 28px; }
             .hero-content-section .subtitle { font-size: 16px; }
             .char-card-netflix { flex: 0 0 120px; }
             .char-card-netflix .card-body .name { font-size: 13px; }
             .features-grid { grid-template-columns: 1fr; }
             .pickable-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-
-        @media (max-width: 360px) {
-            .video-fullscreen { height: 50vh; min-height: 250px; }
-            .hero-content-section h1 { font-size: 24px; }
-            .char-card-netflix { flex: 0 0 100px; }
-            .char-card-netflix .card-body .name { font-size: 11px; }
-            .char-card-netflix .card-body .trait { font-size: 9px; }
         }
     </style>
 </head>
@@ -921,18 +890,11 @@ require_once __DIR__ . '/includes/navbar.php';
                 allow="autoplay; encrypted-media" 
                 allowfullscreen>
             </iframe>
-
-            <!-- فيديو احتياطي (محلي) – في حال تعذر تحميل يوتيوب -->
-            <video autoplay muted playsinline loop id="fallbackVideo" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;">
-                <source src="assets/videos/hero.mp4" type="video/mp4">
-            </video>
         </div>
         <div class="overlay"></div>
 
-        <!-- زر تخطي الفيديو -->
         <button class="skip-btn" onclick="skipVideo()">⏭ تخطي</button>
 
-        <!-- مؤشر للتمرير للأسفل -->
         <div class="scroll-indicator">
             <span>تمرير للأسفل</span>
             <i class="fas fa-chevron-down"></i>
@@ -940,7 +902,7 @@ require_once __DIR__ . '/includes/navbar.php';
     </section>
 
     <!-- ==========================================================
-    SECTION 2: المحتوى التعريفي (يظهر تحت الفيديو)
+    SECTION 2: المحتوى التعريفي
     ========================================================== -->
     <section class="hero-content-section" id="heroContent">
         <div class="badge">🚀 منصة تربوية ذكية</div>
@@ -957,7 +919,7 @@ require_once __DIR__ . '/includes/navbar.php';
     </section>
 
     <!-- ==========================================================
-    SECTION 3: كروسيل الشخصيات – Netflix Style
+    SECTION 3: كروسيل الشخصيات
     ========================================================== -->
     <section class="characters-carousel-section" id="carousel">
         <div class="carousel-header">
@@ -1081,7 +1043,6 @@ require_once __DIR__ . '/includes/navbar.php';
                 <button type="button" class="auth-tab" data-tab="register">إنشاء حساب</button>
             </div>
 
-            <!-- Login -->
             <div id="login-tab" class="auth-form active">
                 <?php if ($loginError): ?><div class="auth-error">❌ <?= h($loginError) ?></div><?php endif; ?>
                 <form method="POST">
@@ -1092,7 +1053,6 @@ require_once __DIR__ . '/includes/navbar.php';
                 <div class="auth-toggle">مسؤول المنصة؟ <a href="admin/login.php">دخول لوحة الإدارة</a></div>
             </div>
 
-            <!-- Register -->
             <div id="register-tab" class="auth-form hidden">
                 <?php if ($registerError): ?><div class="auth-error">❌ <?= h($registerError) ?></div><?php endif; ?>
                 <p style="text-align:center;font-weight:700;color:var(--gold);font-size:15px;">
@@ -1151,42 +1111,12 @@ require_once __DIR__ . '/includes/navbar.php';
     JavaScript
     ========================================================== -->
     <script>
-        // ===== فيديو احتياطي (إذا فشل يوتيوب) =====
-        document.addEventListener('DOMContentLoaded', function() {
-            const iframe = document.querySelector('.video-fullscreen .video-wrapper iframe');
-            const fallbackVideo = document.getElementById('fallbackVideo');
-            
-            // إذا لم يتم تحميل iframe خلال 5 ثوان، استخدم الفيديو الاحتياطي
-            setTimeout(function() {
-                if (iframe && !iframe.src) {
-                    iframe.style.display = 'none';
-                    fallbackVideo.style.display = 'block';
-                    fallbackVideo.play();
-                }
-            }, 5000);
-
-            // إذا حدث خطأ في تحميل iframe
-            iframe.addEventListener('error', function() {
-                iframe.style.display = 'none';
-                fallbackVideo.style.display = 'block';
-                fallbackVideo.play();
-            });
-        });
-
         // ===== تخطي الفيديو =====
         function skipVideo() {
             const iframe = document.querySelector('.video-fullscreen .video-wrapper iframe');
-            const fallbackVideo = document.getElementById('fallbackVideo');
-            
             if (iframe) {
-                const src = iframe.src;
                 iframe.src = '';
-                iframe.src = src.replace('autoplay=1', 'autoplay=0');
             }
-            if (fallbackVideo) {
-                fallbackVideo.pause();
-            }
-            
             document.getElementById('videoSection').style.height = 'auto';
             document.getElementById('videoSection').style.minHeight = 'auto';
             document.getElementById('videoSection').style.maxHeight = 'none';
@@ -1250,7 +1180,7 @@ require_once __DIR__ . '/includes/navbar.php';
             }
         });
 
-        // ===== تأثير ظهور المحتوى التعريفي عند التمرير =====
+        // ===== تأثير ظهور المحتوى =====
         document.addEventListener('DOMContentLoaded', function() {
             const heroContent = document.getElementById('heroContent');
             const observer = new IntersectionObserver((entries) => {
@@ -1266,6 +1196,17 @@ require_once __DIR__ . '/includes/navbar.php';
             heroContent.style.transform = 'translateY(30px)';
             heroContent.style.transition = 'all 0.8s ease';
             observer.observe(heroContent);
+        });
+
+        // ===== إصلاح مشكلة الفيديو (تأكد من ظهوره) =====
+        document.addEventListener('DOMContentLoaded', function() {
+            const iframe = document.querySelector('.video-fullscreen .video-wrapper iframe');
+            if (iframe) {
+                // تأكد من أن المصدر يحتوي على autoplay و mute
+                if (!iframe.src.includes('autoplay=1')) {
+                    iframe.src += '&autoplay=1&mute=1';
+                }
+            }
         });
     </script>
 
