@@ -280,44 +280,10 @@ require_once __DIR__ . '/includes/navbar.php';
             box-shadow: 0 10px 30px rgba(0,0,0,.25);
             transition: transform .25s ease, background .25s ease, border-color .25s ease;
         }
-        .video-fullscreen .sound-toggle {
-            position: absolute;
-            left: 28px;
-            bottom: 28px;
-            z-index: 6;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 9px;
-            min-height: 42px;
-            padding: 10px 17px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,.14);
-            background: rgba(12, 8, 28, .68);
-            color: #fff;
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            box-shadow: 0 10px 30px rgba(0,0,0,.25);
-            cursor: pointer;
-            font: inherit;
-            font-size: 13px;
-            font-weight: 800;
-            transition: .25s ease;
-        }
-
-        .video-fullscreen .sound-toggle:hover {
+        .video-fullscreen .skip-btn:hover {
             background: rgba(167,139,250,.22);
             border-color: rgba(167,139,250,.45);
             transform: translateY(-2px);
-        }
-
-        .video-fullscreen .sound-toggle i {
-            font-size: 15px;
-        }
-
-        .video-fullscreen .sound-toggle.is-on {
-            background: rgba(251,191,36,.16);
-            border-color: rgba(251,191,36,.45);
         }
 
         .video-fullscreen .video-loading {
@@ -1021,11 +987,6 @@ require_once __DIR__ . '/includes/navbar.php';
             <div class="video-loading-box"></div>
         </div>
 
-        <button class="sound-toggle" id="soundToggle" type="button" onclick="toggleVideoSound()" aria-label="تفعيل صوت الفيديو">
-            <i class="fas fa-volume-mute"></i>
-            <span>تفعيل الصوت</span>
-        </button>
-
         <button class="skip-btn" type="button" onclick="skipVideo()" aria-label="تخطي الفيديو">
             <span>تخطي</span><i class="fas fa-forward-step"></i>
         </button>
@@ -1287,63 +1248,6 @@ require_once __DIR__ . '/includes/navbar.php';
             }
         });
 
-        // ===== التحكم بصوت الفيديو =====
-        function toggleVideoSound() {
-            const video = document.getElementById('heroVideo');
-            const iframe = document.getElementById('heroYoutube');
-            const btn = document.getElementById('soundToggle');
-
-            if (!btn) return;
-
-            const icon = btn.querySelector('i');
-            const text = btn.querySelector('span');
-
-            // الفيديو المحلي: الطريقة الأكثر موثوقية
-            if (video) {
-                const enableSound = video.muted;
-                video.muted = !enableSound;
-                video.volume = enableSound ? 1 : 0;
-
-                if (enableSound) {
-                    const playPromise = video.play();
-                    if (playPromise && typeof playPromise.catch === 'function') {
-                        playPromise.catch(() => {});
-                    }
-                    icon.className = 'fas fa-volume-high';
-                    text.textContent = 'كتم الصوت';
-                    btn.setAttribute('aria-label', 'كتم صوت الفيديو');
-                    btn.classList.add('is-on');
-                } else {
-                    icon.className = 'fas fa-volume-xmark';
-                    text.textContent = 'تفعيل الصوت';
-                    btn.setAttribute('aria-label', 'تفعيل صوت الفيديو');
-                    btn.classList.remove('is-on');
-                }
-                return;
-            }
-
-            // YouTube: إعادة تهيئة المصدر فقط عند طلب المستخدم.
-            // autoplay مع الصوت قد تمنعه المتصفحات، لذلك نجعل النتيجة معتمدة على نقرة المستخدم.
-            if (iframe) {
-                let src = iframe.src || '';
-                if (src.includes('mute=1')) {
-                    src = src.replace('mute=1', 'mute=0');
-                } else if (src.includes('mute=0')) {
-                    src = src.replace('mute=0', 'mute=1');
-                } else {
-                    src += (src.includes('?') ? '&' : '?') + 'mute=0';
-                }
-
-                iframe.src = src;
-
-                const isMuted = src.includes('mute=1');
-                icon.className = isMuted ? 'fas fa-volume-xmark' : 'fas fa-volume-high';
-                text.textContent = isMuted ? 'تفعيل الصوت' : 'كتم الصوت';
-                btn.setAttribute('aria-label', isMuted ? 'تفعيل صوت الفيديو' : 'كتم صوت الفيديو');
-                btn.classList.toggle('is-on', !isMuted);
-            }
-        }
-
         // ===== تخطي الفيديو =====
         function skipVideo() {
             const section = document.getElementById('videoSection');
@@ -1351,14 +1255,12 @@ require_once __DIR__ . '/includes/navbar.php';
             const loading = document.getElementById('videoLoading');
             const indicator = section?.querySelector('.scroll-indicator');
             const skipBtn = section?.querySelector('.skip-btn');
-            const soundBtn = section?.querySelector('.sound-toggle');
 
             if (video) video.pause();
 
             if (loading) loading.classList.add('hidden');
             if (indicator) indicator.style.display = 'none';
             if (skipBtn) skipBtn.style.display = 'none';
-            if (soundBtn) soundBtn.style.display = 'none';
 
             // بدلاً من تغيير iframe وإعادة تحميله، ننتقل مباشرة للمحتوى.
             document.getElementById('heroContent')?.scrollIntoView({
