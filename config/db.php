@@ -47,6 +47,8 @@ function kidora_create_table_from_schema(PDO $pdo, string $table): void {
 function kidora_migrate(PDO $pdo): void {
     $isMysql = DB_DRIVER === 'mysql';
     $columns = [
+        // صورة الطفل الاختيارية من الواجهة العامة
+        'children' => ['photo_path' => $isMysql ? "VARCHAR(255) DEFAULT NULL" : 'TEXT DEFAULT NULL'],
         // ربط كل مهمة بشخصية تاريخية ذات صلة بدل الاختيار العشوائي
         'tasks' => ['figure_id' => $isMysql ? 'INT DEFAULT NULL' : 'INTEGER DEFAULT NULL'],
         // تصنيف الشخصية التاريخية — يتيح مطابقة المهمة بالشخصية عند غياب الربط المباشر

@@ -1,17 +1,15 @@
 <?php
-// index.php - الصفحة الرئيسية لمنصة Kidora (نسخة نهائية مع فيديو)
+// الواجهة العامة + تسجيل الدخول وإنشاء الحساب
 session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
-// تسجيل الخروج
 if (isset($_GET['logout'])) {
     session_destroy();
-    header('Location: index.php');
+    header('Location: ' . BASE_PATH . '/index.php');
     exit;
 }
 
-// إذا كان الطفل مسجلاً دخوله، حوّله إلى لوحة التحكم
 if (!empty($_SESSION['child_id'])) {
     $chk = $pdo->prepare("SELECT * FROM children WHERE id = ?");
     $chk->execute([$_SESSION['child_id']]);
@@ -20,26 +18,36 @@ if (!empty($_SESSION['child_id'])) {
     exit;
 }
 
-// جلب البيانات
 $characters = all_characters($pdo);
-$plans = $pdo->query("SELECT * FROM subscription_plans ORDER BY sort_order ASC")->fetchAll();
-
+$plans = $pdo->query("SELECT * FROM subscription_plans ORDER BY sort_order ASC, id ASC")->fetchAll();
+$publicStats = public_counts($pdo);
 $loginError = null;
 $registerError = null;
 
-// ============================================================
-// معالجة تسجيل الدخول
-// ============================================================
+$prefillName = trim((string)($_GET['name'] ?? ''));
+$prefillChar = (int)($_GET['char'] ?? 0);
+if (!$prefillChar && !empty($_GET['char']) && preg_match('/^[a-z0-9_-]+$/i', (string)$_GET['char'])) {
+    $prefillStmt = $pdo->prepare("SELECT id FROM characters WHERE slug = ?");
+    $prefillStmt->execute([(string)$_GET['char']]);
+    $prefillChar = (int)($prefillStmt->fetchColumn() ?: 0);
+}
+$prefillCharRow = $prefillChar ? get_character($pdo, $prefillChar) : null;
+if (!$prefillCharRow || !empty($prefillCharRow['is_premium'])) $prefillChar = 0;
+
+// تسجيل الدخول
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+
     if ($email === '' || $password === '') {
         $loginError = 'الرجاء ملء جميع الحقول.';
     } else {
         $stmt = $pdo->prepare("SELECT id, name, password FROM children WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
+
         if ($user && password_verify($password, $user['password'])) {
+            session_regenerate_id(true);
             $_SESSION['child_id'] = $user['id'];
             $_SESSION['child_name'] = $user['name'];
             $fullUser = $pdo->prepare("SELECT * FROM children WHERE id = ?");
@@ -47,15 +55,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             $fullUser = $fullUser->fetch();
             header('Location: ' . (needs_assessment($fullUser) ? 'welcome.php' : 'dashboard.php'));
             exit;
-        } else {
-            $loginError = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
         }
+        $loginError = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
     }
 }
 
-// ============================================================
-// معالجة التسجيل
-// ============================================================
+// إنشاء الحساب — اختيار الشخصيتين يبقى مقيداً بالمجانيتين على الخادم
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $name = trim($_POST['child_name'] ?? '');
     $age = (int)($_POST['child_age'] ?? 0);
@@ -69,8 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 
     if (!$char1 || !$char2 || $char1 === $char2) {
         $registerError = 'الرجاء اختيار شخصيتين مختلفتين أولاً.';
-    } elseif (empty($name) || !$age || empty($parentName) || empty($parentPhone) || empty($email) || empty($password) || empty($confirm)) {
+    } elseif ($name === '' || $age < 4 || $age > 12 || $parentName === '' || $parentPhone === '' || $email === '' || $password === '' || $confirm === '') {
         $registerError = 'الرجاء ملء جميع الحقول المطلوبة.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $registerError = 'الرجاء إدخال بريد إلكتروني صحيح.';
     } elseif ($password !== $confirm) {
         $registerError = 'كلمة المرور غير متطابقة مع تأكيدها.';
     } elseif (strlen($password) < 6) {
@@ -86,1359 +93,387 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             if ($stmt->fetch()) {
                 $registerError = 'هذا البريد الإلكتروني مسجّل مسبقاً.';
             } else {
-                $hashed = password_hash($password, PASSWORD_DEFAULT);
-                $ins = $pdo->prepare("INSERT INTO children (name, email, password, age, parent_name, parent_phone, character_1, character_2, active_character)
-                                       VALUES (?,?,?,?,?,?,?,?,?)");
-                $ins->execute([$name, $email, $hashed, $age, $parentName, $parentPhone, $char1, $char2, $char1]);
-                $childId = (int)$pdo->lastInsertId();
-                $freePlan = $pdo->query("SELECT id FROM subscription_plans ORDER BY sort_order ASC LIMIT 1")->fetch();
-                if ($freePlan) {
-                    $subIns = $pdo->prepare("INSERT INTO subscriptions (child_id, plan_id, status, activated_at, activated_by) VALUES (?,?,'active',CURRENT_TIMESTAMP,'system')");
-                    $subIns->execute([$childId, $freePlan['id']]);
+                $photoPath = null;
+                if (!empty($_FILES['child_photo']['name'])) {
+                    $savedPhoto = save_image_upload('child_photo', __DIR__ . '/uploads/photos');
+                    if (!$savedPhoto) {
+                        $registerError = 'الصورة غير صالحة. استخدم JPG أو PNG أو WebP بحجم أقصى 4 ميجابايت.';
+                    } else {
+                        $photoPath = 'uploads/photos/' . basename($savedPhoto);
+                    }
                 }
-                $_SESSION['child_id'] = $childId;
-                $_SESSION['child_name'] = $name;
-                header('Location: subscriptions.php?welcome=1');
-                exit;
+                if (!$registerError) {
+                    $hashed = password_hash($password, PASSWORD_DEFAULT);
+                    $ins = $pdo->prepare("INSERT INTO children (name, email, password, age, parent_name, parent_phone, photo_path, character_1, character_2, active_character)
+                                           VALUES (?,?,?,?,?,?,?,?,?,?)");
+                    $ins->execute([$name, $email, $hashed, $age, $parentName, $parentPhone, $photoPath, $char1, $char2, $char1]);
+                    $childId = (int)$pdo->lastInsertId();
+
+                    $freePlan = $pdo->query("SELECT id FROM subscription_plans ORDER BY sort_order ASC, id ASC LIMIT 1")->fetch();
+                    if ($freePlan) {
+                        $subIns = $pdo->prepare("INSERT INTO subscriptions (child_id, plan_id, status, activated_at, activated_by) VALUES (?,?,'active',CURRENT_TIMESTAMP,'system')");
+                        $subIns->execute([$childId, $freePlan['id']]);
+                    }
+
+                    session_regenerate_id(true);
+                    $_SESSION['child_id'] = $childId;
+                    $_SESSION['child_name'] = $name;
+                    header('Location: subscriptions.php?welcome=1');
+                    exit;
+                }
             }
         }
     }
 }
 
-// تحضير بيانات الشخصيات لـ JS
-$charDataForJS = array_map(function($c){
+$charDataForJS = array_map(static function (array $c): array {
     return [
         'id' => (int)$c['id'],
-        'color' => $c['color'],
+        'slug' => $c['slug'],
+        'color' => preg_match('/^#[0-9a-f]{3,8}$/i', (string)$c['color']) ? $c['color'] : '#6C63FF',
         'move' => $c['move_type'],
         'icons' => character_icons($c),
-        'image' => $c['image_path'],
+        'image' => !empty($c['image_path']) ? BASE_PATH . '/' . ltrim($c['image_path'], '/') : null,
         'name' => $c['name'],
-        'is_premium' => (bool)$c['is_premium']
+        'title' => $c['title'],
+        'quote' => $c['quote'],
+        'trait' => $c['trait'],
+        'is_premium' => (bool)$c['is_premium'],
     ];
 }, $characters);
 
-$carouselChars = [];
-foreach ($characters as $c) {
-    $carouselChars[] = [
-        'name' => $c['name'],
-        'image' => $c['image_path'],
-        'icon' => character_icons($c)[0] ?? '✨',
-        'color' => $c['color'] ?? '#a78bfa',
-        'trait' => $c['trait'] ?? 'مميز'
-    ];
-}
-
-$__pageTitle = 'Kidora — منصة التعلم بالمغامرة';
-$heroVideoFile = __DIR__ . '/assets/videos/hero.mp4';
-$hasLocalHeroVideo = is_file($heroVideoFile) && is_readable($heroVideoFile);
+$remoteHeroVideo = is_file(__DIR__ . '/assets/videos/hero.mp4') && is_readable(__DIR__ . '/assets/videos/hero.mp4');
+$introVideo = [
+    'mp4' => $remoteHeroVideo || is_file(__DIR__ . '/assets/video/intro.mp4'),
+    'mp4Path' => $remoteHeroVideo ? 'assets/videos/hero.mp4' : 'assets/video/intro.mp4',
+    'webm' => is_file(__DIR__ . '/assets/video/intro.webm'),
+    'webmPath' => 'assets/video/intro.webm',
+    'poster' => is_file(__DIR__ . '/assets/video/intro-poster.webp'),
+    'posterPath' => 'assets/video/intro-poster.webp',
+];
+$remoteVideoId = 'XIQBQk6F-ok';
+$shouldOpenRegister = isset($_GET['register']) || (bool)$registerError;
+$__pageTitle = 'Kidora — حيث تبدأ المغامرة';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/navbar.php';
+require_once __DIR__ . '/includes/public-nav.php';
 ?>
-<!DOCTYPE html>
-<html lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Kidora — منصة التعلم بالمغامرة</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        /* ============================================================
-           الأنماط العامة
-           ============================================================ */
-        :root {
-            --bg-primary: #0a061a;
-            --bg-secondary: #140a2a;
-            --bg-card: rgba(255,255,255,0.05);
-            --bg-card-hover: rgba(255,255,255,0.09);
-            --text-primary: #f1f5f9;
-            --text-secondary: #c4b5d4;
-            --text-muted: #b9abd4;
-            --primary: #a78bfa;
-            --primary-dark: #7c3aed;
-            --primary-glow: rgba(167,139,250,0.20);
-            --gold: #fbbf24;
-            --gold-dark: #f59e0b;
-            --gold-glow: rgba(251,191,36,0.25);
-            --border-light: rgba(255,255,255,0.06);
-            --shadow-heavy: 0 30px 80px rgba(0,0,0,0.8);
-            --shadow-soft: 0 10px 40px rgba(0,0,0,0.5);
-            --radius-xl: 32px;
-            --radius-lg: 24px;
-            --radius-md: 16px;
-            --transition: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-
-        body {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: 'Segoe UI', 'Tajawal', system-ui, sans-serif;
-            line-height: 1.6;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* ============================================================
-           SECTION 1: فيديو كامل الشاشة (بدون نصوص)
-           ============================================================ */
-        .video-fullscreen {
-            position: relative;
-            width: 100%;
-            height: min(100svh, 900px);
-            min-height: 520px;
-            overflow: hidden;
-            isolation: isolate;
-            background: #05030b;
-        }
-
-        .video-fullscreen .video-wrapper {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #000;
-        }
-
-        /* ============================================================
-           وسائط الفيديو — ثابتة على كل المقاسات
-           ============================================================ */
-        .video-fullscreen .video-wrapper::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            background:
-                radial-gradient(circle at 50% 35%, rgba(124,58,237,.12), transparent 48%),
-                #05030b;
-        }
-
-        .video-fullscreen .video-wrapper iframe,
-        .video-fullscreen .video-wrapper video {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: max(100vw, 177.7778vh);
-            height: max(100vh, 56.25vw);
-            min-width: 100%;
-            min-height: 100%;
-            max-width: none;
-            max-height: none;
-            border: 0;
-            display: block;
-        }
-
-        .video-fullscreen .video-wrapper iframe {
-            z-index: 1;
-            pointer-events: none;
-        }
-
-        .video-fullscreen .video-wrapper video {
-            z-index: 2;
-            object-fit: cover;
-            background: #05030b;
-        }
-
-        .video-fullscreen.video-local .video-wrapper iframe {
-            display: none;
-        }
-
-        .video-fullscreen .overlay {
-            position: absolute;
-            inset: 0;
-            background:
-                linear-gradient(180deg, rgba(5,3,11,.18) 0%, rgba(5,3,11,.04) 42%, rgba(5,3,11,.58) 84%, rgba(5,3,11,.96) 100%),
-                radial-gradient(circle at center, transparent 38%, rgba(0,0,0,.18) 100%);
-            z-index: 3;
-            pointer-events: none;
-        }
-
-        .video-fullscreen .skip-btn {
-            position: absolute;
-            bottom: 28px;
-            right: 28px;
-            z-index: 5;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(12, 8, 28, 0.68);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            border: 1px solid rgba(255,255,255,0.14);
-            color: #fff;
-            padding: 11px 18px;
-            min-height: 42px;
-            border-radius: 999px;
-            font-weight: 800;
-            font-size: 13px;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(0,0,0,.25);
-            transition: transform .25s ease, background .25s ease, border-color .25s ease;
-        }
-        .video-fullscreen .sound-toggle {
-            position: absolute;
-            left: 28px;
-            bottom: 28px;
-            z-index: 6;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 9px;
-            min-height: 42px;
-            padding: 10px 17px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,.14);
-            background: rgba(12, 8, 28, .68);
-            color: #fff;
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            box-shadow: 0 10px 30px rgba(0,0,0,.25);
-            cursor: pointer;
-            font: inherit;
-            font-size: 13px;
-            font-weight: 800;
-            transition: .25s ease;
-        }
-
-        .video-fullscreen .sound-toggle:hover {
-            background: rgba(167,139,250,.22);
-            border-color: rgba(167,139,250,.45);
-            transform: translateY(-2px);
-        }
-
-        .video-fullscreen .sound-toggle i {
-            font-size: 15px;
-        }
-
-        .video-fullscreen .sound-toggle.is-on {
-            background: rgba(251,191,36,.16);
-            border-color: rgba(251,191,36,.45);
-        }
-
-        .video-fullscreen .video-loading {
-            position: absolute;
-            inset: 0;
-            z-index: 4;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-            transition: opacity .35s ease, visibility .35s ease;
-        }
-
-        .video-fullscreen .video-loading.hidden {
-            opacity: 0;
-            visibility: hidden;
-        }
-
-        .video-loading-box {
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            border: 3px solid rgba(255,255,255,.12);
-            border-top-color: rgba(255,255,255,.8);
-            animation: videoSpin .8s linear infinite;
-        }
-
-        @keyframes videoSpin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* مؤشر تمرير للأسفل */
-        .scroll-indicator {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 3;
-            color: rgba(255,255,255,0.5);
-            font-size: 14px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            animation: bounceDown 2s ease-in-out infinite;
-        }
-        .scroll-indicator i {
-            font-size: 24px;
-            color: rgba(255,255,255,0.4);
-        }
-        @keyframes bounceDown {
-            0%,100% { transform: translateX(-50%) translateY(0); }
-            50% { transform: translateX(-50%) translateY(8px); }
-        }
-
-        /* ============================================================
-           SECTION 2: المحتوى التعريفي (يظهر تحت الفيديو)
-           ============================================================ */
-        .hero-content-section {
-            padding: 60px 20px 40px;
-            max-width: 1200px;
-            margin: 0 auto;
-            text-align: center;
-        }
-
-        .hero-content-section .badge {
-            display: inline-block;
-            background: var(--gold-glow);
-            color: var(--gold);
-            padding: 6px 22px;
-            border-radius: 60px;
-            font-weight: 800;
-            font-size: 14px;
-            letter-spacing: 1px;
-            border: 1px solid rgba(251,191,36,0.15);
-            margin-bottom: 16px;
-        }
-
-        .hero-content-section h1 {
-            font-size: clamp(48px, 8vw, 72px);
-            font-weight: 900;
-            line-height: 1.05;
-        }
-
-        .hero-content-section h1 .highlight {
-            background: linear-gradient(135deg, #fff 20%, var(--gold) 80%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero-content-section .subtitle {
-            font-size: clamp(20px, 3vw, 28px);
-            font-weight: 600;
-            color: #e8e0ff;
-            margin: 6px 0;
-        }
-
-        .hero-content-section .desc {
-            font-size: clamp(15px, 1.4vw, 18px);
-            color: #d9d0ff;
-            max-width: 600px;
-            margin: 12px auto 28px;
-            line-height: 1.8;
-        }
-
-        .hero-content-section .actions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 14px;
-        }
-
-        .btn {
-            padding: 14px 36px;
-            border-radius: 60px;
-            font-weight: 800;
-            border: none;
-            cursor: pointer;
-            transition: var(--transition);
-            font-size: 16px;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 4px 25px rgba(0,0,0,0.3);
-        }
-
-        .btn-gold {
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            color: #1a1a2e;
-        }
-        .btn-gold:hover { transform: scale(1.06) translateY(-3px); box-shadow: 0 8px 40px var(--gold-glow); }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: #fff;
-        }
-        .btn-primary:hover { transform: scale(1.06) translateY(-3px); box-shadow: 0 8px 40px var(--primary-glow); }
-
-        .btn-outline {
-            background: rgba(255,255,255,0.06);
-            border: 1.5px solid rgba(255,255,255,0.15);
-            color: #fff;
-        }
-        .btn-outline:hover { background: rgba(255,255,255,0.12); transform: scale(1.04); }
-
-        /* ============================================================
-           SECTION 3: كروسيل الشخصيات – Netflix Style
-           ============================================================ */
-        .characters-carousel-section {
-            padding: 20px 0 40px;
-        }
-
-        .carousel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            padding: 0 20px 16px 20px;
-            max-width: 1400px;
-            margin: 0 auto;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .carousel-header h2 {
-            font-size: clamp(26px, 4vw, 38px);
-            font-weight: 900;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .carousel-header h2 span { color: var(--gold); }
-
-        .carousel-header .view-all {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .carousel-header .view-all:hover { color: var(--gold); }
-
-        .carousel-wrapper {
-            position: relative;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 10px;
-        }
-
-        .carousel-track {
-            display: flex;
-            gap: 16px;
-            overflow-x: auto;
-            padding: 12px 16px 30px 16px;
-            scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
-            scroll-snap-type: x mandatory;
-            scrollbar-width: none;
-        }
-        .carousel-track::-webkit-scrollbar { display: none; }
-
-        .char-card-netflix {
-            flex: 0 0 clamp(180px, 18vw, 260px);
-            scroll-snap-align: start;
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            background: var(--bg-card);
-            border: 1px solid var(--border-light);
-            transition: var(--transition);
-            cursor: pointer;
-            position: relative;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-            transform: scale(0.98);
-            opacity: 0.85;
-        }
-
-        .char-card-netflix:hover {
-            transform: scale(1.04) translateY(-12px);
-            opacity: 1;
-            border-color: var(--gold);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px var(--gold-glow);
-            z-index: 10;
-        }
-
-        .char-card-netflix .card-image {
-            width: 100%;
-            aspect-ratio: 3/4;
-            overflow: hidden;
-            background: rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .char-card-netflix .card-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.6s;
-        }
-        .char-card-netflix:hover .card-image img { transform: scale(1.08); }
-
-        .char-card-netflix .card-image .char-emoji {
-            font-size: clamp(60px, 10vw, 90px);
-        }
-
-        .char-card-netflix .card-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: var(--gold);
-            color: #1a1a2e;
-            padding: 2px 14px;
-            border-radius: 30px;
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: 0.3px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        .char-card-netflix .card-lock {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px);
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 11px;
-            color: var(--gold);
-            border: 1px solid rgba(251,191,36,0.15);
-        }
-
-        .char-card-netflix .card-body {
-            padding: 14px 14px 18px;
-            text-align: center;
-            background: rgba(10,6,26,0.6);
-            backdrop-filter: blur(4px);
-        }
-
-        .char-card-netflix .card-body .name {
-            font-weight: 800;
-            font-size: clamp(15px, 1.6vw, 20px);
-            color: #fff;
-            margin-bottom: 2px;
-        }
-
-        .char-card-netflix .card-body .trait {
-            font-size: 12px;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .char-card-netflix .card-body .trait .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--gold);
-            display: inline-block;
-        }
-
-        .char-card-netflix .card-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(0deg, rgba(10,6,26,0.9) 0%, transparent 60%);
-            opacity: 0;
-            transition: 0.4s;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding: 20px;
-        }
-        .char-card-netflix:hover .card-overlay { opacity: 1; }
-
-        .char-card-netflix .card-overlay .play-btn {
-            background: var(--gold);
-            color: #1a1a2e;
-            border: none;
-            padding: 8px 24px;
-            border-radius: 40px;
-            font-weight: 800;
-            font-size: 14px;
-            cursor: pointer;
-            transition: 0.3s;
-            transform: translateY(10px);
-            opacity: 0;
-        }
-        .char-card-netflix:hover .card-overlay .play-btn {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        .char-card-netflix .card-overlay .play-btn:hover { transform: scale(1.05); }
-
-        .carousel-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 20;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.06);
-            color: #fff;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 18px;
-        }
-        .carousel-nav:hover { background: var(--gold); color: #1a1a2e; }
-        .carousel-nav.prev { left: 0; }
-        .carousel-nav.next { right: 0; }
-
-        /* ============================================================
-           باقي الأقسام (مميزات، AI، خطط، تسجيل)
-           ============================================================ */
-        .section-head {
-            text-align: center;
-            padding: 60px 20px 30px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .section-head .eyebrow {
-            color: var(--gold);
-            font-weight: 700;
-            font-size: 13px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-        }
-        .section-head h2 {
-            font-size: clamp(30px, 5vw, 44px);
-            font-weight: 900;
-            color: #fff;
-            margin: 6px 0 10px;
-        }
-        .section-head .sub {
-            color: var(--text-secondary);
-            font-size: 18px;
-            max-width: 600px;
-            margin: 0 auto;
-            line-height: 1.7;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 24px;
-            max-width: 1200px;
-            margin: 0 auto 20px;
-            padding: 0 20px;
-        }
-        .feature-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(8px);
-            border-radius: var(--radius-lg);
-            padding: 28px 18px 24px;
-            text-align: center;
-            border: 1px solid var(--border-light);
-            transition: var(--transition);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
-        .feature-card:hover {
-            transform: translateY(-10px);
-            border-color: var(--gold);
-            box-shadow: 0 16px 50px rgba(0,0,0,0.4), 0 0 30px var(--gold-glow);
-        }
-        .feature-card .icon { font-size: 44px; margin-bottom: 10px; }
-        .feature-card h3 { font-size: 20px; font-weight: 800; }
-        .feature-card p { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
-
-        .ai-section {
-            max-width: 1000px;
-            margin: 20px auto;
-            padding: 40px 24px;
-            background: linear-gradient(145deg, rgba(167,139,250,0.04), rgba(124,58,237,0.04));
-            border-radius: var(--radius-xl);
-            border: 1px solid var(--border-light);
-            text-align: center;
-        }
-        .ai-section .ai-icon { font-size: 52px; animation: pulse 2.5s ease-in-out infinite; }
-        @keyframes pulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.08);opacity:1} }
-        .ai-section h2 { font-size: 28px; font-weight: 900; margin: 8px 0; }
-        .ai-section p { color: var(--text-secondary); font-size: 16px; max-width: 550px; margin: 0 auto 16px; line-height: 1.8; }
-
-        .ai-preview {
-            background: rgba(255,255,255,0.02);
-            border-radius: var(--radius-lg);
-            padding: 24px;
-            max-width: 600px;
-            margin: 0 auto;
-            border: 1px dashed rgba(167,139,250,0.12);
-            text-align: right;
-        }
-        .ai-preview .story-title { font-weight: 800; color: var(--gold); font-size: 20px; }
-        .ai-preview .story-snippet { color: var(--text-secondary); font-size: 15px; line-height: 1.8; margin: 6px 0; }
-        .ai-preview .story-tag {
-            display: inline-block;
-            background: var(--primary-glow);
-            color: var(--primary);
-            font-size: 12px;
-            padding: 4px 16px;
-            border-radius: 30px;
-            font-weight: 600;
-        }
-
-        .plans-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 24px;
-            max-width: 1200px;
-            margin: 0 auto 20px;
-            padding: 0 20px;
-        }
-        .plan-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(8px);
-            border-radius: var(--radius-lg);
-            padding: 28px 18px;
-            text-align: center;
-            border: 1px solid var(--border-light);
-            transition: var(--transition);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
-        .plan-card:hover {
-            transform: translateY(-8px);
-            border-color: var(--gold);
-            box-shadow: 0 16px 40px rgba(0,0,0,0.3);
-        }
-        .plan-card h3 { font-size: 22px; font-weight: 800; }
-        .plan-card .price { font-size: 30px; font-weight: 900; color: var(--gold); margin: 10px 0; }
-        .plan-card ul { list-style: none; padding: 0; text-align: right; }
-        .plan-card ul li { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); font-size: 14px; }
-
-        /* ============================================================
-           نموذج التسجيل
-           ============================================================ */
-        .auth-section {
-            max-width: 640px;
-            margin: 40px auto 20px;
-            padding: 0 20px;
-        }
-        .auth-card {
-            background: var(--bg-card);
-            backdrop-filter: blur(16px);
-            border-radius: var(--radius-xl);
-            padding: 32px 28px;
-            border: 1px solid var(--border-light);
-            box-shadow: var(--shadow-soft);
-        }
-        .auth-logo { font-size: 28px; font-weight: 900; color: var(--gold); text-align: center; }
-        .auth-sub { text-align: center; color: var(--text-secondary); font-size: 15px; margin: 4px 0 20px; }
-
-        .auth-tabs {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 20px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 60px;
-            padding: 4px;
-            border: 1px solid var(--border-light);
-        }
-        .auth-tab {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            font-weight: 700;
-            border-radius: 40px;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 14px;
-        }
-        .auth-tab.active {
-            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-            color: #1a1a2e;
-            box-shadow: 0 4px 20px var(--gold-glow);
-        }
-        .auth-form { display: none; }
-        .auth-form.active { display: block; }
-
-        .field { margin-bottom: 16px; }
-        .field label { display: block; font-weight: 600; color: var(--text-primary); font-size: 13px; margin-bottom: 4px; }
-        .field input, .field select {
-            width: 100%;
-            padding: 10px 14px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid var(--border-light);
-            border-radius: var(--radius-md);
-            color: var(--text-primary);
-            font-size: 15px;
-            transition: 0.3s;
-            font-family: inherit;
-        }
-        .field input:focus, .field select:focus {
-            outline: none;
-            border-color: var(--gold);
-            box-shadow: 0 0 0 3px var(--gold-glow);
-        }
-        .field select option { background: #1e293b; }
-
-        .auth-error {
-            background: rgba(239,68,68,0.08);
-            border: 1px solid rgba(239,68,68,0.15);
-            border-radius: var(--radius-md);
-            padding: 10px 14px;
-            color: #f87171;
-            margin-bottom: 14px;
-            font-weight: 600;
-        }
-
-        .btn-block { width: 100%; justify-content: center; padding: 14px; font-size: 16px; }
-        .auth-toggle { text-align: center; margin-top: 16px; color: var(--text-secondary); font-size: 13px; }
-        .auth-toggle a { color: var(--gold); text-decoration: none; font-weight: 700; }
-
-        .pickable-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-            gap: 10px;
-            margin: 12px 0;
-        }
-        .pickable {
-            border: 2px solid transparent;
-            padding: 8px 4px;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            text-align: center;
-            background: rgba(255,255,255,0.03);
-            transition: 0.3s;
-        }
-        .pickable:hover { border-color: var(--primary); transform: scale(1.04); }
-        .pickable.selected { border-color: var(--gold); background: var(--gold-glow); }
-        .pickable.locked { opacity: 0.4; pointer-events: none; filter: grayscale(0.6); }
-        .pickable .char-media {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            overflow: hidden;
-            margin: 0 auto 4px;
-            background: rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .pickable .char-media img { width: 100%; height: 100%; object-fit: cover; }
-        .pickable .name { font-size: 12px; font-weight: 600; }
-
-        .two-char-note {
-            text-align: center;
-            font-weight: 700;
-            color: var(--gold);
-            background: var(--gold-glow);
-            border-radius: 40px;
-            padding: 6px 10px;
-            margin-bottom: 12px;
-            border: 1px solid rgba(251,191,36,0.06);
-            font-size: 14px;
-        }
-
-        .landing-footer {
-            text-align: center;
-            padding: 32px 0 16px;
-            color: var(--text-muted);
-            font-size: 13px;
-            border-top: 1px solid var(--border-light);
-            margin-top: 40px;
-        }
-
-        /* ============================================================
-           استجابة محسنة
-           ============================================================ */
-        @media (prefers-reduced-motion: reduce) {
-            html { scroll-behavior: auto; }
-            *, *::before, *::after {
-                animation-duration: .01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: .01ms !important;
-            }
-        }
-
-        @media (max-width: 992px) {
-            .hero-content-section h1 { font-size: 48px; }
-            .hero-content-section .subtitle { font-size: 22px; }
-        }
-
-        @media (max-width: 768px) {
-            .video-fullscreen { height: 72svh; min-height: 380px; max-height: 620px; }
-            .scroll-indicator { bottom: 60px; font-size: 12px; }
-            .scroll-indicator i { font-size: 18px; }
-            .hero-content-section { padding: 40px 16px 30px; }
-            .hero-content-section h1 { font-size: 36px; }
-            .hero-content-section .subtitle { font-size: 18px; }
-            .hero-content-section .desc { font-size: 14px; }
-            .char-card-netflix { flex: 0 0 clamp(130px, 30vw, 160px); }
-            .carousel-nav { width: 32px; height: 32px; font-size: 13px; }
-            .features-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
-            .plans-grid { grid-template-columns: 1fr; }
-            .auth-card { padding: 20px 16px; }
-            .pickable-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-
-        @media (max-width: 480px) {
-            .video-fullscreen { height: 68svh; min-height: 330px; }
-            .hero-content-section h1 { font-size: 28px; }
-            .hero-content-section .subtitle { font-size: 16px; }
-            .char-card-netflix { flex: 0 0 120px; }
-            .char-card-netflix .card-body .name { font-size: 13px; }
-            .features-grid { grid-template-columns: 1fr; }
-            .pickable-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-
-        @media (max-width: 360px) {
-            .video-fullscreen { height: 62svh; min-height: 300px; }
-            .hero-content-section h1 { font-size: 24px; }
-            .char-card-netflix { flex: 0 0 100px; }
-            .char-card-netflix .card-body .name { font-size: 11px; }
-            .char-card-netflix .card-body .trait { font-size: 9px; }
-        }
-    </style>
-</head>
-<body>
-
-    <!-- ==========================================================
-    SECTION 1: فيديو كامل الشاشة (بدون نصوص)
-    ========================================================== -->
-    <section class="video-fullscreen <?= $hasLocalHeroVideo ? 'video-local' : 'video-youtube' ?>" id="videoSection" aria-label="فيديو تعريفي عن Kidora">
-        <div class="video-wrapper">
-            <?php if ($hasLocalHeroVideo): ?>
-                <!-- إذا كان الفيديو المحلي موجوداً، فهو المصدر الأساسي والأكثر موثوقية -->
-                <video autoplay muted playsinline loop preload="auto" id="heroVideo">
-                    <source src="assets/videos/hero.mp4" type="video/mp4">
-                </video>
-            <?php else: ?>
-                <!-- YouTube: استخدمه فقط عندما لا يوجد الفيديو المحلي -->
-                <iframe
-                    id="heroYoutube"
-                    src="https://www.youtube.com/embed/XIQBQk6F-ok?autoplay=1&mute=1&loop=1&playlist=XIQBQk6F-ok&controls=0&rel=0&modestbranding=1&playsinline=1"
-                    title="فيديو Kidora التعريفي"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    referrerpolicy="strict-origin-when-cross-origin"
-                    allowfullscreen>
-                </iframe>
-            <?php endif; ?>
+<style>
+  :root{--k-gold:#ffc93c;--k-gold-deep:#f5a623;--k-blue:#5b8def;--k-pink:#ff6fa5;--k-cyan:#2ec4b6;--k-ink:#241645;--k-card:rgba(255,255,255,.07);--k-line:rgba(255,255,255,.14)}
+  .public-page{position:relative;z-index:2;overflow:hidden;color:#f1f5f9}
+  .public-container{width:min(1180px,calc(100% - 32px));margin:0 auto}
+  .public-hero{min-height:clamp(620px,calc(100vh - 72px),820px);display:grid;grid-template-columns:1.1fr .9fr;align-items:center;gap:44px;padding:76px 0 48px}
+  .public-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid rgba(255,201,60,.34);border-radius:999px;color:#ffe99a;background:rgba(255,201,60,.1);font-size:13px;font-weight:900}
+  .public-hero h1{margin:18px 0 12px;font-family:var(--font-display);font-size:clamp(48px,8vw,92px);line-height:.98;letter-spacing:-1px}
+  .public-gradient-text{background-image:linear-gradient(135deg,#fff,#ffe99a 48%,#ffc93c);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .public-hero-lead{max-width:640px;margin:0;color:#d9d0ff;font-size:clamp(18px,2.2vw,24px);font-weight:700;line-height:1.9}
+  .public-hero-copy{max-width:640px;color:#b9abd4;font-size:16px;line-height:1.9;margin:14px 0 26px}
+  .public-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+  .k-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:52px;padding:12px 25px;border:1px solid transparent;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+  .k-btn:hover{transform:translateY(-3px)}
+  .k-btn-gold{color:var(--k-ink);background:linear-gradient(135deg,#ffe99a,var(--k-gold));box-shadow:0 12px 28px rgba(255,201,60,.28)}
+  .k-btn-gold:hover{box-shadow:0 16px 34px rgba(255,201,60,.42)}
+  .k-btn-ghost{color:#fff;background:rgba(255,255,255,.07);border-color:var(--k-line)}
+  .k-btn-ghost:hover{border-color:rgba(255,201,60,.6);background:rgba(255,255,255,.12)}
+  .public-stat-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+  .public-stat{min-width:125px;padding:13px 15px;border:1px solid var(--k-line);border-radius:18px;background:rgba(255,255,255,.055);backdrop-filter:blur(10px)}
+  .public-stat strong{display:block;color:#ffe99a;font-family:var(--font-display);font-size:26px;line-height:1.1}
+  .public-stat span{display:block;margin-top:4px;color:#b9abd4;font-size:12px;font-weight:700}
+  .public-hero-art{position:relative;min-height:420px;display:grid;place-items:center}
+  .public-video-showcase{padding-top:20px}
+  .public-video-frame{position:relative;min-height:min(68svh,680px);overflow:hidden;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:#05030b;box-shadow:0 28px 70px rgba(0,0,0,.38)}
+  .public-video-frame:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(10,6,26,.02),rgba(10,6,26,.5))}
+  .public-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .public-orbit{position:absolute;width:min(100%,430px);aspect-ratio:1;border:1px solid rgba(255,201,60,.22);border-radius:50%;box-shadow:0 0 80px rgba(91,141,239,.15) inset,0 0 80px rgba(255,105,170,.1);animation:publicOrbit 18s linear infinite}
+  .public-orbit:before,.public-orbit:after{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#ffc93c;box-shadow:0 0 22px #ffc93c}
+  .public-orbit:before{top:10%;right:12%}.public-orbit:after{bottom:18%;left:9%;background:#5b8def;box-shadow:0 0 22px #5b8def}
+  @keyframes publicOrbit{to{transform:rotate(360deg)}}
+  .public-hero-character{position:relative;z-index:1;width:min(72vw,290px);aspect-ratio:1;border-radius:42% 58% 54% 46%;display:grid;place-items:center;border:8px solid rgba(255,255,255,.18);background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.42),transparent 25%),linear-gradient(145deg,var(--hero-color,#6c63ff),rgba(10,6,26,.72));box-shadow:0 30px 70px rgba(0,0,0,.4),0 0 80px color-mix(in srgb,var(--hero-color,#6c63ff) 45%,transparent);font-size:clamp(105px,17vw,180px);animation:publicCharacterFloat 4.2s ease-in-out infinite}
+  .public-hero-character img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+  @keyframes publicCharacterFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-18px) rotate(4deg)}}
+  .public-floating-badge{position:absolute;z-index:2;bottom:10%;right:4%;max-width:190px;padding:12px 15px;border:1px solid rgba(255,255,255,.2);border-radius:18px;background:rgba(10,6,26,.78);box-shadow:0 15px 30px rgba(0,0,0,.24);color:#fff;font-size:13px;font-weight:800;line-height:1.7}
+  .public-section{padding:86px 0}
+  .public-section-head{text-align:center;max-width:700px;margin:0 auto 34px}
+  .public-section-head h2{margin:9px 0;font-family:var(--font-display);font-size:clamp(30px,5vw,50px);line-height:1.15}
+  .public-section-head p{margin:0;color:#b9abd4;font-size:16px;line-height:1.9}
+  .public-section-kicker{color:#ffe99a;font-size:13px;font-weight:900;letter-spacing:.5px}
+  .public-carousel-shell{position:relative}
+  .public-carousel-window{overflow:hidden;margin:0 38px;padding:15px 5px 24px}
+  .public-carousel-track{display:flex;direction:rtl;gap:18px;will-change:transform;perspective:1200px}
+  .public-character-card{position:relative;flex:0 0 clamp(190px,24vw,250px);padding:13px;border:1px solid var(--k-line);border-radius:25px;background:linear-gradient(155deg,rgba(255,255,255,.12),rgba(255,255,255,.035));color:#fff;text-align:right;cursor:pointer;overflow:hidden;transform-style:preserve-3d;transition:transform .28s ease,border-color .2s ease,box-shadow .2s ease}
+  .public-character-card:hover,.public-character-card:focus-visible{transform:translateY(-7px) rotateY(-4deg);border-color:var(--char-color,#ffc93c);box-shadow:0 16px 40px rgba(0,0,0,.22),0 0 30px color-mix(in srgb,var(--char-color,#ffc93c) 28%,transparent);outline:none}
+  .public-character-poster{height:205px;border-radius:18px;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.35),transparent 27%),linear-gradient(145deg,var(--char-color,#6c63ff),rgba(10,6,26,.8));font-size:86px}
+  .public-character-poster img{width:100%;height:100%;object-fit:cover}
+  .public-character-name{display:block;margin:12px 3px 2px;font-family:var(--font-display);font-size:21px}
+  .public-character-title{display:block;margin:0 3px;color:#d9d0ff;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .public-character-badge{position:absolute;top:22px;right:22px;padding:5px 9px;border-radius:999px;color:var(--k-ink);background:#ffe99a;font-size:11px;font-weight:900}
+  .public-character-badge.is-premium{color:#fff;background:rgba(10,6,26,.78);border:1px solid rgba(255,255,255,.25)}
+  .public-carousel-arrow{position:absolute;top:45%;z-index:2;width:42px;height:42px;border:1px solid rgba(255,255,255,.2);border-radius:50%;color:#fff;background:rgba(10,6,26,.76);font-size:24px;box-shadow:0 8px 20px rgba(0,0,0,.22)}
+  .public-carousel-arrow:hover{border-color:#ffc93c;color:#ffc93c}.public-carousel-arrow.prev{right:0}.public-carousel-arrow.next{left:0}
+  .public-features{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .public-feature{min-height:210px;padding:25px 22px;border:1px solid var(--k-line);border-radius:24px;background:rgba(255,255,255,.055);backdrop-filter:blur(9px);opacity:0;transform:translateY(22px)}
+  .public-feature-icon{display:grid;place-items:center;width:56px;height:56px;border-radius:18px;color:var(--k-ink);background:linear-gradient(135deg,#ffe99a,#ffc93c);font-size:29px;box-shadow:0 8px 20px rgba(255,201,60,.18)}
+  .public-feature h3{margin:17px 0 7px;font-family:var(--font-display);font-size:23px}.public-feature p{margin:0;color:#b9abd4;font-size:14px;line-height:1.8}
+  .public-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
+  .public-plan{position:relative;padding:28px 23px;border:1px solid var(--k-line);border-radius:25px;background:rgba(255,255,255,.06)}
+  .public-plan.featured{border-color:#ffc93c;box-shadow:0 0 35px rgba(255,201,60,.15);transform:translateY(-8px)}
+  .public-plan-ribbon{position:absolute;top:14px;left:14px;padding:5px 9px;border-radius:999px;color:var(--k-ink);background:#ffc93c;font-size:11px;font-weight:900}
+  .public-plan h3{margin:0;font-family:var(--font-display);font-size:26px}.public-plan-price{margin:9px 0 18px;color:#ffe99a;font-family:var(--font-display);font-size:34px;font-weight:900}.public-plan-price small{color:#b9abd4;font-family:var(--font-body);font-size:13px}
+  .public-plan ul{min-height:132px;margin:0 0 20px;padding:0;list-style:none}.public-plan li{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.08);color:#d9d0ff;font-size:14px}.public-plan li:before{content:"✓";margin-left:7px;color:#ffc93c;font-weight:900}
+  .public-plan .k-btn{width:100%}
+  .public-auth-section{padding:86px 0 105px}
+  .public-auth-card{max-width:760px;margin:0 auto;padding:30px;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:rgba(255,255,255,.08);backdrop-filter:blur(18px);box-shadow:0 26px 70px rgba(0,0,0,.25)}
+  .public-auth-tabs{display:flex;gap:8px;padding:5px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(0,0,0,.18);margin-bottom:25px}.public-auth-tab{flex:1;padding:12px;border-radius:999px;color:#b9abd4;font:inherit;font-weight:900}.public-auth-tab.active{color:var(--k-ink);background:linear-gradient(135deg,#ffe99a,#ffc93c)}
+  .public-auth-form[hidden]{display:none}.public-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 15px}.public-field{margin-bottom:15px}.public-field.full{grid-column:1/-1}.public-field label{display:block;margin-bottom:6px;color:#f1f5f9;font-size:13px;font-weight:800}.public-field input,.public-field select{width:100%;min-height:47px;border:1px solid rgba(255,255,255,.15);border-radius:13px;padding:10px 13px;color:#fff;background:rgba(0,0,0,.24);font:inherit}.public-field input:focus,.public-field select:focus{outline:2px solid #ffc93c;outline-offset:1px}.public-field select option{color:#241645;background:#fff}.public-auth-card .k-btn{width:100%}
+  .public-pick-note{margin:0 0 13px;color:#d9d0ff;font-size:13px;line-height:1.7}.public-pick-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:20px}.public-pick{position:relative;padding:7px;border:2px solid transparent;border-radius:15px;color:#fff;background:rgba(255,255,255,.06);text-align:center}.public-pick:not(.locked):hover,.public-pick.selected{border-color:#ffc93c;background:rgba(255,201,60,.14)}.public-pick.locked{opacity:.45;filter:grayscale(.7);cursor:not-allowed}.public-pick-media{display:grid;place-items:center;aspect-ratio:1;border-radius:10px;background:linear-gradient(145deg,var(--char-color),rgba(10,6,26,.8));font-size:32px;overflow:hidden}.public-pick-media img{width:100%;height:100%;object-fit:cover}.public-pick strong{display:block;margin-top:5px;font-size:12px}.public-pick small{display:block;margin-top:2px;color:#ffe99a;font-size:9px}
+  .public-photo-row{display:flex;align-items:center;gap:14px}.public-photo-preview{display:grid;place-items:center;width:64px;height:64px;flex:0 0 64px;border:2px solid rgba(255,201,60,.5);border-radius:50%;overflow:hidden;color:#ffe99a;background:rgba(0,0,0,.22);font-size:24px}.public-photo-preview img{width:100%;height:100%;object-fit:cover}
+  .public-error{margin:0 0 18px;padding:11px 14px;border:1px solid rgba(248,113,113,.4);border-radius:13px;color:#fecaca;background:rgba(127,29,29,.28);font-weight:700}
+  .public-footer{padding:26px 0 32px;border-top:1px solid rgba(255,255,255,.1);color:#b9abd4;text-align:center;font-size:13px}
+  .public-modal{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(3,2,13,.78);backdrop-filter:blur(12px)}.public-modal.open{display:flex}.public-modal-card{position:relative;width:min(520px,100%);max-height:calc(100vh - 36px);overflow:auto;padding:28px;border:1px solid rgba(255,255,255,.2);border-radius:28px;background:linear-gradient(160deg,#241645,#100920);box-shadow:0 30px 80px rgba(0,0,0,.5);text-align:center}.public-modal-close{position:absolute;top:12px;left:12px;width:37px;height:37px;border:1px solid rgba(255,255,255,.18);border-radius:50%;color:#fff;background:rgba(255,255,255,.08);font-size:20px}.public-modal-visual{width:125px;height:125px;margin:2px auto 15px;border-radius:35%;display:grid;place-items:center;background:linear-gradient(145deg,var(--modal-color,#6c63ff),rgba(10,6,26,.8));font-size:65px;overflow:hidden}.public-modal-visual img{width:100%;height:100%;object-fit:cover}.public-modal-card h2{margin:0;font-family:var(--font-display);font-size:32px}.public-modal-card p{color:#d9d0ff;line-height:1.8}.public-modal-trait{color:#ffe99a;font-weight:800}.public-modal-icons{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:16px 0;font-size:23px}.public-modal-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.public-modal-actions .k-btn{min-height:44px;font-size:14px}
+  .public-intro{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:#0a061a;overflow:hidden}.public-intro.is-hidden{pointer-events:none}.public-intro-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.72}.public-intro-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,6,26,.2),rgba(10,6,26,.92))}.public-intro-content{position:relative;z-index:1;width:min(700px,calc(100% - 32px));text-align:center}.public-intro-logo{font-family:var(--font-display);font-size:clamp(56px,13vw,120px);font-weight:900;background-image:linear-gradient(135deg,#fff,#ffc93c);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}.public-intro-line{margin:8px 0 24px;color:#f1f5f9;font-size:clamp(18px,3vw,28px);font-weight:800}.public-intro-fallback{display:flex;justify-content:center;gap:10px;min-height:85px;margin-bottom:20px}.public-intro-fallback span{display:grid;place-items:center;width:64px;height:64px;border-radius:22px;background:linear-gradient(145deg,var(--char-color),rgba(255,255,255,.08));font-size:36px;box-shadow:0 0 26px color-mix(in srgb,var(--char-color) 35%,transparent)}.public-intro-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}.public-intro-skip{border:1px solid rgba(255,255,255,.25);color:#fff;background:rgba(255,255,255,.08)}
+  @media(max-width:900px){.public-hero{grid-template-columns:1fr;text-align:center;padding-top:52px}.public-hero-copy,.public-hero-lead{margin-inline:auto}.public-actions,.public-stat-row{justify-content:center}.public-hero-art{min-height:315px}.public-hero-character{width:220px}.public-video-frame{min-height:52svh;border-radius:23px}.public-features{grid-template-columns:1fr 1fr}.public-plans{grid-template-columns:1fr}.public-plan.featured{transform:none}}
+  @media(max-width:600px){.public-section{padding:64px 0}.public-container{width:min(100% - 22px,560px)}.public-features{grid-template-columns:1fr}.public-form-grid{grid-template-columns:1fr}.public-field.full{grid-column:auto}.public-pick-grid{grid-template-columns:repeat(3,1fr)}.public-auth-card{padding:20px 14px}.public-carousel-window{margin:0 28px}.public-character-card{flex-basis:calc(82vw - 22px)}.public-character-poster{height:185px}.public-stat{min-width:calc(50% - 6px)}.public-stat strong{font-size:22px}}
+  @media(prefers-reduced-motion:reduce){.public-orbit,.public-hero-character{animation:none}.public-feature{opacity:1;transform:none}}
+</style>
+
+<div class="public-page">
+  <?php if ($introVideo['mp4'] || $introVideo['webm'] || $introVideo['poster']): ?>
+    <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
+      <?php if ($introVideo['mp4'] || $introVideo['webm']): ?>
+        <video class="public-intro-media" id="introVideo" autoplay muted playsinline preload="auto"<?php echo $introVideo['poster'] ? ' poster="' . h(BASE_PATH . '/' . $introVideo['posterPath']) . '"' : ''; ?>>
+          <?php if ($introVideo['webm']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['webmPath']); ?>" type="video/webm"><?php endif; ?>
+          <?php if ($introVideo['mp4']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['mp4Path']); ?>" type="video/mp4"><?php endif; ?>
+        </video>
+      <?php endif; ?>
+      <div class="public-intro-scrim"></div>
+      <div class="public-intro-content">
+        <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
+          <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
+            <span style="--char-color:<?php echo h($introChar['color']); ?>"><?php echo h($introChar['icons'][0] ?? '✨'); ?></span>
+          <?php endforeach; ?>
         </div>
-
-        <div class="overlay"></div>
-
-        <div class="video-loading" id="videoLoading" aria-hidden="true">
-            <div class="video-loading-box"></div>
+        <div class="public-intro-logo">Kidora</div>
+        <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
+        <div class="public-intro-actions">
+          <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
+          <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
         </div>
-
-        <button class="sound-toggle" id="soundToggle" type="button" onclick="toggleVideoSound()" aria-label="تفعيل صوت الفيديو">
-            <i class="fas fa-volume-mute"></i>
-            <span>تفعيل الصوت</span>
-        </button>
-
-        <button class="skip-btn" type="button" onclick="skipVideo()" aria-label="تخطي الفيديو">
-            <span>تخطي</span><i class="fas fa-forward-step"></i>
-        </button>
-
-        <div class="scroll-indicator">
-            <span>تمرير للأسفل</span>
-            <i class="fas fa-chevron-down"></i>
+      </div>
+    </div>
+  <?php else: ?>
+    <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
+      <div class="public-intro-scrim"></div>
+      <div class="public-intro-content">
+        <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
+          <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
+            <span style="--char-color:<?php echo h($introChar['color']); ?>"><?php echo h($introChar['icons'][0] ?? '✨'); ?></span>
+          <?php endforeach; ?>
         </div>
+        <div class="public-intro-logo">Kidora</div>
+        <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
+        <div class="public-intro-actions">
+          <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
+          <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
+        </div>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <main>
+    <section class="public-container public-hero" id="hero">
+      <div>
+        <span class="public-eyebrow">✨ منصة آمنة تصنع مغامرات حقيقية</span>
+        <h1><span class="public-gradient-text">Kidora</span><br>حيث يتحول التعلم إلى مغامرة بطولية</h1>
+        <p class="public-hero-lead">مهام يومية، رفقاء محبوبون، ألعاب ذكية وقصص تجعل كل إنجاز لحظة تستحق الاحتفال.</p>
+        <p class="public-hero-copy">رحلة عربية مصممة للأطفال من 4 إلى 12 عاماً، تساعدهم على النمو خطوة بخطوة وتمنح الوالدين صورة أوضح عن التقدّم.</p>
+        <div class="public-actions">
+          <a class="k-btn k-btn-gold" href="<?php echo h(BASE_PATH . '/demo.php'); ?>">🎮 جرب الآن</a>
+          <a class="k-btn k-btn-ghost" href="#auth">🚀 ابدأ المغامرة</a>
+        </div>
+        <div class="public-stat-row" aria-label="إحصاءات المنصة">
+          <div class="public-stat"><strong><?php echo (int)$publicStats['characters']; ?></strong><span>شخصيات مرافقة</span></div>
+          <div class="public-stat"><strong><?php echo (int)$publicStats['tasks']; ?></strong><span>مهمة يومية</span></div>
+          <div class="public-stat"><strong><?php echo (int)$publicStats['games']; ?></strong><span>لعبة تفاعلية</span></div>
+          <div class="public-stat"><strong><?php echo (int)$publicStats['figures']; ?></strong><span>شخصية من تراثنا</span></div>
+        </div>
+      </div>
+      <div class="public-hero-art" aria-hidden="true">
+        <div class="public-orbit"></div>
+        <?php $heroChar = $charDataForJS[0] ?? ['color' => '#6C63FF', 'icons' => ['✨'], 'image' => null]; ?>
+        <div class="public-hero-character" id="heroCharacter" style="--hero-color:<?php echo h($heroChar['color']); ?>">
+          <?php if (!empty($heroChar['image'])): ?><img src="<?php echo h($heroChar['image']); ?>" alt=""><?php else: ?><?php echo h($heroChar['icons'][0] ?? '✨'); ?><?php endif; ?>
+        </div>
+        <div class="public-floating-badge">رفيقك يرافقك في كل خطوة<br><span style="color:#ffe99a;">صوت وتشجيع وثيم خاص بك</span></div>
+      </div>
     </section>
 
-    <!-- ==========================================================
-    SECTION 2: المحتوى التعريفي (يظهر تحت الفيديو)
-    ========================================================== -->
-    <section class="hero-content-section" id="heroContent">
-        <div class="badge">🚀 منصة تربوية ذكية</div>
-        <h1><span class="highlight">Kidora</span></h1>
-        <p class="subtitle">حيث يتحول التعلم إلى مغامرة بطولية</p>
-        <p class="desc">
-            مهام يومية، قصص ملهمة، ألعاب تفاعلية، وشخصيات مرافقة.
-            منصة متكاملة تنمي مهارات طفلك وتصنع منه بطلاً حقيقياً.
-        </p>
-        <div class="actions">
-            <a href="#carousel" class="btn btn-gold">🎮 استكشف الشخصيات</a>
-            <a href="#auth" class="btn btn-outline">🚀 سجل وابدأ</a>
-        </div>
+    <section class="public-section public-container public-video-showcase" id="videoShowcase">
+      <div class="public-section-head">
+        <span class="public-section-kicker">شاهد العالم</span>
+        <h2>لمحة سريعة عن مغامرة Kidora</h2>
+        <p>فيديو تعريفي اختياري من YouTube-nocookie، مع استمرار المقدمة المحلية أو الحركية في بداية الصفحة.</p>
+      </div>
+      <div class="public-video-frame">
+        <iframe
+          src="<?php echo h(youtube_embed_url($remoteVideoId) . '&autoplay=1&mute=1&loop=1&playlist=' . rawurlencode($remoteVideoId) . '&controls=0'); ?>"
+          title="فيديو تعريفي عن Kidora"
+          loading="lazy"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowfullscreen></iframe>
+      </div>
     </section>
 
-    <!-- ==========================================================
-    SECTION 3: كروسيل الشخصيات – Netflix Style
-    ========================================================== -->
-    <section class="characters-carousel-section" id="carousel">
-        <div class="carousel-header">
-            <h2>🌟 شخصياتك المفضلة <span>✦</span></h2>
-            <a href="#auth" class="view-all">اختر شخصيتك <i class="fas fa-arrow-left"></i></a>
+    <section class="public-section public-container" id="characters">
+      <div class="public-section-head">
+        <span class="public-section-kicker">رفقاء الرحلة</span>
+        <h2>اختر الشخصية التي تشبه خيالك</h2>
+        <p>جرّب أي شخصية في الديمو، ثم اختر رفيقين مجانيين ليبدآ الرحلة معك.</p>
+      </div>
+      <div class="public-carousel-shell">
+        <button type="button" class="public-carousel-arrow prev" id="charPrev" aria-label="الشخصيات السابقة">›</button>
+        <div class="public-carousel-window" id="characterCarousel" role="region" aria-roledescription="carousel" aria-label="شخصيات Kidora">
+          <div class="public-carousel-track" id="characterTrack">
+            <?php foreach ($charDataForJS as $c): ?>
+              <button type="button" class="public-character-card" data-char-id="<?php echo (int)$c['id']; ?>" style="--char-color:<?php echo h($c['color']); ?>" aria-haspopup="dialog">
+                <?php if ($c['is_premium']): ?><span class="public-character-badge is-premium">مدفوعة 🔒</span><?php else: ?><span class="public-character-badge">مجانية</span><?php endif; ?>
+                <span class="public-character-poster">
+                  <?php if (!empty($c['image'])): ?><img src="<?php echo h($c['image']); ?>" alt="<?php echo h($c['name']); ?>" loading="lazy"><?php else: ?><?php echo h($c['icons'][0] ?? '✨'); ?><?php endif; ?>
+                </span>
+                <span class="public-character-name"><?php echo h($c['name']); ?></span>
+                <span class="public-character-title"><?php echo h($c['title']); ?></span>
+              </button>
+            <?php endforeach; ?>
+          </div>
         </div>
-
-        <div class="carousel-wrapper">
-            <button class="carousel-nav prev" onclick="scrollCarousel(-1)"><i class="fas fa-chevron-left"></i></button>
-            <button class="carousel-nav next" onclick="scrollCarousel(1)"><i class="fas fa-chevron-right"></i></button>
-
-            <div class="carousel-track" id="charTrack">
-                <?php foreach ($characters as $c):
-                    $color = $c['color'] ?? '#a78bfa';
-                    $icon = character_icons($c)[0] ?? '🌟';
-                    $locked = (bool)$c['is_premium'];
-                ?>
-                    <div class="char-card-netflix" style="--char-color: <?= h($color) ?>;">
-                        <div class="card-image">
-                            <?php if (!empty($c['image_path'])): ?>
-                                <img src="<?= h($c['image_path']) ?>" alt="<?= h($c['name']) ?>">
-                            <?php else: ?>
-                                <span class="char-emoji"><?= $icon ?></span>
-                            <?php endif; ?>
-
-                            <?php if (!$locked): ?>
-                                <span class="card-badge">مجانية</span>
-                            <?php else: ?>
-                                <span class="card-lock">🔒 مدفوعة</span>
-                            <?php endif; ?>
-                        </div>
-
-                        <div class="card-body">
-                            <div class="name"><?= h($c['name']) ?></div>
-                            <div class="trait">
-                                <span class="dot"></span>
-                                <?= h($c['trait'] ?? 'مميز') ?>
-                            </div>
-                        </div>
-
-                        <div class="card-overlay">
-                            <?php if ($locked): ?>
-                                <button class="play-btn" onclick="alert('🔓 اشترك الآن لفتح هذه الشخصية!')">🔓 اشترك</button>
-                            <?php else: ?>
-                                <button class="play-btn" onclick="alert('✅ اختر هذه الشخصية عند التسجيل!')">✅ اخترها</button>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
+        <button type="button" class="public-carousel-arrow next" id="charNext" aria-label="الشخصيات التالية">‹</button>
+      </div>
     </section>
 
-    <!-- ==========================================================
-    SECTION 4: المميزات
-    ========================================================== -->
-    <div class="section-head" id="features">
-        <div class="eyebrow">✨ لماذا Kidora</div>
-        <h2>مغامرة تعلم متكاملة</h2>
-        <p class="sub">كل عنصر في المنصة صمم ليكون ممتعاً ومفيداً في آن واحد</p>
-    </div>
-    <div class="features-grid">
-        <div class="feature-card"><div class="icon">📋</div><h3>مهام يومية</h3><p>4 مهام جديدة كل يوم</p></div>
-        <div class="feature-card"><div class="icon">📖</div><h3>قصص تفاعلية</h3><p>قصص صوتية ومرئية</p></div>
-        <div class="feature-card"><div class="icon">🎮</div><h3>ألعاب تعليمية</h3><p>تنمي الذاكرة والتركيز</p></div>
-        <div class="feature-card"><div class="icon">🏆</div><h3>مكافآت وتطور</h3><p>افتح شخصيات جديدة</p></div>
-        <div class="feature-card"><div class="icon">🧠</div><h3>ذكاء اصطناعي</h3><p>قصص مخصصة لكل طفل</p></div>
-        <div class="feature-card"><div class="icon">📲</div><h3>تقارير للوالدين</h3><p>تابع تقدم طفلك</p></div>
-    </div>
+    <section class="public-section public-container" id="features">
+      <div class="public-section-head">
+        <span class="public-section-kicker">لماذا Kidora؟</span>
+        <h2>عالم كامل ينمو مع الطفل</h2>
+        <p>كل تجربة تجمع بين المرح والفائدة والأمان، من أول مهمة حتى القصة الكبرى.</p>
+      </div>
+      <div class="public-features">
+        <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>📋</div><h3>مهام يومية مترابطة</h3><p>أربع مهام مناسبة للعمر، مع شخصية من تراثنا ولعبة صغيرة مرتبطة بكل إنجاز.</p></article>
+        <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>🎮</div><h3>ألعاب تفاعلية</h3><p>مطابقة وذاكرة وأسئلة ومغامرات، مع تجربة هادئة للصغار ووقت مناسب للكبار.</p></article>
+        <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>📖</div><h3>قصة من إنجازاتك</h3><p>القصة اليومية تبنى من مهام الطفل الحقيقية، لتصبح الرحلة ذكرى يشعر أنها تخصه.</p></article>
+        <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>📊</div><h3>فهم أفضل للتقدم</h3><p>تحليل سلوكي دوري يوضح المحاور الأقوى وما يحتاج إلى مزيد من التدريب بلطف.</p></article>
+        <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>🛡️</div><h3>حماية رقمية وشخصية</h3><p>محتوى مبسط يساعد الطفل على فهم الحدود الآمنة وطلب المساعدة بثقة.</p></article>
+        <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>📲</div><h3>الوالدان في الصورة</h3><p>تقارير مختصرة عبر واتساب تجعل متابعة رحلة الطفل أسهل وأقرب.</p></article>
+      </div>
+    </section>
 
-    <!-- ==========================================================
-    SECTION 5: الذكاء الاصطناعي
-    ========================================================== -->
-    <div class="ai-section">
-        <div class="ai-icon">🤖</div>
-        <h2>قصص مخصصة بذكاء اصطناعي</h2>
-        <p>نستخدم تقنيات الذكاء الاصطناعي لتوليد قصة فريدة لكل طفل، تتناسب مع عمره واهتماماته.</p>
-        <div class="ai-preview">
-            <div class="story-title">📖 مغامرة في مدينة النور</div>
-            <div class="story-snippet">
-                "في مدينة النور البعيدة، كان هناك طفل شجاع يدعى يوسف. ذات يوم، وجد خريطة قديمة تقوده إلى كنز الحكمة..."
-            </div>
-            <div class="story-tag">✨ قصة مخصصة ليوسف (7 سنوات)</div>
-        </div>
-    </div>
-
-    <!-- ==========================================================
-    SECTION 6: خطط الاشتراك
-    ========================================================== -->
-    <div class="section-head">
-        <div class="eyebrow">📦 خطط الاشتراك</div>
-        <h2>اختر ما يناسبك</h2>
-        <p class="sub">الخطة المجانية تمنحك تجربة رائعة، والمدفوعة تفتح لك المزيد من الشخصيات والمحتوى.</p>
-    </div>
-    <div class="plans-grid">
-        <?php foreach ($plans as $p):
-            $features = json_decode_safe($p['features_json'], []);
-        ?>
-            <div class="plan-card">
-                <h3><?= h($p['name']) ?></h3>
-                <div class="price"><?= (int)$p['price_ils'] === 0 ? 'مجانية' : (int)$p['price_ils'].' ₪' ?></div>
-                <ul>
-                    <?php foreach (array_slice($features, 0, 4) as $f): ?>
-                        <li>✅ <?= h($f) ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
+    <section class="public-section public-container" id="plans">
+      <div class="public-section-head">
+        <span class="public-section-kicker">خطط بسيطة</span>
+        <h2>ابدأ مجاناً، وكبّر المغامرة وقتما تشاء</h2>
+        <p>الخطة المجانية تمنح الطفل حلقة يومية كاملة، والخطط المدفوعة تفتح عوالم إضافية.</p>
+      </div>
+      <div class="public-plans">
+        <?php foreach ($plans as $planIndex => $p): $features = json_decode_safe($p['features_json'], []); ?>
+          <article class="public-plan <?php echo $planIndex === 1 ? 'featured' : ''; ?>">
+            <?php if ($planIndex === 1): ?><span class="public-plan-ribbon">الأكثر اختياراً</span><?php endif; ?>
+            <h3><?php echo h($p['name']); ?></h3>
+            <div class="public-plan-price"><?php echo (int)$p['price_ils'] === 0 ? 'مجانية' : (int)$p['price_ils'] . ' ₪'; ?><?php if ((int)$p['price_ils'] > 0): ?><small> / <?php echo h($p['billing_cycle']); ?></small><?php endif; ?></div>
+            <ul>
+              <?php foreach ($features as $feature): ?><li><?php echo h((string)$feature); ?></li><?php endforeach; ?>
+            </ul>
+            <a class="k-btn <?php echo $planIndex === 1 ? 'k-btn-gold' : 'k-btn-ghost'; ?>" href="#auth" data-open-register>🚀 ابدأ المغامرة</a>
+          </article>
         <?php endforeach; ?>
-    </div>
-
-    <!-- ==========================================================
-    SECTION 7: تسجيل الدخول / إنشاء حساب
-    ========================================================== -->
-    <section class="auth-section" id="auth">
-        <div class="auth-card">
-            <div class="auth-logo">🌟 Kidora</div>
-            <p class="auth-sub">منصة ذكية تحوّل طفلك إلى بطل حقيقي</p>
-
-            <div class="auth-tabs">
-                <button type="button" class="auth-tab active" data-tab="login">تسجيل الدخول</button>
-                <button type="button" class="auth-tab" data-tab="register">إنشاء حساب</button>
-            </div>
-
-            <!-- Login -->
-            <div id="login-tab" class="auth-form active">
-                <?php if ($loginError): ?><div class="auth-error">❌ <?= h($loginError) ?></div><?php endif; ?>
-                <form method="POST">
-                    <div class="field"><label>البريد الإلكتروني لولي الأمر</label><input type="email" name="email" required></div>
-                    <div class="field"><label>كلمة المرور</label><input type="password" name="password" required></div>
-                    <button type="submit" name="login" class="btn btn-gold btn-block">🚀 تسجيل الدخول</button>
-                </form>
-                <div class="auth-toggle">مسؤول المنصة؟ <a href="admin/login.php">دخول لوحة الإدارة</a></div>
-            </div>
-
-            <!-- Register -->
-            <div id="register-tab" class="auth-form hidden">
-                <?php if ($registerError): ?><div class="auth-error">❌ <?= h($registerError) ?></div><?php endif; ?>
-                <p style="text-align:center;font-weight:700;color:var(--gold);font-size:15px;">
-                    1) اختر شخصيتين مجانيتين
-                </p>
-                <div class="two-char-note" id="selCountLabel">0 / 2 مختارة</div>
-                <div class="pickable-grid" id="regCharGrid">
-                    <?php foreach ($characters as $c): $locked = (bool)$c['is_premium']; ?>
-                        <div class="pickable <?= $locked ? 'locked' : '' ?>"
-                             data-id="<?= (int)$c['id'] ?>"
-                             data-locked="<?= $locked ? '1':'0' ?>"
-                             onclick="toggleCharPick(this)">
-                            <?php if ($locked): ?><div style="font-size:10px;color:var(--gold);">🔒</div><?php endif; ?>
-                            <div class="char-media">
-                                <?php if (!empty($c['image_path'])): ?>
-                                    <img src="<?= h($c['image_path']) ?>" alt="<?= h($c['name']) ?>">
-                                <?php else: ?>
-                                    <span style="font-size:28px;"><?= character_icons($c)[0] ?? '✨' ?></span>
-                                <?php endif; ?>
-                            </div>
-                            <div class="name"><?= h($c['name']) ?></div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-
-                <form method="POST" id="registerForm" style="margin-top:16px;">
-                    <input type="hidden" name="character_1" id="character_1">
-                    <input type="hidden" name="character_2" id="character_2">
-                    <p style="font-weight:700;color:var(--text-primary);font-size:15px;">2) بيانات الحساب</p>
-
-                    <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" required value="<?= h($_POST['child_name'] ?? '') ?>"></div>
-                    <div class="field"><label>عمر الطفل</label>
-                        <select name="child_age" required>
-                            <option value="">اختر العمر</option>
-                            <?php for ($a = 4; $a <= 12; $a++): ?>
-                                <option value="<?= $a ?>" <?= (($_POST['child_age'] ?? '') == $a) ? 'selected' : '' ?>><?= $a ?> سنوات</option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
-                    <div class="field"><label>اسم ولي الأمر</label><input type="text" name="parent_name" required value="<?= h($_POST['parent_name'] ?? '') ?>"></div>
-                    <div class="field"><label>رقم واتساب ولي الأمر</label><input type="tel" name="parent_phone" required placeholder="مثال: 0599123456" value="<?= h($_POST['parent_phone'] ?? '') ?>"></div>
-                    <div class="field"><label>البريد الإلكتروني</label><input type="email" name="email" required value="<?= h($_POST['email'] ?? '') ?>"></div>
-                    <div class="field"><label>كلمة المرور (6 أحرف)</label><input type="password" name="password" required minlength="6"></div>
-                    <div class="field"><label>تأكيد كلمة المرور</label><input type="password" name="confirm_password" required></div>
-                    <button type="submit" name="register" class="btn btn-gold btn-block">🌟 ابدأ المغامرة</button>
-                </form>
-            </div>
-        </div>
+      </div>
     </section>
 
-    <footer class="landing-footer">
-        <p>© 2026 Kidora. جميع الحقوق محفوظة.</p>
-    </footer>
+    <section class="public-auth-section public-container" id="auth">
+      <div class="public-section-head">
+        <span class="public-section-kicker">خطوتك الأولى</span>
+        <h2>جاهز لمغامرة جديدة؟</h2>
+        <p>أنشئ حساباً للطفل في دقائق، أو عد إلى رحلتك من هنا.</p>
+      </div>
+      <div class="public-auth-card">
+        <div class="public-auth-tabs" role="tablist" aria-label="تسجيل الدخول أو إنشاء الحساب">
+          <button type="button" class="public-auth-tab <?php echo $shouldOpenRegister ? '' : 'active'; ?>" data-auth-tab="login" role="tab" aria-selected="<?php echo $shouldOpenRegister ? 'false' : 'true'; ?>">تسجيل الدخول</button>
+          <button type="button" class="public-auth-tab <?php echo $shouldOpenRegister ? 'active' : ''; ?>" data-auth-tab="register" role="tab" aria-selected="<?php echo $shouldOpenRegister ? 'true' : 'false'; ?>">إنشاء حساب</button>
+        </div>
 
-    <!-- ==========================================================
-    JavaScript
-    ========================================================== -->
-    <script>
-        // ===== تشغيل الفيديو بشكل موثوق =====
-        document.addEventListener('DOMContentLoaded', function() {
-            const videoSection = document.getElementById('videoSection');
-            const video = document.getElementById('heroVideo');
-            const iframe = document.getElementById('heroYoutube');
-            const loading = document.getElementById('videoLoading');
+        <div class="public-auth-form" id="loginPanel" <?php echo $shouldOpenRegister ? 'hidden' : ''; ?>>
+          <?php if ($loginError): ?><div class="public-error">❌ <?php echo h($loginError); ?></div><?php endif; ?>
+          <form method="POST">
+            <div class="public-form-grid">
+              <div class="public-field full"><label for="loginEmail">البريد الإلكتروني لولي الأمر</label><input id="loginEmail" type="email" name="email" autocomplete="email" required></div>
+              <div class="public-field full"><label for="loginPassword">كلمة المرور</label><input id="loginPassword" type="password" name="password" autocomplete="current-password" required></div>
+            </div>
+            <button type="submit" name="login" class="k-btn k-btn-gold">🚀 تسجيل الدخول</button>
+          </form>
+          <p style="text-align:center;color:#b9abd4;font-size:13px;margin:18px 0 0;">مسؤول المنصة؟ <a href="<?php echo h(BASE_PATH . '/admin/login.php'); ?>" style="color:#ffe99a;font-weight:900;">دخول لوحة الإدارة</a></p>
+        </div>
 
-            function hideLoading() {
-                if (loading) loading.classList.add('hidden');
-            }
+        <div class="public-auth-form" id="registerPanel" <?php echo $shouldOpenRegister ? '' : 'hidden'; ?>>
+          <?php if ($registerError): ?><div class="public-error">❌ <?php echo h($registerError); ?></div><?php endif; ?>
+          <p class="public-pick-note">اختر شخصيتين مجانيتين ليرافقا الطفل. الشخصيات المدفوعة متاحة للتجربة في الديمو وتُفتح بعد الترقية.</p>
+          <div class="public-pick-grid" id="registerCharacterGrid">
+            <?php foreach ($charDataForJS as $c): ?>
+              <button type="button" class="public-pick <?php echo $c['is_premium'] ? 'locked' : ''; ?>" data-pick-id="<?php echo (int)$c['id']; ?>" data-locked="<?php echo $c['is_premium'] ? '1' : '0'; ?>" style="--char-color:<?php echo h($c['color']); ?>">
+                <?php if ($c['is_premium']): ?><small>🔒 مدفوعة</small><?php endif; ?>
+                <span class="public-pick-media"><?php if (!empty($c['image'])): ?><img src="<?php echo h($c['image']); ?>" alt="<?php echo h($c['name']); ?>"><?php else: ?><?php echo h($c['icons'][0] ?? '✨'); ?><?php endif; ?></span>
+                <strong><?php echo h($c['name']); ?></strong>
+              </button>
+            <?php endforeach; ?>
+          </div>
+          <div class="public-auth-form" id="registerErrorHint" hidden></div>
+          <form method="POST" enctype="multipart/form-data" id="registerForm">
+            <input type="hidden" name="character_1" id="character_1" value="<?php echo (int)($prefillChar ?: ($_POST['character_1'] ?? 0)); ?>">
+            <input type="hidden" name="character_2" id="character_2" value="<?php echo (int)($_POST['character_2'] ?? 0); ?>">
+            <div class="public-form-grid">
+              <div class="public-field"><label for="childName">اسم الطفل</label><input id="childName" type="text" name="child_name" maxlength="100" value="<?php echo h($_POST['child_name'] ?? $prefillName); ?>" autocomplete="name" required></div>
+              <div class="public-field"><label for="childAge">عمر الطفل</label><select id="childAge" name="child_age" required><option value="">اختر العمر</option><?php for ($a = 4; $a <= 12; $a++): ?><option value="<?php echo $a; ?>" <?php echo (($_POST['child_age'] ?? '') == $a) ? 'selected' : ''; ?>><?php echo $a; ?> سنوات</option><?php endfor; ?></select></div>
+              <div class="public-field"><label for="parentName">اسم ولي الأمر</label><input id="parentName" type="text" name="parent_name" maxlength="100" value="<?php echo h($_POST['parent_name'] ?? ''); ?>" required></div>
+              <div class="public-field"><label for="parentPhone">رقم واتساب ولي الأمر</label><input id="parentPhone" type="tel" name="parent_phone" maxlength="30" placeholder="مثال: 0599123456" value="<?php echo h($_POST['parent_phone'] ?? ''); ?>" required></div>
+              <div class="public-field"><label for="registerEmail">البريد الإلكتروني</label><input id="registerEmail" type="email" name="email" maxlength="150" value="<?php echo h($_POST['email'] ?? ''); ?>" autocomplete="email" required></div>
+              <div class="public-field"><label for="registerPassword">كلمة المرور</label><input id="registerPassword" type="password" name="password" minlength="6" autocomplete="new-password" required></div>
+              <div class="public-field"><label for="confirmPassword">تأكيد كلمة المرور</label><input id="confirmPassword" type="password" name="confirm_password" minlength="6" autocomplete="new-password" required></div>
+              <div class="public-field full public-photo-row">
+                <span class="public-photo-preview" id="photoPreview">👤</span>
+                <label for="childPhoto" style="flex:1;">صورة اختيارية للطفل<span style="display:block;color:#b9abd4;font-size:11px;font-weight:600;margin-top:3px;">JPG أو PNG أو WebP — حتى 4 ميجابايت</span><input id="childPhoto" type="file" name="child_photo" accept="image/jpeg,image/png,image/webp" style="margin-top:8px;padding:7px;"></label>
+              </div>
+            </div>
+            <button type="submit" name="register" class="k-btn k-btn-gold">🌟 أنشئ حساب المغامرة</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
 
-            if (video) {
-                video.addEventListener('canplay', hideLoading, { once: true });
-                video.addEventListener('playing', hideLoading);
-                video.addEventListener('error', function() {
-                    hideLoading();
-                    videoSection.classList.add('video-error');
-                });
+  <div class="public-modal" id="characterModal" role="dialog" aria-modal="true" aria-labelledby="modalCharacterName" aria-hidden="true">
+    <div class="public-modal-card">
+      <button type="button" class="public-modal-close" id="modalClose" aria-label="إغلاق">×</button>
+      <div class="public-modal-visual" id="modalVisual"></div>
+      <h2 id="modalCharacterName"></h2>
+      <p id="modalCharacterTitle"></p>
+      <div class="public-modal-trait" id="modalCharacterTrait"></div>
+      <p id="modalCharacterQuote"></p>
+      <div class="public-modal-icons" id="modalCharacterIcons" aria-label="رموز الشخصية"></div>
+      <div class="public-modal-actions">
+        <a class="k-btn k-btn-gold" id="modalDemoLink" href="<?php echo h(BASE_PATH . '/demo.php'); ?>">🎮 جرّب الشخصية</a>
+        <button type="button" class="k-btn k-btn-ghost" id="modalRegisterLink" data-open-register>سجّل واختر</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-                // بعض المتصفحات تمنع autoplay؛ المحاولة هنا لا تكسر الصفحة.
-                const playPromise = video.play();
-                if (playPromise && typeof playPromise.catch === 'function') {
-                    playPromise.catch(() => {
-                        hideLoading();
-                    });
-                }
-
-                // لا نترك شاشة التحميل معلقة إذا تأخر الملف.
-                setTimeout(hideLoading, 3500);
-            } else if (iframe) {
-                // iframe لا يرسل لنا أخطاء تحميل موثوقة عبر cross-origin.
-                // لذلك نزيل الـ loader بعد وقت قصير بدلاً من إخفاء الفيديو بالخطأ.
-                iframe.addEventListener('load', hideLoading, { once: true });
-                setTimeout(hideLoading, 3500);
-            } else {
-                hideLoading();
-            }
-        });
-
-        // ===== التحكم بصوت الفيديو =====
-        function toggleVideoSound() {
-            const video = document.getElementById('heroVideo');
-            const iframe = document.getElementById('heroYoutube');
-            const btn = document.getElementById('soundToggle');
-
-            if (!btn) return;
-
-            const icon = btn.querySelector('i');
-            const text = btn.querySelector('span');
-
-            // الفيديو المحلي: الطريقة الأكثر موثوقية
-            if (video) {
-                const enableSound = video.muted;
-                video.muted = !enableSound;
-                video.volume = enableSound ? 1 : 0;
-
-                if (enableSound) {
-                    const playPromise = video.play();
-                    if (playPromise && typeof playPromise.catch === 'function') {
-                        playPromise.catch(() => {});
-                    }
-                    icon.className = 'fas fa-volume-high';
-                    text.textContent = 'كتم الصوت';
-                    btn.setAttribute('aria-label', 'كتم صوت الفيديو');
-                    btn.classList.add('is-on');
-                } else {
-                    icon.className = 'fas fa-volume-xmark';
-                    text.textContent = 'تفعيل الصوت';
-                    btn.setAttribute('aria-label', 'تفعيل صوت الفيديو');
-                    btn.classList.remove('is-on');
-                }
-                return;
-            }
-
-            // YouTube: إعادة تهيئة المصدر فقط عند طلب المستخدم.
-            // autoplay مع الصوت قد تمنعه المتصفحات، لذلك نجعل النتيجة معتمدة على نقرة المستخدم.
-            if (iframe) {
-                let src = iframe.src || '';
-                if (src.includes('mute=1')) {
-                    src = src.replace('mute=1', 'mute=0');
-                } else if (src.includes('mute=0')) {
-                    src = src.replace('mute=0', 'mute=1');
-                } else {
-                    src += (src.includes('?') ? '&' : '?') + 'mute=0';
-                }
-
-                iframe.src = src;
-
-                const isMuted = src.includes('mute=1');
-                icon.className = isMuted ? 'fas fa-volume-xmark' : 'fas fa-volume-high';
-                text.textContent = isMuted ? 'تفعيل الصوت' : 'كتم الصوت';
-                btn.setAttribute('aria-label', isMuted ? 'تفعيل صوت الفيديو' : 'كتم صوت الفيديو');
-                btn.classList.toggle('is-on', !isMuted);
-            }
-        }
-
-        // ===== تخطي الفيديو =====
-        function skipVideo() {
-            const section = document.getElementById('videoSection');
-            const video = document.getElementById('heroVideo');
-            const loading = document.getElementById('videoLoading');
-            const indicator = section?.querySelector('.scroll-indicator');
-            const skipBtn = section?.querySelector('.skip-btn');
-            const soundBtn = section?.querySelector('.sound-toggle');
-
-            if (video) video.pause();
-
-            if (loading) loading.classList.add('hidden');
-            if (indicator) indicator.style.display = 'none';
-            if (skipBtn) skipBtn.style.display = 'none';
-            if (soundBtn) soundBtn.style.display = 'none';
-
-            // بدلاً من تغيير iframe وإعادة تحميله، ننتقل مباشرة للمحتوى.
-            document.getElementById('heroContent')?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-        }
-
-        // ===== كروسيل الشخصيات =====
-        function scrollCarousel(direction) {
-            const track = document.getElementById('charTrack');
-            const cardWidth = track.querySelector('.char-card-netflix')?.offsetWidth || 200;
-            const gap = 16;
-            const scrollAmount = (cardWidth + gap) * direction * 2;
-            track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-        }
-
-        // ===== تبديل التبويبات =====
-        document.querySelectorAll('.auth-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-                const tabName = this.dataset.tab;
-                document.getElementById('login-tab').classList.toggle('active', tabName === 'login');
-                document.getElementById('register-tab').classList.toggle('active', tabName === 'register');
-            });
-        });
-
-        <?php if ($registerError): ?>
-            document.querySelector('.auth-tab[data-tab="register"]').click();
-        <?php endif; ?>
-
-        // ===== اختيار شخصيتين للتسجيل =====
-        const CHAR_DATA = <?= json_encode($charDataForJS, JSON_UNESCAPED_UNICODE) ?>;
-        let picked = [];
-
-        function toggleCharPick(el) {
-            if (el.dataset.locked === '1') {
-                alert('🔒 هذه الشخصية مدفوعة، اشترك لفتحها.');
-                return;
-            }
-            const id = parseInt(el.dataset.id, 10);
-            const idx = picked.indexOf(id);
-            if (idx > -1) {
-                picked.splice(idx, 1);
-                el.classList.remove('selected');
-            } else {
-                if (picked.length >= 2) return;
-                picked.push(id);
-                el.classList.add('selected');
-            }
-            document.getElementById('selCountLabel').textContent = picked.length + ' / 2 مختارة';
-            document.getElementById('character_1').value = picked[0] || '';
-            document.getElementById('character_2').value = picked[1] || '';
-        }
-
-        document.getElementById('registerForm').addEventListener('submit', function(e) {
-            if (picked.length !== 2) {
-                e.preventDefault();
-                alert('الرجاء اختيار شخصيتين مجانيتين.');
-            }
-        });
-
-        // ===== تأثير ظهور المحتوى التعريفي عند التمرير =====
-        document.addEventListener('DOMContentLoaded', function() {
-            const heroContent = document.getElementById('heroContent');
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        heroContent.style.opacity = '1';
-                        heroContent.style.transform = 'translateY(0)';
-                    }
-                });
-            }, { threshold: 0.2 });
-
-            heroContent.style.opacity = '0';
-            heroContent.style.transform = 'translateY(30px)';
-            heroContent.style.transition = 'all 0.8s ease';
-            observer.observe(heroContent);
-        });
-    </script>
-
+<script>
+window.KIDORA_LANDING = <?php echo json_encode([
+    'base' => BASE_PATH,
+    'characters' => $charDataForJS,
+    'prefillChar' => $prefillChar,
+    'openRegister' => $shouldOpenRegister,
+    'hasVideo' => $introVideo['mp4'] || $introVideo['webm'],
+    'reducedMotion' => false,
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+</script>
+<script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/gsap.min.js'); ?>"></script>
+<script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/ScrollTrigger.min.js'); ?>"></script>
+<script src="<?php echo h(BASE_PATH . '/assets/js/landing.js'); ?>"></script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

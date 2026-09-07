@@ -44,19 +44,57 @@ const SoundEngine = (function () {
     if (v) startMusic(); else stopMusic();
   }
 
-  function speak(text, charData) {
-    if (!voiceEnabled) return;
-    if (!("speechSynthesis" in window)) return;
+  function speak(text, charData, opts) {
+    opts = opts || {};
+    let ended = false;
+    const done = () => {
+      if (ended) return;
+      ended = true;
+      if (typeof opts.onEnd === "function") opts.onEnd();
+    };
+    if (!voiceEnabled) { done(); return false; }
+    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) { done(); return false; }
     window.speechSynthesis.cancel();
     const move = (charData && charData.move) || (window.KIDAURA_ACTIVE_CHARACTER && window.KIDAURA_ACTIVE_CHARACTER.move) || "wiggle";
     const v = MOVE_VOICE[move] || { pitch: 1, rate: 1 };
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "ar-SA"; u.pitch = v.pitch; u.rate = v.rate; u.volume = 1;
+    u.onend = done;
+    u.onerror = done;
     const voice = pickBestVoice();
     if (voice) u.voice = voice;
     // نغمة تنبيه لطيفة قبل الكلام لإحساس أكثر حيوية (تُشغَّل فقط عند وجود AudioContext متاح)
     playChime();
     window.speechSynthesis.speak(u);
+    return true;
+  }
+
+  function sfx(name) {
+    const sounds = {
+      flip:  [{ f: 520, d: .07, v: .06 }],
+      match: [{ f: 660, d: .1, v: .08 }, { f: 880, d: .14, v: .07, delay: .07 }],
+      miss:  [{ f: 220, d: .16, v: .05 }],
+      win:   [{ f: 523, d: .12, v: .07 }, { f: 659, d: .12, v: .07, delay: .1 }, { f: 784, d: .2, v: .08, delay: .2 }],
+      pop:   [{ f: 740, d: .08, v: .05 }]
+    };
+    const notes = sounds[name];
+    if (!notes) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+      notes.forEach(note => {
+        const start = audioCtx.currentTime + (note.delay || 0);
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = note.f;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(note.v, start + .015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + note.d);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(start); osc.stop(start + note.d + .03);
+      });
+    } catch (e) {}
   }
 
   function playChime() {
@@ -109,5 +147,5 @@ const SoundEngine = (function () {
     musicTimer = null;
   }
 
-  return { speak, playCharacterClip, isVoiceEnabled, isMusicEnabled, setVoiceEnabled, setMusicEnabled, startMusic, stopMusic };
+  return { speak, sfx, playCharacterClip, isVoiceEnabled, isMusicEnabled, setVoiceEnabled, setMusicEnabled, startMusic, stopMusic };
 })();

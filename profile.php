@@ -72,7 +72,13 @@ require_once __DIR__ . '/includes/navbar.php';
 
   <div class="card" style="padding:28px;margin-bottom:24px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
     <div style="position:relative;width:84px;height:84px;">
-      <div style="width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--pink));display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;">👤</div>
+      <div style="width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--pink));display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;overflow:hidden;">
+        <?php if (!empty($child['photo_path'])): ?>
+          <img src="<?php echo h(BASE_PATH . '/' . ltrim($child['photo_path'], '/')); ?>" alt="<?php echo h($child['name']); ?>" style="width:100%;height:100%;object-fit:cover;">
+        <?php else: ?>
+          👤
+        <?php endif; ?>
+      </div>
       <?php if ($premiumUnlocked): ?>
         <span title="حساب مشترك موثّق" style="position:absolute;bottom:0;left:-4px;background:#2D6CDF;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;">✔️</span>
       <?php endif; ?>

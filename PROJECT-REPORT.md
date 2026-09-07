@@ -196,11 +196,23 @@ gender column — avoid adding verb forms that need agreement with the child's n
 
 Two distinct visual identities.
 
-### Public landing (`index.php`, 1,145 lines — mostly inline `<style>`)
-Modern dark-purple SaaS marketing page: `#0a061a` base with radial violet glows,
-56px hero headline with gradient text, glassmorphism feature cards, embedded intro
-video, character showcase, pricing tiers, and the login/register card at the bottom
-as the `#auth` anchor target.
+### Public surfaces (`index.php` + `demo.php`)
+The guest experience is a dark-purple cinematic surface over the shared
+contrast-safe background. `index.php` now opens with an optional local
+`assets/video/intro.mp4`/`intro.webm` (and `intro-poster.webp`) overlay; when those
+files are absent, the same overlay uses a GSAP character/logo motion fallback.
+It then presents a gold CTA, database-driven counts, an RTL-friendly character
+carousel with premium badges and an accessible details modal, six scroll-revealed
+features, subscription plans, and the two-tab login/register form.
+
+`demo.php` is public and does not call `require_login()`. Its three-step state
+machine lets a visitor choose any of the six characters, play an 8-card/4-pair
+memory game, enter a name, and hear a five-scene nominal-sentence story
+automatically through `SoundEngine`. The finale links to the registration form
+with the name and selected free character prefilled. `includes/public-nav.php`
+is the guest-only sticky navigation; `includes/demo-content.php` is the PHP story
+template bank. The public-only gold token is `--k-gold`; the signed-in app's
+historical `--gold` token remains indigo.
 
 ### Signed-in app
 - **Background** (`#animated-bg` in `includes/header.php`, styled in `main.css`):
@@ -252,7 +264,8 @@ and tables. Styled by `assets/css/admin.css` (22 lines) layered on `main.css`.
 ## 5. Architecture
 
 Plain **PHP 8 + PDO. No framework, no Composer, no build step.**
-~6,530 lines across 36 PHP files, 5 vanilla-JS engines, 2 CSS files.
+The public layer adds two page-specific vanilla-JS controllers and locally vendored
+GSAP files; the application remains build-free.
 
 ```
 config/config.php     constants, BASE_PATH auto-detection, admin creds, TZ Asia/Gaza
@@ -260,7 +273,13 @@ config/db.php         kidaura_connect() — PDO; on first SQLite run creates sch
 includes/functions.php shared helpers (auth, daily progress, characters, subs, uploads)
 includes/header.php   <head>, animated background, KIDAURA_* JS globals, loads 4 engines
 includes/navbar.php   nav + sidebar (self-contained)
+includes/public-nav.php guest navigation (self-contained)
+includes/demo-content.php PHP demo story templates and guide lines
 includes/footer.php   companion widget + toast host + app.js
+demo.php              public character / memory / narrated-story experience
+assets/js/landing.js  public intro, carousel, modal, reveals, and auth interactions
+assets/js/demo.js     public demo state machine, memory game, and narration
+assets/vendor/gsap/   GSAP + ScrollTrigger, vendored for the no-build public layer
 api/                  the only 2 AJAX endpoints
 admin/                guard + tab router + 9 tab files
 database/             schema.sql (MySQL) · schema_sqlite.sql · seed.php
@@ -312,12 +331,14 @@ Session flash keys (`$_SESSION['flash_*']`) carry cross-redirect state:
 | `KIDAURA_BASE` | `header.php` L60 | `BASE_PATH` |
 | `KIDAURA_CHILD` | `navbar.php` | `id`, `name`, `points` |
 | `KIDAURA_PAGE_LINE` | each page | Arabic line the companion speaks on load |
+| `KIDORA_LANDING` | `index.php` | public character data, intro state, and registration prefill |
+| `KIDORA_DEMO` | `demo.php` | all six demo characters, story templates, guide lines, and session state |
 
 ### JS engines (`assets/js/`)
 | File | Global | Role |
 |---|---|---|
 | `theme-engine.js` | `ThemeEngine` | `applyBackground()` / `previewCharacter()` — recolours gradient, sets `--theme-accent`/`--theme-glow`, spawns floating icons |
-| `sound-engine.js` | `SoundEngine` | `speak()` via `SpeechSynthesis` (`ar-SA`, prefers an Arabic female voice), pre-speech chime, optional Web Audio background music. Toggles persist in `localStorage` (`kidaura_voice`, `kidaura_music`) |
+| `sound-engine.js` | `SoundEngine` | `speak()` via `SpeechSynthesis` (`ar-SA`, prefers an Arabic female voice), optional `onEnd` callback, `sfx()` tones for public interactions, pre-speech chime, and optional Web Audio background music. Toggles persist in `localStorage` (`kidaura_voice`, `kidaura_music`) |
 | `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay (4.5 s/scene), a play/pause button, and a caption/chapter cross-fade via the `is-out` class; manual navigation cancels autoplay |
 | `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `reaction` / `memory` / `adventure`. **Content is fetched from `api/game-content.php`, not hardcoded** (a small `FALLBACK` bank exists only so a failed request never shows a broken screen). `game_types()` in `includes/functions.php` is the authoritative slug→label list |
 | `app.js` | `companionSay()` | bootstrap: nav toggle, voice/music buttons, companion click + swap, auto page greeting |
@@ -360,7 +381,7 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 | Table | Purpose |
 |---|---|
 | `characters` | slug, name, title, trait, `color`, `move_type`, `image_path`, `audio_path`, `icons_json`, `is_premium`, `sort_order` |
-| `children` | the user account: credentials, age, parent name/phone, `character_1/2`, `active_character`, `points`, `ring_days`, `last_assessment_at` |
+| `children` | the user account: credentials, age, parent name/phone, optional `photo_path`, `character_1/2`, `active_character`, `points`, `ring_days`, `last_assessment_at` |
 | `tasks` | title, description, category, age range, `story_line`, `youtube_id`, `game_type`, `points`, `active` |
 | `games` | title, `type`, category, age range, description, `is_active` |
 | `game_topics` | `topic_key`, `label`, `icons_json`, `categories_json` (which Arabic task/game categories map to this topic), `active`, `sort_order` |
@@ -386,6 +407,11 @@ Columns added Aug 2026 (both schemas + `kidora_migrate()`):
 `tasks.figure_id` (the mission's linked historical figure) and
 `history_figures.category` (matches the task category vocabulary, used as the
 fallback when a task has no explicit link).
+
+Column added Sep 2026 (both schemas + `kidora_migrate()`):
+`children.photo_path` stores the optional profile image uploaded during public
+registration. The public path uses `save_image_upload()` (MIME/content check,
+4 MiB cap, JPG/PNG/WebP); profile rendering shows it beside the child's name.
 
 Tables added Sep 2026: `game_topics`, `game_questions`, `game_scenarios`. Existing
 databases pick them up through `kidora_migrate()`, which checks for `game_topics` as
@@ -507,6 +533,8 @@ Two gotchas found while fixing this:
    `assets/images/characters/mimo/u_6a8ad4cbd08a9.png` and
    `assets/images/characters/zizo/u_6a8ad4f849c2a.png`, but **every**
    `characters.image_path` is `NULL`, so all six characters render as emoji fallbacks.
+   The public carousel, modal, registration picker, and demo accept `image_path`
+   when it is populated and otherwise render the character's first icon.
 8. `KIDAURA_ACTIVE_CHARACTER` omits `move`, so in-app floating icons always animate
    as `wiggle` regardless of character. Only the registration preview passes `move`.
 9. `SoundEngine.playCharacterClip()` (the only consumer of uploaded character audio)
@@ -525,8 +553,11 @@ Two gotchas found while fixing this:
     no rate limiting, no lockout.
 13. **No CSRF token on any form**, admin or child-facing. A logged-in admin's browser
     can be induced to approve subscriptions or delete content cross-site.
-14. `save_upload()` (`includes/functions.php` L111–119) validates by **file extension
-    only** — no MIME check, no size limit. Directories are created `0777`.
+14. The legacy `save_upload()` (`includes/functions.php`) still validates by
+    **file extension only** — no MIME check, no size limit, and directories are
+    created `0777`. Public child registration does not use it: the new
+    `save_image_upload()` checks MIME/content and caps files at 4 MiB, but the
+    admin character-media upload path remains open.
 15. `admin/tabs/*.php` are not self-guarded (they rely on `admin/index.php` having
     required `guard.php`), so the guard is architecturally load-bearing on one line.
 16. `admin/logout.php` only unsets `is_admin`; it does not destroy the session, while
@@ -674,6 +705,10 @@ Requirements: PHP 8 with `pdo_sqlite` (verified on PHP 8.5.4). No npm, no Compos
 - If deployed under a subfolder, `BASE_PATH` auto-detects, but can be pinned in
   `config/config.php`.
 - `uploads/`, `assets/images`, `assets/audio` must be writable for uploads to work.
+- Public intro media is optional: place `intro.mp4`, `intro.webm`, and optionally
+  `intro-poster.webp` in `assets/video/`. If no video exists, `index.php` uses the
+  GSAP fallback. `assets/vendor/gsap/` contains the vendored GSAP 3.13.0 and
+  ScrollTrigger files; no npm build is required.
 
 ### Dokploy (this host)
 

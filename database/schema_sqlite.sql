@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS children (
     age INTEGER DEFAULT 8,
     parent_name TEXT DEFAULT '',
     parent_phone TEXT DEFAULT '',
+    photo_path TEXT DEFAULT NULL,
     character_1 INTEGER DEFAULT NULL,
     character_2 INTEGER DEFAULT NULL,
     active_character INTEGER DEFAULT NULL,

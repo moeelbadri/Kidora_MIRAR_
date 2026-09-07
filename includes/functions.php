@@ -51,6 +51,16 @@ function all_characters(PDO $pdo): array {
     return $pdo->query("SELECT * FROM characters ORDER BY sort_order ASC, id ASC")->fetchAll();
 }
 
+/** أرقام موجزة للواجهة العامة — الاستعلامات ثابتة ولا تستقبل مدخلات من المستخدم. */
+function public_counts(PDO $pdo): array {
+    return [
+        'characters' => (int)$pdo->query("SELECT COUNT(*) FROM characters")->fetchColumn(),
+        'tasks'      => (int)$pdo->query("SELECT COUNT(*) FROM tasks WHERE active = 1")->fetchColumn(),
+        'figures'    => (int)$pdo->query("SELECT COUNT(*) FROM history_figures WHERE active = 1")->fetchColumn(),
+        'games'      => (int)$pdo->query("SELECT COUNT(*) FROM games")->fetchColumn(),
+    ];
+}
+
 function character_icons(array $character): array {
     $icons = json_decode($character['icons_json'] ?? '[]', true);
     return is_array($icons) && count($icons) ? $icons : ['✨','⭐','🌟'];
@@ -147,6 +157,39 @@ function save_upload(string $inputName, string $destDir, array $allowedExt): ?st
     $destPath = rtrim($destDir, '/') . '/' . $filename;
     if (!move_uploaded_file($_FILES[$inputName]['tmp_name'], $destPath)) return null;
     return $destPath;
+}
+
+/**
+ * يحفظ صورة مرفوعة بعد فحص الحجم وMIME والمحتوى الفعلي للصورة.
+ * هذه الدالة مخصّصة لصور الحساب الجديدة ولا تغيّر مسار الرفع القديم.
+ */
+function save_image_upload(string $inputName, string $destDir): ?string {
+    if (empty($_FILES[$inputName]) || $_FILES[$inputName]['error'] !== UPLOAD_ERR_OK) return null;
+    $file = $_FILES[$inputName];
+    if ((int)$file['size'] <= 0 || (int)$file['size'] > 4 * 1024 * 1024) return null;
+    if (!is_uploaded_file($file['tmp_name'])) return null;
+
+    $mime = null;
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if ($finfo) {
+        $mime = finfo_file($finfo, $file['tmp_name']) ?: null;
+        finfo_close($finfo);
+    }
+    $extensions = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/webp' => 'webp',
+    ];
+    if (!$mime || !isset($extensions[$mime]) || @getimagesize($file['tmp_name']) === false) return null;
+
+    if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) return null;
+    try {
+        $filename = 'child_' . bin2hex(random_bytes(12)) . '.' . $extensions[$mime];
+    } catch (Throwable $e) {
+        $filename = 'child_' . uniqid('', true) . '.' . $extensions[$mime];
+    }
+    $destPath = rtrim($destDir, '/') . '/' . $filename;
+    return move_uploaded_file($file['tmp_name'], $destPath) ? $destPath : null;
 }
 
 function json_decode_safe(?string $s, $default = []) {
