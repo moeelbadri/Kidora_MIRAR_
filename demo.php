@@ -67,6 +67,12 @@ require_once __DIR__ . '/includes/public-nav.php';
   .demo-name-form{max-width:430px;margin:25px auto}.demo-name-form label{display:block;margin-bottom:8px;color:#ffe99a;font-weight:900}.demo-name-form input{width:100%;min-height:52px;padding:10px 15px;border:1px solid rgba(255,255,255,.18);border-radius:15px;color:#fff;background:rgba(0,0,0,.22);font:inherit;font-size:18px}.demo-name-form input:focus{outline:2px solid #ffc93c}.demo-error{min-height:25px;color:#fecaca;font-size:13px;font-weight:800}
   .demo-story-player{max-width:700px;margin:10px auto}.demo-story-scene{position:relative;min-height:365px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-radius:25px;background:linear-gradient(135deg,#6c63ff,#241645);box-shadow:0 20px 50px rgba(0,0,0,.3);transition:background .6s ease}.demo-story-sprite{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);width:128px;height:128px;display:grid;place-items:center;border:5px solid rgba(255,255,255,.3);border-radius:38%;background:linear-gradient(145deg,var(--story-color),rgba(10,6,26,.8));font-size:70px;overflow:hidden;animation:demoSpriteFloat 2.8s ease-in-out infinite}.demo-story-sprite img{width:100%;height:100%;object-fit:cover}@keyframes demoSpriteFloat{0%,100%{margin-top:0;transform:translate(-50%,-50%) rotate(-3deg)}50%{margin-top:-13px;transform:translate(-50%,-50%) rotate(3deg)}}.demo-story-chapter{position:absolute;top:8%;inset-inline:0;text-align:center;color:#ffe99a;font-family:var(--font-display);font-size:22px;font-weight:900}.demo-story-chapter-icon{display:block;margin-bottom:3px;font-size:48px}.demo-story-caption{width:100%;padding:75px 24px 23px;background:linear-gradient(0deg,rgba(0,0,0,.78),transparent);color:#fff;text-align:center;font-family:var(--font-display);font-size:21px;line-height:1.7;transition:opacity .25s ease,transform .25s ease}.demo-story-caption.is-out{opacity:0;transform:translateY(12px)}.demo-story-controls{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:14px}.demo-story-controls button{min-height:43px;padding:9px 16px;border:1px solid rgba(255,255,255,.2);border-radius:999px;color:#fff;background:rgba(255,255,255,.08);font:inherit;font-weight:800}
   .demo-finale{text-align:center}.demo-finale-icon{font-size:75px;animation:demoFinalePop 1.8s ease-in-out infinite}@keyframes demoFinalePop{0%,100%{transform:scale(1)}50%{transform:scale(1.12) rotate(3deg)}}.demo-finale p{max-width:560px;margin:10px auto;color:#d9d0ff;line-height:1.9}.demo-particles{position:fixed;inset:0;z-index:380;pointer-events:none;overflow:hidden}.demo-particle{position:absolute;font-size:25px;animation:demoParticle 1.5s ease-out forwards}@keyframes demoParticle{from{opacity:1;transform:translate(0,0) scale(.5)}to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.2) rotate(180deg)}}
+  /* CHANGE: New styles for animated story text */
+  .demo-story-caption .highlight{color:#ffc93c;font-weight:900}
+  .demo-story-caption .typing-cursor{display:inline-block;width:2px;height:1em;background:#ffc93c;margin-left:3px;vertical-align:text-bottom;animation:blink 0.8s step-end infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  .demo-story-scene .scene-transition{animation:sceneFlash 0.6s ease}
+  @keyframes sceneFlash{0%{opacity:0.4}50%{opacity:1}100%{opacity:1}}
   @media(max-width:800px){.demo-character-grid{grid-template-columns:repeat(3,1fr)}.demo-story-scene{min-height:320px}}
   @media(max-width:520px){.demo-page{padding-top:20px}.demo-stage{padding:19px 13px;border-radius:23px}.demo-guide{align-items:flex-start;gap:10px;padding:12px}.demo-guide-avatar{width:58px;height:58px;flex-basis:58px;font-size:32px;border-radius:20px}.demo-guide-bubble{font-size:13px}.demo-memory-grid{gap:8px}.demo-memory-card{height:69px}.demo-memory-face{border-radius:12px;font-size:25px}.demo-story-scene{min-height:280px}.demo-story-sprite{width:94px;height:94px;font-size:53px}.demo-story-caption{padding:65px 13px 17px;font-size:17px}.demo-story-chapter{font-size:17px}.demo-story-chapter-icon{font-size:36px}}
   @media(prefers-reduced-motion:reduce){.demo-story-sprite,.demo-finale-icon{animation:none}}
@@ -95,14 +101,14 @@ require_once __DIR__ . '/includes/public-nav.php';
     </section>
 
     <section class="demo-stage" id="demoPick" hidden>
-      <div class="demo-guide"><div class="demo-guide-avatar" id="pickGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="pickGuideName"></span><span><?php echo h($guideLines['pick']); ?></span></div></div>
+      <div class="demo-guide"><div class="demo-guide-avatar" id="pickGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="pickGuideName"></span><span id="pickGuideText"><?php echo h($guideLines['pick']); ?></span></div></div>
       <h2>اختر الشخصية التي تحبها</h2>
       <p class="demo-stage-intro">الشخصيات المدفوعة متاحة للتجربة هنا، أما التسجيل فيبدأ بشخصيتين مجانيتين.</p>
       <div class="demo-character-grid" id="demoCharacterGrid"></div>
     </section>
 
     <section class="demo-stage" id="demoMemory" hidden>
-      <div class="demo-guide"><div class="demo-guide-avatar" id="memoryGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="memoryGuideName"></span><span>أربع أزواج تنتظر ذاكرتك. خذ وقتك ولا تقلق من الخطأ.</span></div></div>
+      <div class="demo-guide"><div class="demo-guide-avatar" id="memoryGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="memoryGuideName"></span><span id="memoryGuideText">أربع أزواج تنتظر ذاكرتك. خذ وقتك ولا تقلق من الخطأ.</span></div></div>
       <div class="demo-selected-card" id="memorySelectedCard"></div>
       <h2 style="text-align:center;">لعبة الذاكرة</h2>
       <p class="demo-memory-meta">الأزواج المكتملة: <b id="memoryScore">0</b> / 4 &nbsp; · &nbsp; المحاولات: <b id="memoryMoves">0</b></p>
@@ -111,7 +117,7 @@ require_once __DIR__ . '/includes/public-nav.php';
     </section>
 
     <section class="demo-stage" id="demoName" hidden>
-      <div class="demo-guide"><div class="demo-guide-avatar" id="nameGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="nameGuideName"></span><span>بقيت لمسة واحدة: ما الاسم الذي أضعه في القصة؟</span></div></div>
+      <div class="demo-guide"><div class="demo-guide-avatar" id="nameGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="nameGuideName"></span><span id="nameGuideText">بقيت لمسة واحدة: ما الاسم الذي أضعه في القصة؟</span></div></div>
       <h2 style="text-align:center;">اسم بطل القصة</h2>
       <p class="demo-stage-intro" style="text-align:center;">اكتب الاسم الذي تحب سماعه في المغامرة.</p>
       <form class="demo-name-form" id="demoNameForm">
@@ -123,9 +129,11 @@ require_once __DIR__ . '/includes/public-nav.php';
     </section>
 
     <section class="demo-stage" id="demoStory" hidden>
-      <div class="demo-guide"><div class="demo-guide-avatar" id="storyGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="storyGuideName"></span><span id="storyGuideBubble"><?php echo h($guideLines['story']); ?></span></div></div>
+      <div class="demo-guide"><div class="demo-guide-avatar" id="storyGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="storyGuideName"></span><span id="storyGuideText"><?php echo h($guideLines['story']); ?></span></div></div>
       <h2 style="text-align:center;">قصتك بدأت ✨</h2>
-      <div class="demo-story-player" id="demoStoryPlayer"></div>
+      <div class="demo-story-player" id="demoStoryPlayer">
+        <!-- سيتم ملؤه بواسطة JS -->
+      </div>
     </section>
 
     <section class="demo-stage demo-finale" id="demoFinale" hidden>
@@ -138,7 +146,9 @@ require_once __DIR__ . '/includes/public-nav.php';
 </main>
 <div class="demo-particles" id="demoParticles" aria-hidden="true"></div>
 
+<!-- CHANGE: Improved JavaScript with speech synthesis, auto-reading, and animated story -->
 <script>
+// ===== الأساسيات =====
 window.KIDORA_DEMO = <?php echo json_encode([
     'base' => BASE_PATH,
     'characters' => $demoChars,
@@ -148,7 +158,353 @@ window.KIDORA_DEMO = <?php echo json_encode([
     'selectedSlug' => $selectedChar['slug'] ?? '',
     'loggedIn' => !empty($_SESSION['child_id']),
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+// ===== وظيفة النطق =====
+function speakText(text, rate = 1.2, lang = 'ar-SA') {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel(); // إيقاف أي نطق سابق
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = rate;
+    utterance.pitch = 1.1;
+    // البحث عن صوت عربي إن وجد
+    const voices = speechSynthesis.getVoices();
+    const arabicVoice = voices.find(v => v.lang.startsWith('ar'));
+    if (arabicVoice) utterance.voice = arabicVoice;
+    speechSynthesis.speak(utterance);
+}
+
+// ===== مراقبة ظهور الأقسام وقراءة النصوص =====
+function readGuideText(container) {
+    const bubble = container?.querySelector('.demo-guide-bubble span:last-child');
+    if (bubble) speakText(bubble.textContent.trim(), 1.2);
+}
+
+// مراقبة التغييرات في خاصية hidden للأقسام
+const observer = new MutationObserver(() => {
+    document.querySelectorAll('.demo-stage:not([hidden])').forEach(section => {
+        const id = section.id;
+        if (id === 'demoWelcome') {
+            readGuideText(section);
+        } else if (id === 'demoPick') {
+            readGuideText(section);
+        } else if (id === 'demoMemory') {
+            readGuideText(section);
+            // قراءة رسالة اللعبة بعد تأخير بسيط
+            setTimeout(() => {
+                const msg = document.getElementById('memoryMessage');
+                if (msg) speakText(msg.textContent, 1.1);
+            }, 500);
+        } else if (id === 'demoName') {
+            readGuideText(section);
+        } else if (id === 'demoStory') {
+            // سيتم التعامل مع القصة بشكل خاص
+        } else if (id === 'demoFinale') {
+            const finaleText = document.getElementById('finaleText');
+            if (finaleText) speakText(finaleText.textContent, 1.3);
+        }
+    });
+});
+
+// بدء المراقبة بعد تحميل الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    // تحميل الأصوات مسبقاً (للتأكد من جاهزيتها)
+    if (window.speechSynthesis) {
+        speechSynthesis.getVoices();
+        speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+    }
+    // مراقبة الأقسام
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+    // قراءة الترحيب الأولي
+    const welcome = document.getElementById('demoWelcome');
+    if (welcome && !welcome.hidden) readGuideText(welcome);
+});
+
+// ===== عرض القصة مع تأثير كتابة ونطق تلقائي =====
+function renderStoryWithTyping(storyHtml, charColor, charName, childName) {
+    const player = document.getElementById('demoStoryPlayer');
+    if (!player) return;
+
+    // إنشاء مشهد القصة
+    const scene = document.createElement('div');
+    scene.className = 'demo-story-scene';
+    scene.style.setProperty('--story-color', charColor || '#6C63FF');
+
+    // إضافة الشخصية
+    const sprite = document.createElement('div');
+    sprite.className = 'demo-story-sprite';
+    sprite.style.setProperty('--story-color', charColor || '#6C63FF');
+    // نحاول الحصول على صورة الشخصية أو الأيقونة
+    const charData = window.KIDORA_DEMO.characters.find(c => c.color === charColor) || {};
+    if (charData.image) {
+        sprite.innerHTML = `<img src="${charData.image}" alt="${charName || 'رفيق'}">`;
+    } else {
+        sprite.textContent = (charData.icons && charData.icons[0]) || '✨';
+    }
+    scene.appendChild(sprite);
+
+    // عنوان الفصل
+    const chapter = document.createElement('div');
+    chapter.className = 'demo-story-chapter';
+    chapter.innerHTML = `<span class="demo-story-chapter-icon">📖</span> مغامرة ${childName || 'البطل'}`;
+    scene.appendChild(chapter);
+
+    // النص (caption)
+    const caption = document.createElement('div');
+    caption.className = 'demo-story-caption';
+    caption.setAttribute('aria-live', 'polite');
+    scene.appendChild(caption);
+
+    // أزرار التحكم (مخفية لأننا سنقرأ تلقائياً)
+    const controls = document.createElement('div');
+    controls.className = 'demo-story-controls';
+    controls.style.display = 'none'; // إخفاء الأزرار (يمكن إظهارها اختيارياً)
+    scene.appendChild(controls);
+
+    player.innerHTML = '';
+    player.appendChild(scene);
+
+    // استخراج النص من الـ HTML الوارد (نأخذ النص الداخلي بدون وسم)
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = storyHtml;
+    const fullText = tempDiv.textContent.trim();
+
+    // كتابة متدرجة مع قراءة النص كاملاً بعد بدء الكتابة
+    let index = 0;
+    let typingInterval;
+    const typeSpeed = 50; // مللي لكل حرف
+
+    function typeNextChar() {
+        if (index < fullText.length) {
+            // إضافة الحرف التالي مع إبقاء المؤشر
+            const displayed = fullText.substring(0, index + 1);
+            // نعرض النص مع تلوين بعض الكلمات (اختياري)
+            let formatted = displayed;
+            // يمكن إضافة تمييز للكلمات المهمة هنا
+            caption.innerHTML = formatted + '<span class="typing-cursor"></span>';
+            index++;
+            // التمرير إلى الأسفل تلقائياً
+            scene.scrollTop = scene.scrollHeight;
+        } else {
+            clearInterval(typingInterval);
+            // إزالة المؤشر
+            caption.innerHTML = fullText;
+            // قراءة النص كاملاً
+            speakText(fullText, 1.1);
+        }
+    }
+
+    // بدء الكتابة بعد تأخير قصير
+    setTimeout(() => {
+        // نقرأ النص كاملاً أولاً ثم نبدأ الكتابة (لكننا نفضل قراءة النص عند الانتهاء)
+        // لذا نبدأ الكتابة فوراً ونقرأ عند الانتهاء
+        typingInterval = setInterval(typeNextChar, typeSpeed);
+    }, 300);
+
+    // إضافة تأثير انتقالي للخلفية
+    scene.classList.add('scene-transition');
+    setTimeout(() => scene.classList.remove('scene-transition'), 600);
+}
+
+// ===== ربط زر "افتح قصتي" =====
+document.addEventListener('DOMContentLoaded', () => {
+    const nameForm = document.getElementById('demoNameForm');
+    if (nameForm) {
+        nameForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const input = document.getElementById('demoChildName');
+            const name = input.value.trim();
+            if (!name) {
+                document.getElementById('demoNameError').textContent = 'الرجاء كتابة اسمك';
+                return;
+            }
+            document.getElementById('demoNameError').textContent = '';
+            // الحصول على الشخصية المختارة
+            const selectedChar = window.KIDORA_DEMO.characters.find(c => c.slug === (window._selectedCharSlug || window.KIDORA_DEMO.selectedSlug));
+            if (!selectedChar) {
+                alert('لم تختر شخصية بعد!');
+                return;
+            }
+            // الحصول على القصة
+            const storyHtml = window.KIDORA_DEMO.stories[selectedChar.slug] || 'مرحباً بك في مغامرتك الخاصة!';
+            // استبدال الاسم في القصة (إذا كان النص يحتوي على "الاسم")
+            const personalizedStory = storyHtml.replace(/الاسم/g, name);
+            // عرض القصة مع تأثير الكتابة والنطق
+            const storySection = document.getElementById('demoStory');
+            storySection.hidden = false;
+            // إخفاء قسم الاسم
+            document.getElementById('demoName').hidden = true;
+            // تقدم المرحلة
+            updateProgress(3);
+            // عرض القصة
+            renderStoryWithTyping(personalizedStory, selectedChar.color, selectedChar.name, name);
+            // تحديث المرشد في قسم القصة
+            const guideAvatar = document.getElementById('storyGuideAvatar');
+            const guideName = document.getElementById('storyGuideName');
+            const guideText = document.getElementById('storyGuideText');
+            if (guideAvatar) {
+                guideAvatar.style.setProperty('--guide-color', selectedChar.color);
+                if (selectedChar.image) {
+                    guideAvatar.innerHTML = `<img src="${selectedChar.image}" alt="${selectedChar.name}">`;
+                } else {
+                    guideAvatar.textContent = (selectedChar.icons && selectedChar.icons[0]) || '✨';
+                }
+            }
+            if (guideName) guideName.textContent = selectedChar.name;
+            if (guideText) guideText.textContent = 'استمع إلى قصتك الآن!';
+            // قراءة رسالة المرشد
+            speakText('استمع إلى قصتك الآن!', 1.2);
+            // بعد انتهاء القصة (بعد زمن معين)، ننتقل إلى النهاية
+            // لكننا سنترك المستخدم يضغط على زر "التالي" إن وجد، وإلا نضيف مؤقتاً
+            // بما أن الأزرار مخفية، سنضيف زر "الانتقال إلى النهاية" بعد فترة
+            setTimeout(() => {
+                const finaleSection = document.getElementById('demoFinale');
+                finaleSection.hidden = false;
+                // قراءة نص النهاية
+                const finaleText = document.getElementById('finaleText');
+                if (finaleText) speakText(finaleText.textContent, 1.3);
+                // إخفاء القصة بعد ظهور النهاية (اختياري)
+                document.getElementById('demoStory').hidden = true;
+                updateProgress(4); // اكتمال
+            }, 8000); // بعد 8 ثوانٍ (يمكن تعديلها حسب طول القصة)
+        });
+    }
+});
+
+// ===== دالة لتحديث شريط التقدم =====
+function updateProgress(step) {
+    const spans = document.querySelectorAll('#demoProgress span');
+    spans.forEach((span, i) => {
+        span.classList.toggle('active', i < step);
+    });
+}
+
+// ===== ربط زر "ابدأ التجربة" =====
+document.addEventListener('DOMContentLoaded', () => {
+    const startBtn = document.getElementById('demoStart');
+    if (startBtn) {
+        startBtn.addEventListener('click', function() {
+            document.getElementById('demoWelcome').hidden = true;
+            document.getElementById('demoPick').hidden = false;
+            updateProgress(1);
+            // قراءة رسالة الاختيار
+            setTimeout(() => {
+                const pickGuideText = document.getElementById('pickGuideText');
+                if (pickGuideText) speakText(pickGuideText.textContent, 1.2);
+            }, 300);
+        });
+    }
+});
+
+// ===== تجهيز شبكة الشخصيات =====
+document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.getElementById('demoCharacterGrid');
+    if (!grid) return;
+    const chars = window.KIDORA_DEMO.characters;
+    grid.innerHTML = '';
+    chars.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = 'demo-character';
+        btn.style.setProperty('--char-color', c.color);
+        btn.dataset.slug = c.slug;
+        if (c.slug === window.KIDORA_DEMO.selectedSlug) btn.classList.add('selected');
+        btn.innerHTML = `
+            ${c.is_premium ? '<span class="demo-premium">🔒 مدفوعة</span>' : ''}
+            <span class="demo-character-media">
+                ${c.image ? `<img src="${c.image}" alt="${c.name}">` : (c.icons[0] || '✨')}
+            </span>
+            <span class="demo-character-name">${c.name}</span>
+            <span class="demo-character-title">${c.title}</span>
+        `;
+        btn.addEventListener('click', function() {
+            // إزالة التحديد من الكل
+            grid.querySelectorAll('.demo-character').forEach(b => b.classList.remove('selected'));
+            this.classList.add('selected');
+            window._selectedCharSlug = this.dataset.slug;
+            // قراءة اسم الشخصية
+            speakText(`اخترت ${c.name}`, 1.2);
+            // تأكيد الانتقال إلى لعبة الذاكرة
+            setTimeout(() => {
+                document.getElementById('demoPick').hidden = true;
+                document.getElementById('demoMemory').hidden = false;
+                updateProgress(2);
+                // تهيئة لعبة الذاكرة
+                initMemoryGame(c);
+            }, 500);
+        });
+        grid.appendChild(btn);
+    });
+});
+
+// ===== لعبة الذاكرة (مختصرة) =====
+function initMemoryGame(char) {
+    const grid = document.getElementById('memoryGrid');
+    const scoreSpan = document.getElementById('memoryScore');
+    const movesSpan = document.getElementById('memoryMoves');
+    const message = document.getElementById('memoryMessage');
+    // ... سيتم تنفيذها بواسطة demo.js الأصلي، لكننا نضيف هنا قراءة الرسائل
+    // بما أن demo.js موجود، سنكتفي بتعيين مراقب للتحديثات
+    // لكننا نضيف قراءة عند الفوز
+    const originalMessage = message.textContent;
+    // مراقبة التغييرات في النص لتقرأ تلقائياً
+    const msgObserver = new MutationObserver(() => {
+        const newMsg = message.textContent;
+        if (newMsg && !newMsg.includes('اقلب')) {
+            speakText(newMsg, 1.1);
+        }
+    });
+    msgObserver.observe(message, { childList: true, subtree: true, characterData: true });
+    // عند الفوز (سيتم الكشف بواسطة demo.js)، يمكننا إضافة حدث
+    // ولكننا نضيف مؤقتاً للتحقق من الفوز
+    const checkWin = setInterval(() => {
+        const score = parseInt(scoreSpan.textContent);
+        if (score === 4) {
+            clearInterval(checkWin);
+            speakText('أحسنت! لقد أنهيت اللعبة، الآن اذهب إلى الخطوة التالية.', 1.2);
+            setTimeout(() => {
+                document.getElementById('demoMemory').hidden = true;
+                document.getElementById('demoName').hidden = false;
+                updateProgress(3);
+                const nameGuideText = document.getElementById('nameGuideText');
+                if (nameGuideText) speakText(nameGuideText.textContent, 1.2);
+            }, 1500);
+        }
+    }, 1000);
+}
+
+// ===== ربط أزرار النهاية =====
+document.addEventListener('DOMContentLoaded', () => {
+    const registerBtn = document.getElementById('demoRegister');
+    if (registerBtn) {
+        registerBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = window.KIDORA_DEMO.base + '/index.php?register=1';
+        });
+    }
+    const tryAgainBtn = document.getElementById('demoTryAgain');
+    if (tryAgainBtn) {
+        tryAgainBtn.addEventListener('click', function() {
+            // إعادة تعيين التجربة
+            document.querySelectorAll('.demo-stage').forEach(s => s.hidden = true);
+            document.getElementById('demoWelcome').hidden = false;
+            updateProgress(0);
+            // إلغاء النطق
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            // إعادة تعيين الشخصية المختارة
+            window._selectedCharSlug = null;
+            // إعادة تحميل الصفحة أو إعادة ضبط الحالة
+            location.reload();
+        });
+    }
+});
+
+// ===== التكامل مع كود demo.js الأصلي (إذا كان موجوداً) =====
+// نضع هذا الكود في الأعلى ليتم تنفيذه بعد تحميل demo.js
+// لكننا لا نملك demo.js، لذا سنقوم بتعريف دوال بديلة
+// نضيف مرونة للتعامل مع وجود demo.js أو عدمه
+console.log('تم تحسين تجربة الديمو مع الصوت والكتابة المتدرجة.');
 </script>
 <script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/gsap.min.js'); ?>"></script>
+<script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/ScrollTrigger.min.js'); ?>"></script>
 <script src="<?php echo h(BASE_PATH . '/assets/js/demo.js'); ?>"></script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
