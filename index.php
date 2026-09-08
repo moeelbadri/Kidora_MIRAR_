@@ -184,6 +184,36 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-video-frame{position:relative;min-height:min(68svh,680px);overflow:hidden;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:#05030b;box-shadow:0 28px 70px rgba(0,0,0,.38)}
   .public-video-frame:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(10,6,26,.02),rgba(10,6,26,.5))}
   .public-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  
+  /* CHANGE: New full-screen video section styles */
+  .public-video-full {
+    width: 100vw;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+    background: #0a061a;
+  }
+  .public-video-full .public-video-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .public-video-full .public-video-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .public-video-full .public-video-frame:after {
+    display: none; /* Remove overlay for cleaner look */
+  }
+  /* END CHANGE */
+
   .public-orbit{position:absolute;width:min(100%,430px);aspect-ratio:1;border:1px solid rgba(255,201,60,.22);border-radius:50%;box-shadow:0 0 80px rgba(91,141,239,.15) inset,0 0 80px rgba(255,105,170,.1);animation:publicOrbit 18s linear infinite}
   .public-orbit:before,.public-orbit:after{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#ffc93c;box-shadow:0 0 22px #ffc93c}
   .public-orbit:before{top:10%;right:12%}.public-orbit:after{bottom:18%;left:9%;background:#5b8def;box-shadow:0 0 22px #5b8def}
@@ -280,6 +310,20 @@ require_once __DIR__ . '/includes/public-nav.php';
   <?php endif; ?>
 
   <main>
+    <!-- CHANGE: Moved video section to be the FIRST section after intro -->
+    <section class="public-video-full" id="videoShowcase">
+      <div class="public-video-frame">
+        <iframe
+          src="<?php echo h(youtube_embed_url($remoteVideoId) . '&autoplay=1&loop=1&playlist=' . rawurlencode($remoteVideoId) . '&controls=1'); ?>"
+          title="فيديو تعريفي عن Kidora"
+          loading="lazy"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowfullscreen></iframe>
+      </div>
+    </section>
+    <!-- END CHANGE -->
+
+    <!-- CHANGE: The hero section now comes after the video, not before -->
     <section class="public-container public-hero" id="hero">
       <div>
         <span class="public-eyebrow">✨ منصة آمنة تصنع مغامرات حقيقية</span>
@@ -306,23 +350,9 @@ require_once __DIR__ . '/includes/public-nav.php';
         <div class="public-floating-badge">رفيقك يرافقك في كل خطوة<br><span style="color:#ffe99a;">صوت وتشجيع وثيم خاص بك</span></div>
       </div>
     </section>
+    <!-- END CHANGE -->
 
-    <section class="public-section public-container public-video-showcase" id="videoShowcase">
-      <div class="public-section-head">
-        <span class="public-section-kicker">شاهد العالم</span>
-        <h2>لمحة سريعة عن مغامرة Kidora</h2>
-        <p>فيديو تعريفي اختياري من YouTube-nocookie، مع استمرار المقدمة المحلية أو الحركية في بداية الصفحة.</p>
-      </div>
-      <div class="public-video-frame">
-        <iframe
-          src="<?php echo h(youtube_embed_url($remoteVideoId) . '&autoplay=1&mute=1&loop=1&playlist=' . rawurlencode($remoteVideoId) . '&controls=0'); ?>"
-          title="فيديو تعريفي عن Kidora"
-          loading="lazy"
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowfullscreen></iframe>
-      </div>
-    </section>
-
+    <!-- The rest of sections (characters, features, plans, auth) remain unchanged -->
     <section class="public-section public-container" id="characters">
       <div class="public-section-head">
         <span class="public-section-kicker">رفقاء الرحلة</span>
