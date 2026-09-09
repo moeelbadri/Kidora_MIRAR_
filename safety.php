@@ -8,9 +8,7 @@ $stmt = $pdo->prepare("SELECT * FROM safety_content WHERE age_min <= ? AND age_m
 $stmt->execute([$child['age'], $child['age']]);
 $allItems = $stmt->fetchAll();
 
-// تصنيف المحتوى
 $videoItems = array_filter($allItems, fn($i) => $i['type'] === 'video');
-$gameItems  = array_filter($allItems, fn($i) => $i['type'] === 'game');
 
 // المراحل الأساسية (الأيام الأربعة الأولى)
 $stages = [
@@ -48,7 +46,7 @@ $stages = [
     ],
 ];
 
-// باقي المحتوى (فيديوهات وألعاب إضافية) للأيام التالية
+// باقي المحتوى الإضافي
 $usedIds = array_column(array_filter($stages, fn($s) => $s['video']), 'id');
 $extraItems = array_values(array_filter($allItems, fn($item) => !in_array($item['id'], $usedIds)));
 
@@ -103,34 +101,6 @@ require_once __DIR__ . '/includes/navbar.php';
     font-weight: 900;
     font-size: 1rem;
     margin-bottom: 0.25rem;
-  }
-
-  .day-progress {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(255,255,255,0.05);
-    border-radius: 60px;
-    padding: 0.6rem 1.8rem;
-    margin-bottom: 2rem;
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-  .day-badge {
-    font-weight: 900;
-    color: #ffc93c;
-    font-size: 1.2rem;
-  }
-  .stars-display {
-    font-size: 1.5rem;
-    letter-spacing: 4px;
-  }
-  .stars-display span {
-    transition: 0.3s;
-    display: inline-block;
-  }
-  .stars-display span.active {
-    transform: scale(1.3);
-    color: #ffc93c;
   }
 
   .daily-task {
@@ -440,7 +410,6 @@ require_once __DIR__ . '/includes/navbar.php';
   @media (max-width: 600px) {
     .safety-guide { flex-direction: column; text-align: center; }
     .human-body { transform: scale(0.8); }
-    .day-progress { flex-direction: column; gap: 8px; text-align: center; }
     .daily-task .stage-header { flex-direction: column; text-align: center; }
   }
 </style>
@@ -457,13 +426,7 @@ require_once __DIR__ . '/includes/navbar.php';
       </div>
     </div>
 
-    <!-- شريط اليوم والنجوم -->
-    <div class="day-progress">
-      <div class="day-badge">📅 اليوم <span id="dayCounter">1</span></div>
-      <div class="stars-display" id="starsDisplay">
-        ⭐⭐⭐⭐⭐
-      </div>
-    </div>
+    <!-- ===== تم حذف شريط اليوم والنجوم بالكامل ===== -->
 
     <!-- حاوية المهمة اليومية (عنصر واحد فقط) -->
     <div id="dailyTaskContainer" class="daily-task">
@@ -508,7 +471,7 @@ const STAGES = <?php echo json_encode($stages, JSON_UNESCAPED_UNICODE); ?>;
 const EXTRA_ITEMS = <?php echo json_encode($extraItems, JSON_UNESCAPED_UNICODE); ?>;
 
 // ============================================================
-// إدارة الأيام باستخدام localStorage (مهمة واحدة فقط في اليوم)
+// إدارة الأيام (مهمة واحدة في اليوم) - بدون عداد أو نجوم
 // ============================================================
 function getTodayKey() {
     return new Date().toDateString();
@@ -517,19 +480,17 @@ function getTodayKey() {
 function getProgress() {
     let progress = localStorage.getItem('safety_progress');
     if (!progress) {
-        progress = { dayIndex: 0, lastDate: null, stars: 0 };
+        progress = { dayIndex: 0, lastDate: null };
     } else {
         progress = JSON.parse(progress);
     }
     const today = getTodayKey();
     const totalItems = STAGES.length + EXTRA_ITEMS.length;
 
-    // إذا كان اليوم جديدًا ولم ننهِ كل العناصر
     if (progress.lastDate !== today) {
         if (progress.dayIndex < totalItems - 1) {
             progress.dayIndex += 1;
         } else {
-            // إذا انتهى كل شيء، نبقى في آخر عنصر
             progress.dayIndex = Math.min(progress.dayIndex, totalItems - 1);
         }
         progress.lastDate = today;
@@ -539,43 +500,7 @@ function getProgress() {
 }
 
 let progress = getProgress();
-let currentDayIndex = progress.dayIndex; // 0-based
-let starsCount = progress.stars || 0;
-
-// تحديث عداد اليوم (يظهر رقم اليوم الحقيقي)
-document.getElementById('dayCounter').textContent = Math.min(currentDayIndex + 1, STAGES.length + EXTRA_ITEMS.length);
-updateStarsDisplay();
-
-function updateStarsDisplay() {
-    const container = document.getElementById('starsDisplay');
-    let html = '';
-    for (let i = 0; i < 5; i++) {
-        html += `<span class="${i < starsCount ? 'active' : ''}">⭐</span>`;
-    }
-    container.innerHTML = html;
-}
-
-function addStar() {
-    if (starsCount < 5) {
-        starsCount++;
-        progress.stars = starsCount;
-        localStorage.setItem('safety_progress', JSON.stringify(progress));
-        updateStarsDisplay();
-        const msg = document.querySelector('.game-feedback');
-        if (msg) {
-            msg.innerHTML = `🌟 رائع! حصلت على نجمة! (${starsCount}/5)`;
-            msg.style.color = '#ffc93c';
-        }
-        if (starsCount === 5) {
-            setTimeout(() => {
-                if (document.querySelector('.game-feedback')) {
-                    document.querySelector('.game-feedback').innerHTML = '🏆 أنت بطل! أكملت 5 نجوم!';
-                }
-            }, 1000);
-            speakText('أحسنت! حصلت على خمس نجوم!');
-        }
-    }
-}
+let currentDayIndex = progress.dayIndex;
 
 // ============================================================
 // عرض المهمة اليومية (عنصر واحد فقط)
@@ -584,7 +509,6 @@ function renderDailyTask() {
     const container = document.getElementById('dailyTaskContainer');
     const totalItems = STAGES.length + EXTRA_ITEMS.length;
 
-    // إذا انتهت كل العناصر
     if (currentDayIndex >= totalItems) {
         container.innerHTML = `
             <div style="text-align:center; padding:2rem;">
@@ -620,7 +544,6 @@ function renderDailyTask() {
         };
     }
 
-    // بناء الـ HTML
     let html = `
         <div class="stage-header">
             <div class="stage-icon">${stageData.icon}</div>
@@ -629,7 +552,6 @@ function renderDailyTask() {
         <p class="stage-desc">${stageData.description}</p>
     `;
 
-    // عرض الفيديو
     if (stageData.video) {
         const vid = stageData.video;
         if (vid.youtube_id) {
@@ -660,7 +582,6 @@ function renderDailyTask() {
 
     container.innerHTML = html;
 
-    // تهيئة النشاط
     const activityContainer = document.getElementById('activityArea');
     if (!isExtra && currentDayIndex < STAGES.length) {
         switch (currentDayIndex) {
@@ -671,7 +592,6 @@ function renderDailyTask() {
             default: activityContainer.innerHTML = '<p style="color:#b9abd4;">نشاط قادم...</p>';
         }
     } else {
-        // محتوى إضافي (فيديو أو لعبة)
         if (stageData.video && stageData.video.type === 'game') {
             activityContainer.innerHTML = `
                 <div style="text-align:center; padding:1.5rem; background:rgba(255,255,255,0.05); border-radius:30px;">
@@ -690,21 +610,17 @@ function renderDailyTask() {
         }
     }
 
-    document.getElementById('guideMessage').textContent = `اليوم: "${stageData.title}". أنجز النشاط واحصل على نجمة!`;
+    document.getElementById('guideMessage').textContent = `اليوم: "${stageData.title}". أنجز النشاط لتنتقل للمهمة التالية غداً.`;
 }
 
 // ============================================================
-// تمكين زر إنهاء المهمة
+// تمكين زر إنهاء المهمة (بدون نجوم)
 // ============================================================
 function enableDailyTask() {
     const btn = document.getElementById('finishTaskBtn');
     if (btn) {
         btn.disabled = false;
         btn.style.opacity = 1;
-        if (!btn.dataset.starGiven) {
-            btn.dataset.starGiven = 'true';
-            addStar();
-        }
     }
 }
 
@@ -722,7 +638,7 @@ document.addEventListener('click', function(e) {
 });
 
 // ============================================================
-// لعبة الجسم (جسدي ملكي) - شكل إنسان عادي، تلوين الجذع باللون الأحمر
+// لعبة الجسم (جسدي ملكي)
 // ============================================================
 function renderBodyGame(container) {
     const parts = [
@@ -765,18 +681,14 @@ function renderBodyGame(container) {
             const label = this.querySelector('.part-label').textContent;
 
             if (isPrivate) {
-                // اختيار صحيح (الجذع)
                 this.classList.add('selected-private');
                 this.classList.add('disabled-part');
                 completed = true;
-                feedback.innerHTML = `✅ صحيح! "${label}" منطقة خاصة، لا يجوز لأحد لمسها. 🌟🌟`;
+                feedback.innerHTML = `✅ صحيح! "${label}" منطقة خاصة، لا يجوز لأحد لمسها. 🌟`;
                 feedback.style.color = '#2ec4b6';
                 speakText(`أحسنت! الجذع منطقة خاصة.`);
                 enableDailyTask();
-                setTimeout(addStar, 400);
-                setTimeout(addStar, 800); // مكافأة مضاعفة للتركيز
             } else {
-                // عضو آمن
                 this.classList.add('wrong-click');
                 feedback.innerHTML = `❌ "${label}" ليس منطقة خاصة، لا بأس بلمسه. لكن تذكر احترام حدود الآخرين.`;
                 feedback.style.color = '#ff6b6b';
@@ -790,7 +702,7 @@ function renderBodyGame(container) {
 }
 
 // ============================================================
-// باقي الألعاب (مسافة، كلمات سر، إبلاغ)
+// باقي الألعاب (مسافة، كلمات سر، إبلاغ) - مختصرة
 // ============================================================
 function renderDistanceGame(container) {
     container.innerHTML = `
@@ -816,7 +728,7 @@ function renderDistanceGame(container) {
         if (pct >= 30 && pct <= 70) {
             feedback.innerHTML = '✅ ممتاز! في المنطقة الآمنة.';
             feedback.style.color = '#2ec4b6';
-            if (!done) { done = true; speakText('أحسنت! حافظت على مسافة آمنة.'); enableDailyTask(); setTimeout(addStar, 400); }
+            if (!done) { done = true; speakText('أحسنت! حافظت على مسافة آمنة.'); enableDailyTask(); }
         } else {
             feedback.innerHTML = '⬅️ حركني داخل المنطقة المنقطة.';
             feedback.style.color = '#ffc93c';
@@ -857,7 +769,6 @@ function renderPasswordGame(container) {
             done = true;
             speakText('كلمة سر قوية!');
             enableDailyTask();
-            setTimeout(addStar, 400);
         } else {
             fb.innerHTML = '⚠️ أكمل كل القواعد.';
             fb.style.color = '#ffc93c';
@@ -877,7 +788,6 @@ function renderReportingGame(container) {
             container.innerHTML = `<div style="text-align:center;padding:1.5rem;"><div style="font-size:3rem;">🎉</div><p style="font-weight:700;color:#ffc93c;">أجبت على كل السيناريوهات!</p></div>`;
             speakText('أحسنت! أنهيت السيناريوهات.');
             enableDailyTask();
-            setTimeout(addStar, 500);
             return;
         }
         const s = scenarios[idx];
@@ -963,7 +873,6 @@ function renderExtraContent() {
     grid.innerHTML = html;
 }
 
-// إظهار/إخفاء المحتوى الإضافي
 document.getElementById('toggleExtraBtn').addEventListener('click', function() {
     const section = document.getElementById('extraSection');
     section.classList.toggle('hidden-extra');
