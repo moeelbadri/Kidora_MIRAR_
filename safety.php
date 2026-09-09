@@ -3,49 +3,51 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 
-// جلب محتوى الحماية من قاعدة البيانات (للعرض في بداية كل مرحلة)
-$stmt = $pdo->prepare("SELECT * FROM safety_content WHERE age_min <= ? AND age_max >= ?");
+// جلب كل محتوى الحماية المناسب لعمر الطفل
+$stmt = $pdo->prepare("SELECT * FROM safety_content WHERE age_min <= ? AND age_max >= ? ORDER BY id");
 $stmt->execute([$child['age'], $child['age']]);
-$items = $stmt->fetchAll();
+$allItems = $stmt->fetchAll();
 
-// تقسيم المحتوى حسب النوع (video/game) لتوزيعه على المراحل
-$videoItems = array_filter($items, fn($i) => $i['type'] === 'video');
-$gameItems = array_filter($items, fn($i) => $i['type'] === 'game');
+// تصنيف المحتوى حسب النوع
+$videoItems = array_filter($allItems, fn($i) => $i['type'] === 'video');
+$gameItems  = array_filter($allItems, fn($i) => $i['type'] === 'game');
 
-// إعداد المراحل (كل مرحلة لها نشاط تفاعلي مختلف)
+// أخذ أول 4 فيديوهات للمراحل الأساسية (مع إعادة ترقيم المفاتيح)
+$stagedVideos = array_values($videoItems); // إعادة ترقيم من 0
+$extraVideos = array_slice($stagedVideos, 4); // الباقي بعد الأربعة
+$mainVideos = array_slice($stagedVideos, 0, 4); // الأربعة الأولى
+
+// تعريف المراحل الأربع الأساسية
 $stages = [
     [
         'id' => 1,
         'title' => 'جسدي ملكي',
         'icon' => '🛡️',
         'description' => 'تعلّم أعضاء جسدك الخاصة التي لا يجوز لأحد لمسها.',
-        'video' => $videoItems[0] ?? null, // أول فيديو
+        'video' => $mainVideos[0] ?? null,
     ],
     [
         'id' => 2,
         'title' => 'المسافة الآمنة',
         'icon' => '📏',
         'description' => 'تدرب على الحفاظ على مسافة آمنة مع الآخرين.',
-        'video' => $videoItems[1] ?? null,
+        'video' => $mainVideos[1] ?? null,
     ],
     [
         'id' => 3,
         'title' => 'كلمات السر',
         'icon' => '🔐',
         'description' => 'تعلّم كيفية اختيار كلمة سر قوية وآمنة.',
-        'video' => $videoItems[2] ?? null,
+        'video' => $mainVideos[2] ?? null,
     ],
     [
         'id' => 4,
         'title' => 'الإبلاغ عن التحرش',
         'icon' => '📢',
         'description' => 'تدرب على التصرف الصحيح عند التعرض للتحرش.',
-        'video' => $videoItems[3] ?? null,
+        'video' => $mainVideos[3] ?? null,
     ],
 ];
-
-// نضع أيضاً بعض العناصر من جدول الألعاب (إذا وجدت) لتستخدم في الأنشطة
-// لكننا سنعتمد على أنشطة مدمجة.
 
 $__pageTitle = 'قسم الحماية — Kidora';
 $__pageLine = "حماية نفسك أهم مهارة يا بطل 🛡️";
@@ -489,6 +491,64 @@ require_once __DIR__ . '/includes/navbar.php';
     margin-top: 3rem;
   }
 
+  /* قسم المحتوى الإضافي (جميع المحتويات الأخرى) */
+  .extra-content {
+    margin-top: 3rem;
+    border-top: 2px dashed rgba(255,201,60,0.3);
+    padding-top: 2rem;
+  }
+  .extra-content h2 {
+    font-size: 2rem;
+    color: #ffc93c;
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .extra-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+  .extra-item {
+    background: rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 1.2rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: 0.3s;
+  }
+  .extra-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+  }
+  .extra-item .item-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .extra-item h4 {
+    color: #fff;
+    margin: 0.2rem 0;
+  }
+  .extra-item p {
+    color: #d9d0ff;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+  .extra-item .btn-play-sm {
+    background: rgba(255,201,60,0.2);
+    border: 1px solid #ffc93c;
+    color: #ffc93c;
+    padding: 0.3rem 1.2rem;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: 0.2s;
+    margin-top: 0.5rem;
+  }
+  .extra-item .btn-play-sm:hover {
+    background: #ffc93c;
+    color: #241645;
+  }
+
   /* وسائط */
   @media (max-width: 600px) {
     .safety-guide { flex-direction: column; text-align: center; }
@@ -536,7 +596,7 @@ require_once __DIR__ . '/includes/navbar.php';
             <div class="video-story">
               <h4>🎬 <?php echo h($stage['video']['title']); ?></h4>
               <p><?php echo h($stage['video']['description']); ?></p>
-              <button class="btn-play" data-video="<?php echo h($stage['video']['id']); ?>">▶ شاهد القصة</button>
+              <button class="btn-play" data-youtube="<?php echo h($stage['video']['youtube_id']); ?>">▶ شاهد القصة</button>
             </div>
           <?php else: ?>
             <div class="video-story" style="border-left-color: #6C63FF;">
@@ -564,8 +624,41 @@ require_once __DIR__ . '/includes/navbar.php';
       <div style="text-align:center; padding:2rem 1rem;">
         <div style="font-size:5rem;">🏆</div>
         <h2 style="font-size:2.5rem; margin:0.5rem 0;">أحسنت يا بطل!</h2>
-        <p style="font-size:1.2rem; color:#d9d0ff;">لقد أنهيت جميع مراحل الحماية. أنت الآن أكثر وعياً وأقوى. تذكر دائماً أن تحمي نفسك وتطلب المساعدة عند الحاجة.</p>
-        <button class="btn-next" onclick="location.reload();" style="margin-top:1.5rem;">🔄 العودة للقائمة</button>
+        <p style="font-size:1.2rem; color:#d9d0ff;">لقد أنهيت جميع مراحل الحماية الأساسية. أنت الآن أكثر وعياً وأقوى. تذكر دائماً أن تحمي نفسك وتطلب المساعدة عند الحاجة.</p>
+        <button class="btn-next" id="showExtraBtn" style="margin-top:1.5rem;">📚 استكشف المزيد من دروس الحماية</button>
+      </div>
+    </div>
+
+    <!-- ======== قسم المحتوى الإضافي (كل الفيديوهات والألعاب المتبقية) ======== -->
+    <div id="extraSection" class="extra-content hidden">
+      <h2>📚 دروس إضافية في الحماية</h2>
+      <div class="extra-grid">
+        <?php
+        // عرض جميع العناصر المتبقية (فيديوهات وألعاب) بعد استثناء الأربعة الأولى من الفيديوهات
+        // نأخذ كل العناصر التي لم تستخدم في المراحل الأساسية.
+        // نستخدم مصفوفة mainVideos التي تحتوي على أول 4 فيديوهات، ونستثنيها من العرض الإضافي.
+        $usedIds = array_column($mainVideos, 'id'); // معرفات الفيديوهات المستخدمة
+        $extraItems = array_filter($allItems, function($item) use ($usedIds) {
+            return !in_array($item['id'], $usedIds);
+        });
+        foreach ($extraItems as $item):
+        ?>
+          <div class="extra-item" data-id="<?php echo $item['id']; ?>">
+            <span class="item-icon"><?php echo $item['type'] === 'video' ? '🎬' : '🎮'; ?></span>
+            <h4><?php echo h($item['title']); ?></h4>
+            <p><?php echo h($item['description']); ?></p>
+            <?php if ($item['type'] === 'video' && !empty($item['youtube_id'])): ?>
+              <button class="btn-play-sm" data-youtube="<?php echo h($item['youtube_id']); ?>">▶ شاهد الفيديو</button>
+            <?php elseif ($item['type'] === 'game'): ?>
+              <button class="btn-play-sm game-btn" data-gameid="<?php echo $item['id']; ?>">🎮 العب اللعبة</button>
+            <?php else: ?>
+              <span style="color:#b9abd4; font-size:0.8rem;">(محتوى قيد التجهيز)</span>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+        <?php if (empty($extraItems)): ?>
+          <p style="color:#b9abd4; text-align:center; grid-column:1/-1;">لا يوجد محتوى إضافي متاح لعمرك حالياً.</p>
+        <?php endif; ?>
       </div>
     </div>
 
@@ -577,7 +670,7 @@ require_once __DIR__ . '/includes/navbar.php';
   <div class="modal-video-content">
     <button class="close-modal" onclick="closeVideoModal()">✕</button>
     <div class="video-player" id="videoPlayer">
-      <!-- سيتم وضع محتوى الفيديو هنا (نص أو iframe) -->
+      <!-- سيتم وضع محتوى الفيديو هنا (iframe) -->
     </div>
   </div>
 </div>
@@ -590,7 +683,7 @@ require_once __DIR__ . '/includes/navbar.php';
 
 <script>
 // ============================================================
-// بيانات المراحل والأنشطة
+// بيانات المراحل والمحتوى الإضافي
 // ============================================================
 const STAGES = <?php echo json_encode($stages, JSON_UNESCAPED_UNICODE); ?>;
 const CHILD_AGE = <?php echo (int)$child['age']; ?>;
@@ -960,11 +1053,11 @@ document.querySelectorAll('.btn-next').forEach(btn => {
   btn.addEventListener('click', function() {
     const stageIdx = parseInt(this.id.replace('nextBtn', ''));
     if (stageIdx === totalStages - 1) {
-      // نهاية الرحلة
+      // نهاية الرحلة الأساسية → نعرض شاشة النهاية
       document.querySelectorAll('.stage-card').forEach(el => el.classList.add('hidden'));
       document.getElementById('finalScreen').classList.remove('hidden');
-      document.getElementById('guideMessage').textContent = 'أنت بطل! لقد أنهيت جميع مراحل الحماية. استمر في حماية نفسك ومساعدة الآخرين.';
-      speakText('أنت بطل! لقد أنهيت جميع مراحل الحماية.');
+      document.getElementById('guideMessage').textContent = 'أنت بطل! لقد أنهيت جميع مراحل الحماية الأساسية. استمر في حماية نفسك ومساعدة الآخرين.';
+      speakText('أنت بطل! لقد أنهيت جميع مراحل الحماية الأساسية.');
       return;
     }
     showStage(stageIdx + 1);
@@ -972,56 +1065,84 @@ document.querySelectorAll('.btn-next').forEach(btn => {
 });
 
 // ============================================================
-// عرض الفيديو / القصة في نافذة منبثقة
+// عرض الفيديو باستخدام youtube_id
 // ============================================================
-function openVideoModal(content) {
+function openVideoModal(embedUrl, title = '') {
   const modal = document.getElementById('videoModal');
   const player = document.getElementById('videoPlayer');
-  player.innerHTML = content;
+  if (embedUrl) {
+    player.innerHTML = `<iframe width="100%" height="100%" src="${embedUrl}" frameborder="0" allowfullscreen></iframe>`;
+  } else {
+    player.innerHTML = `<div style="padding:1rem; text-align:center; color:#b9abd4;">لا يوجد رابط فيديو متاح</div>`;
+  }
   modal.classList.add('open');
 }
+
 function closeVideoModal() {
   document.getElementById('videoModal').classList.remove('open');
   document.getElementById('videoPlayer').innerHTML = '';
 }
 
-// ربط أزرار "شاهد القصة" و "استمع للقصة"
-document.querySelectorAll('.btn-play').forEach(btn => {
+// ربط أزرار "شاهد القصة" في المراحل (استخدام youtube_id)
+document.querySelectorAll('.stage-card .btn-play[data-youtube]').forEach(btn => {
   btn.addEventListener('click', function() {
-    const videoId = this.dataset.video;
-    let content = '';
-    if (videoId) {
-      // إذا كان لدينا فيديو من قاعدة البيانات، نعرض وسم فيديو (افتراضي)
-      const item = <?php echo json_encode($items, JSON_UNESCAPED_UNICODE); ?>.find(i => i.id == videoId);
-      if (item && item.video_url) {
-        content = `<iframe width="100%" height="100%" src="${item.video_url}" frameborder="0" allowfullscreen></iframe>`;
-      } else {
-        content = `<div style="padding:1rem; text-align:center; background:#000; border-radius:15px;">
-          <p style="color:#fff; font-size:1.2rem;">🎥 فيديو توعوي: ${item ? item.title : ''}</p>
-          <p style="color:#b9abd4;">(يمكنك إضافة رابط فيديو في قاعدة البيانات)</p>
-        </div>`;
-      }
+    const youtubeId = this.dataset.youtube;
+    if (youtubeId) {
+      const embedUrl = `https://www.youtube.com/embed/${youtubeId}`;
+      openVideoModal(embedUrl);
     } else {
-      // قصة نصية (افتراضية)
+      // إذا لم يوجد youtube_id، نعرض قصة نصية
       const stageIndex = this.closest('.stage-card')?.dataset?.stage || 0;
       const stage = STAGES[stageIndex];
-      content = `<div style="padding:1.5rem; text-align:center; background:linear-gradient(135deg,#1a1040,#0a061a); border-radius:15px;">
+      const content = `<div style="padding:1.5rem; text-align:center; background:linear-gradient(135deg,#1a1040,#0a061a); border-radius:15px;">
         <div style="font-size:4rem;">${stage.icon}</div>
         <h3 style="color:#ffc93c;">${stage.title}</h3>
         <p style="color:#d9d0ff; line-height:1.8;">${stage.description}</p>
-        <p style="color:#b9abd4;">استمع جيداً لهذه القصة التي تخبرك كيف تحمي نفسك في مختلف المواقف.</p>
         <button onclick="speakText('${stage.description.replace(/['"]/g, '')}');" style="background:#ffc93c;border:none;padding:0.5rem 1.5rem;border-radius:50px;font-weight:900;color:#241645;cursor:pointer;">🔊 استمع</button>
       </div>`;
+      openVideoModal(null); // لا يوجد فيديو، نعرض النص
+      document.getElementById('videoPlayer').innerHTML = content;
     }
-    openVideoModal(content);
   });
+});
+
+// ============================================================
+// ربط أزرار المحتوى الإضافي (فيديوهات)
+// ============================================================
+document.querySelectorAll('.extra-item .btn-play-sm[data-youtube]').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const youtubeId = this.dataset.youtube;
+    if (youtubeId) {
+      const embedUrl = `https://www.youtube.com/embed/${youtubeId}`;
+      openVideoModal(embedUrl);
+    }
+  });
+});
+
+// أزرار الألعاب في المحتوى الإضافي (يمكن توسيعها لاحقاً)
+document.querySelectorAll('.extra-item .game-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    alert('سيتم تشغيل اللعبة قريباً! 🎮');
+  });
+});
+
+// ============================================================
+// إظهار المحتوى الإضافي بعد الضغط على زر الاستكشاف
+// ============================================================
+document.getElementById('showExtraBtn')?.addEventListener('click', function() {
+  document.getElementById('finalScreen').classList.add('hidden');
+  document.getElementById('extraSection').classList.remove('hidden');
+  document.getElementById('guideMessage').textContent = 'استكشف المزيد من دروس الحماية! كل فيديو أو لعبة يعلمك شيئاً جديداً.';
+  speakText('استكشف المزيد من دروس الحماية!');
+  // التمرير إلى المحتوى الإضافي
+  document.getElementById('extraSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 // ============================================================
 // بدء التشغيل
 // ============================================================
 showStage(0);
-// قراءة الترحيب
 setTimeout(() => speakText('مرحباً بطل! جهز نفسك لرحلة ممتعة تتعلم فيها كيف تحمي نفسك.'), 1000);
 
 </script>
