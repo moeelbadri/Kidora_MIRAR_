@@ -12,7 +12,7 @@ $allItems = $stmt->fetchAll();
 $videoItems = array_filter($allItems, fn($i) => $i['type'] === 'video');
 $gameItems  = array_filter($allItems, fn($i) => $i['type'] === 'game');
 
-// الأيام الأربعة الأولى (مراحل أساسية محددة)
+// المراحل الأساسية (الأيام الأربعة الأولى)
 $stages = [
     [
         'id' => 1,
@@ -20,7 +20,7 @@ $stages = [
         'icon' => '🛡️',
         'description' => 'تعلّم أعضاء جسدك الخاصة التي لا يجوز لأحد لمسها.',
         'video' => array_values($videoItems)[0] ?? null,
-        'activity' => 'body_game' // نشاط الرسمة الجديد
+        'activity' => 'body_game'
     ],
     [
         'id' => 2,
@@ -50,7 +50,7 @@ $stages = [
 
 // باقي المحتوى (فيديوهات وألعاب إضافية) للأيام التالية
 $usedIds = array_column(array_filter($stages, fn($s) => $s['video']), 'id');
-$extraItems = array_filter($allItems, fn($item) => !in_array($item['id'], $usedIds));
+$extraItems = array_values(array_filter($allItems, fn($item) => !in_array($item['id'], $usedIds)));
 
 $__pageTitle = 'قسم الحماية — Kidora';
 $__pageLine = "حماية نفسك أهم مهارة يا بطل 🛡️";
@@ -59,7 +59,6 @@ require_once __DIR__ . '/includes/navbar.php';
 ?>
 
 <style>
-  /* ===== تصميم عام ===== */
   .safety-page {
     background: linear-gradient(135deg, #0a061a 0%, #1a1040 100%);
     color: #f1f5f9;
@@ -71,7 +70,6 @@ require_once __DIR__ . '/includes/navbar.php';
     margin: 0 auto;
   }
 
-  /* شخصية المرشدة */
   .safety-guide {
     display: flex;
     align-items: center;
@@ -107,7 +105,6 @@ require_once __DIR__ . '/includes/navbar.php';
     margin-bottom: 0.25rem;
   }
 
-  /* عداد اليوم والمكافآت */
   .day-progress {
     display: flex;
     justify-content: space-between;
@@ -136,7 +133,6 @@ require_once __DIR__ . '/includes/navbar.php';
     color: #ffc93c;
   }
 
-  /* بطاقة المهمة اليومية */
   .daily-task {
     background: rgba(255,255,255,0.06);
     border-radius: 30px;
@@ -172,7 +168,6 @@ require_once __DIR__ . '/includes/navbar.php';
     margin-bottom: 1.5rem;
   }
 
-  /* فيديو */
   .video-story {
     background: rgba(0,0,0,0.3);
     border-radius: 20px;
@@ -202,9 +197,7 @@ require_once __DIR__ . '/includes/navbar.php';
     padding: 1rem 0;
   }
 
-  /* ============================================================
-     تصميم لعبة الجسم (جسدي ملكي) - شكل إنسان
-     ============================================================ */
+  /* ===== تصميم جسم الإنسان (جسدي ملكي) ===== */
   .human-body-wrapper {
     background: rgba(0,0,0,0.2);
     border-radius: 40px;
@@ -213,33 +206,25 @@ require_once __DIR__ . '/includes/navbar.php';
   }
   .human-body {
     position: relative;
-    width: 220px;
-    height: 320px;
+    width: 180px;
+    height: 280px;
     margin: 0 auto 1rem;
-    cursor: default;
   }
-  /* أجزاء الجسم */
   .body-part {
     position: absolute;
-    border-radius: 50%;
     background: #f7d9aa;
     border: 3px solid rgba(255,255,255,0.2);
+    border-radius: 40px;
     transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 900;
-    color: #1a1040;
-    text-shadow: 0 1px 3px rgba(255,255,255,0.3);
     cursor: pointer;
     user-select: none;
     box-shadow: inset 0 -4px 8px rgba(0,0,0,0.1);
-  }
-  .body-part:hover {
-    transform: scale(1.05);
-    z-index: 10;
-    border-color: #ffc93c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    color: #1a1040;
+    font-size: 0.7rem;
   }
   .body-part .part-label {
     background: rgba(0,0,0,0.6);
@@ -248,7 +233,7 @@ require_once __DIR__ . '/includes/navbar.php';
     border-radius: 30px;
     font-size: 0.6rem;
     position: absolute;
-    bottom: -20px;
+    bottom: -22px;
     white-space: nowrap;
     opacity: 0;
     transition: 0.3s;
@@ -256,10 +241,14 @@ require_once __DIR__ . '/includes/navbar.php';
   }
   .body-part:hover .part-label {
     opacity: 1;
-    bottom: -28px;
+    bottom: -30px;
+  }
+  .body-part:hover {
+    transform: scale(1.05);
+    z-index: 10;
+    border-color: #ffc93c;
   }
 
-  /* الرأس */
   .part-head {
     width: 60px;
     height: 60px;
@@ -269,94 +258,62 @@ require_once __DIR__ . '/includes/navbar.php';
     border-radius: 50%;
     background: #f7d9aa;
   }
-  .part-head .part-label { bottom: auto; top: 70px; }
-
-  /* الصدر (منطقة خاصة) */
-  .part-chest {
-    width: 80px;
-    height: 70px;
-    top: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-radius: 40px 40px 20px 20px;
-    background: #f0cfa0;
-  }
-  /* البطن (منطقة خاصة) */
-  .part-belly {
-    width: 70px;
-    height: 55px;
-    top: 125px;
+  .part-torso {
+    width: 90px;
+    height: 100px;
+    top: 55px;
     left: 50%;
     transform: translateX(-50%);
     border-radius: 30px 30px 40px 40px;
     background: #f0cfa0;
   }
-  /* المنطقة الخاصة (أسفل البطن) */
-  .part-private {
-    width: 40px;
-    height: 30px;
-    top: 175px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-radius: 10px 10px 20px 20px;
-    background: #e8b88a;
-    border-color: #ff6b6b;
-    box-shadow: inset 0 -4px 8px rgba(255,0,0,0.2);
-  }
-  .part-private .part-label { bottom: -28px; }
-
-  /* الذراعان */
   .part-arm {
-    width: 22px;
+    width: 20px;
     height: 70px;
-    top: 65px;
+    top: 60px;
     border-radius: 20px;
     background: #f7d9aa;
   }
-  .part-arm-left { left: 10px; transform: rotate(15deg); transform-origin: top center; }
-  .part-arm-right { right: 10px; transform: rotate(-15deg); transform-origin: top center; }
-
-  /* الساقان */
+  .part-arm-left { left: 5px; transform: rotate(15deg); transform-origin: top center; }
+  .part-arm-right { right: 5px; transform: rotate(-15deg); transform-origin: top center; }
   .part-leg {
-    width: 28px;
-    height: 75px;
+    width: 26px;
+    height: 80px;
     bottom: 0;
     border-radius: 20px 20px 10px 10px;
     background: #f7d9aa;
   }
-  .part-leg-left { left: 45px; }
-  .part-leg-right { right: 45px; }
+  .part-leg-left { left: 35px; }
+  .part-leg-right { right: 35px; }
 
-  /* حالات النقر */
+  .body-part.selected-private {
+    border-color: #ff3b3b;
+    background: #ff3b3b !important;
+    box-shadow: 0 0 30px rgba(255,59,59,0.7);
+    transform: scale(1.05);
+  }
   .body-part.selected-safe {
     border-color: #2ec4b6;
-    box-shadow: 0 0 25px rgba(46,196,182,0.5), inset 0 -4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 0 25px rgba(46,196,182,0.4);
     transform: scale(0.95);
-  }
-  .body-part.selected-private {
-    border-color: #ffc93c;
-    box-shadow: 0 0 30px rgba(255,201,60,0.7), inset 0 -4px 8px rgba(0,0,0,0.1);
-    transform: scale(1.05);
   }
   .body-part.wrong-click {
     border-color: #ff6b6b;
-    background: #ff6b6b;
     animation: shake 0.4s ease;
   }
   @keyframes shake {
     0%, 100% { transform: translateX(0) rotate(0); }
-    25% { transform: translateX(-10px) rotate(-5deg); }
-    75% { transform: translateX(10px) rotate(5deg); }
+    25% { transform: translateX(-8px) rotate(-3deg); }
+    75% { transform: translateX(8px) rotate(3deg); }
   }
   .body-part.disabled-part {
     pointer-events: none;
-    opacity: 0.6;
-    filter: grayscale(0.5);
+    opacity: 0.7;
+    filter: grayscale(0.3);
   }
 
-  /* رسالة التغذية الراجعة والتحفيز */
   .game-feedback {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: 700;
     min-height: 3rem;
     margin: 0.8rem 0;
@@ -364,7 +321,6 @@ require_once __DIR__ . '/includes/navbar.php';
     border-radius: 40px;
     background: rgba(255,255,255,0.05);
   }
-  .game-feedback .emoji-big { font-size: 2.5rem; display: block; }
 
   .btn-next {
     background: linear-gradient(135deg, #ffc93c, #f5a623);
@@ -389,7 +345,6 @@ require_once __DIR__ . '/includes/navbar.php';
     transform: none;
   }
 
-  /* نافذة فيديو */
   .modal-video {
     display: none;
     position: fixed;
@@ -432,21 +387,26 @@ require_once __DIR__ . '/includes/navbar.php';
     font-size: 1.2rem;
   }
 
-  /* المحتوى الإضافي (لأيام أخرى) */
-  .extra-content {
+  .extra-section {
     margin-top: 2rem;
-    border-top: 2px dashed rgba(255,201,60,0.3);
+    border-top: 2px dashed rgba(255,201,60,0.2);
     padding-top: 2rem;
   }
-  .extra-content h2 {
-    font-size: 1.8rem;
+  .extra-section h2 {
+    font-size: 1.6rem;
     color: #ffc93c;
     text-align: center;
     margin-bottom: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
   }
+  .extra-section h2:hover { opacity: 0.8; }
   .extra-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 1.2rem;
   }
   .extra-item {
@@ -468,16 +428,20 @@ require_once __DIR__ . '/includes/navbar.php';
     cursor: pointer;
     font-weight: 700;
     transition: 0.2s;
+    font-size: 0.9rem;
   }
   .extra-item .btn-play-sm:hover {
     background: #ffc93c;
     color: #241645;
   }
 
+  .hidden-extra { display: none; }
+
   @media (max-width: 600px) {
     .safety-guide { flex-direction: column; text-align: center; }
     .human-body { transform: scale(0.8); }
     .day-progress { flex-direction: column; gap: 8px; text-align: center; }
+    .daily-task .stage-header { flex-direction: column; text-align: center; }
   }
 </style>
 
@@ -489,7 +453,7 @@ require_once __DIR__ . '/includes/navbar.php';
       <div class="safety-guide-avatar">🦉</div>
       <div class="safety-guide-bubble">
         <span class="safety-guide-name">رفيقتك الحكيمة</span>
-        <span id="guideMessage">مرحباً بطل! 🌟 كل يوم مهمة جديدة تحميك.</span>
+        <span id="guideMessage">مرحباً بطل! 🌟 مهمة جديدة تنتظرك اليوم.</span>
       </div>
     </div>
 
@@ -501,16 +465,23 @@ require_once __DIR__ . '/includes/navbar.php';
       </div>
     </div>
 
-    <!-- حاوية المهمة اليومية -->
+    <!-- حاوية المهمة اليومية (عنصر واحد فقط) -->
     <div id="dailyTaskContainer" class="daily-task">
-      <!-- سيتم ملؤها بواسطة الجافا سكريبت -->
+      <!-- يتم ملؤها بالجافا سكريبت -->
     </div>
 
-    <!-- قسم المحتوى الإضافي (يظهر بعد إتمام المهام اليومية) -->
-    <div id="extraSection" class="extra-content hidden">
+    <!-- زر استكشاف المحتوى الإضافي -->
+    <div style="text-align:center; margin-top:1rem;">
+      <button id="toggleExtraBtn" class="btn-next" style="background:rgba(255,255,255,0.1); color:#d9d0ff; box-shadow:none; border:1px solid rgba(255,255,255,0.1); padding:0.6rem 2rem;">
+        📚 استعرض كل دروس الحماية
+      </button>
+    </div>
+
+    <!-- قسم المحتوى الإضافي (مخفي افتراضيًا) -->
+    <div id="extraSection" class="extra-section hidden-extra">
       <h2>📚 كل دروس الحماية</h2>
       <div class="extra-grid" id="extraGrid">
-        <!-- يملأه الجافا سكريبت -->
+        <!-- يتم ملؤها بالجافا سكريبت -->
       </div>
     </div>
 
@@ -534,32 +505,32 @@ require_once __DIR__ . '/includes/navbar.php';
 // بيانات من PHP
 // ============================================================
 const STAGES = <?php echo json_encode($stages, JSON_UNESCAPED_UNICODE); ?>;
-const EXTRA_ITEMS = <?php echo json_encode(array_values($extraItems), JSON_UNESCAPED_UNICODE); ?>;
-const CHILD_AGE = <?php echo (int)$child['age']; ?>;
+const EXTRA_ITEMS = <?php echo json_encode($extraItems, JSON_UNESCAPED_UNICODE); ?>;
 
 // ============================================================
-// إدارة الأيام باستخدام localStorage
+// إدارة الأيام باستخدام localStorage (مهمة واحدة فقط في اليوم)
 // ============================================================
 function getTodayKey() {
-    return new Date().toDateString(); // "Wed Sep 09 2026"
+    return new Date().toDateString();
 }
 
 function getProgress() {
     let progress = localStorage.getItem('safety_progress');
     if (!progress) {
-        progress = { day: 0, lastDate: null, stars: 0 };
+        progress = { dayIndex: 0, lastDate: null, stars: 0 };
     } else {
         progress = JSON.parse(progress);
     }
     const today = getTodayKey();
+    const totalItems = STAGES.length + EXTRA_ITEMS.length;
+
+    // إذا كان اليوم جديدًا ولم ننهِ كل العناصر
     if (progress.lastDate !== today) {
-        // يوم جديد: نزيد رقم اليوم بحد أقصى (عدد المراحل + الإضافات)
-        const maxDays = STAGES.length + EXTRA_ITEMS.length;
-        if (progress.day < maxDays) {
-            progress.day += 1;
+        if (progress.dayIndex < totalItems - 1) {
+            progress.dayIndex += 1;
         } else {
-            // إذا أكمل كل شيء، يبقى في اليوم الأخير
-            progress.day = maxDays;
+            // إذا انتهى كل شيء، نبقى في آخر عنصر
+            progress.dayIndex = Math.min(progress.dayIndex, totalItems - 1);
         }
         progress.lastDate = today;
         localStorage.setItem('safety_progress', JSON.stringify(progress));
@@ -567,16 +538,12 @@ function getProgress() {
     return progress;
 }
 
-function saveProgress(progress) {
-    localStorage.setItem('safety_progress', JSON.stringify(progress));
-}
-
 let progress = getProgress();
-let currentDay = progress.day;
+let currentDayIndex = progress.dayIndex; // 0-based
 let starsCount = progress.stars || 0;
 
-// تحديث واجهة اليوم والنجوم
-document.getElementById('dayCounter').textContent = Math.min(currentDay, STAGES.length + EXTRA_ITEMS.length);
+// تحديث عداد اليوم (يظهر رقم اليوم الحقيقي)
+document.getElementById('dayCounter').textContent = Math.min(currentDayIndex + 1, STAGES.length + EXTRA_ITEMS.length);
 updateStarsDisplay();
 
 function updateStarsDisplay() {
@@ -592,9 +559,8 @@ function addStar() {
     if (starsCount < 5) {
         starsCount++;
         progress.stars = starsCount;
-        saveProgress(progress);
+        localStorage.setItem('safety_progress', JSON.stringify(progress));
         updateStarsDisplay();
-        // تأثير تحفيزي
         const msg = document.querySelector('.game-feedback');
         if (msg) {
             msg.innerHTML = `🌟 رائع! حصلت على نجمة! (${starsCount}/5)`;
@@ -602,7 +568,9 @@ function addStar() {
         }
         if (starsCount === 5) {
             setTimeout(() => {
-                document.querySelector('.game-feedback').innerHTML = '🏆 أنت بطل! أكملت 5 نجوم!';
+                if (document.querySelector('.game-feedback')) {
+                    document.querySelector('.game-feedback').innerHTML = '🏆 أنت بطل! أكملت 5 نجوم!';
+                }
             }, 1000);
             speakText('أحسنت! حصلت على خمس نجوم!');
         }
@@ -610,15 +578,14 @@ function addStar() {
 }
 
 // ============================================================
-// عرض المهمة اليومية
+// عرض المهمة اليومية (عنصر واحد فقط)
 // ============================================================
 function renderDailyTask() {
     const container = document.getElementById('dailyTaskContainer');
     const totalItems = STAGES.length + EXTRA_ITEMS.length;
-    let dayIndex = currentDay - 1; // 0-based
 
-    // إذا انتهت المهام الأساسية والإضافية
-    if (dayIndex >= totalItems) {
+    // إذا انتهت كل العناصر
+    if (currentDayIndex >= totalItems) {
         container.innerHTML = `
             <div style="text-align:center; padding:2rem;">
                 <div style="font-size:4rem;">🏆</div>
@@ -633,20 +600,23 @@ function renderDailyTask() {
 
     let stageData;
     let isExtra = false;
-    if (dayIndex < STAGES.length) {
-        stageData = STAGES[dayIndex];
+    if (currentDayIndex < STAGES.length) {
+        stageData = STAGES[currentDayIndex];
     } else {
         isExtra = true;
-        const extraIdx = dayIndex - STAGES.length;
-        stageData = EXTRA_ITEMS[extraIdx];
-        // نحول البيانات الإضافية لتناسب القالب
+        const extraIdx = currentDayIndex - STAGES.length;
+        const item = EXTRA_ITEMS[extraIdx];
+        if (!item) {
+            container.innerHTML = '<p style="color:#b9abd4;">جاري تجهيز المهام...</p>';
+            return;
+        }
         stageData = {
-            id: stageData.id,
-            title: stageData.title,
-            icon: stageData.type === 'video' ? '🎬' : '🎮',
-            description: stageData.description,
-            video: stageData,
-            activity: 'extra_content' // نشاط بسيط
+            id: item.id,
+            title: item.title,
+            icon: item.type === 'video' ? '🎬' : '🎮',
+            description: item.description,
+            video: item,
+            activity: 'extra_content'
         };
     }
 
@@ -659,7 +629,7 @@ function renderDailyTask() {
         <p class="stage-desc">${stageData.description}</p>
     `;
 
-    // عرض الفيديو إن وجد
+    // عرض الفيديو
     if (stageData.video) {
         const vid = stageData.video;
         if (vid.youtube_id) {
@@ -681,10 +651,7 @@ function renderDailyTask() {
         }
     }
 
-    // منطقة النشاط
     html += `<div class="activity-area" id="activityArea"></div>`;
-
-    // زر إنهاء المهمة (يظهر بعد إكمال النشاط)
     html += `
         <button class="btn-next" id="finishTaskBtn" disabled>
             ${isExtra ? '📚 أنهيت الدرس' : '🎯 أنهيت المهمة'}
@@ -695,9 +662,8 @@ function renderDailyTask() {
 
     // تهيئة النشاط
     const activityContainer = document.getElementById('activityArea');
-    if (!isExtra && dayIndex < STAGES.length) {
-        // أنشطة المراحل الأساسية
-        switch (dayIndex) {
+    if (!isExtra && currentDayIndex < STAGES.length) {
+        switch (currentDayIndex) {
             case 0: renderBodyGame(activityContainer); break;
             case 1: renderDistanceGame(activityContainer); break;
             case 2: renderPasswordGame(activityContainer); break;
@@ -705,7 +671,7 @@ function renderDailyTask() {
             default: activityContainer.innerHTML = '<p style="color:#b9abd4;">نشاط قادم...</p>';
         }
     } else {
-        // المحتوى الإضافي (فيديو فقط أو لعبة مصغرة)
+        // محتوى إضافي (فيديو أو لعبة)
         if (stageData.video && stageData.video.type === 'game') {
             activityContainer.innerHTML = `
                 <div style="text-align:center; padding:1.5rem; background:rgba(255,255,255,0.05); border-radius:30px;">
@@ -715,7 +681,6 @@ function renderDailyTask() {
                 </div>
             `;
         } else {
-            // فيديو إضافي، نشاط بسيط: مشاهدة وضغط زر
             activityContainer.innerHTML = `
                 <div style="text-align:center; padding:1.5rem; background:rgba(255,255,255,0.05); border-radius:30px;">
                     <p style="color:#d9d0ff;">📺 شاهد الفيديو أعلاه لتتعلم معلومة جديدة.</p>
@@ -725,19 +690,17 @@ function renderDailyTask() {
         }
     }
 
-    // تحديث رسالة المرشدة
     document.getElementById('guideMessage').textContent = `اليوم: "${stageData.title}". أنجز النشاط واحصل على نجمة!`;
 }
 
 // ============================================================
-// تمكين زر إنهاء المهمة (يستدعى من الأنشطة)
+// تمكين زر إنهاء المهمة
 // ============================================================
 function enableDailyTask() {
     const btn = document.getElementById('finishTaskBtn');
     if (btn) {
         btn.disabled = false;
         btn.style.opacity = 1;
-        // إضافة نجمة تلقائياً عند الإنهاء (مرة واحدة)
         if (!btn.dataset.starGiven) {
             btn.dataset.starGiven = 'true';
             addStar();
@@ -745,17 +708,13 @@ function enableDailyTask() {
     }
 }
 
-// ربط زر إنهاء المهمة
 document.addEventListener('click', function(e) {
     if (e.target.id === 'finishTaskBtn' && !e.target.disabled) {
-        // ننتقل لليوم التالي (يحفظ في localStorage)
         const today = getTodayKey();
         progress.lastDate = today;
-        progress.day = currentDay + 1;
-        // لا نزيد النجوم هنا لأنها أضيفت عند enable
-        saveProgress(progress);
-        // إعادة تحميل المهمة اليومية الجديدة
-        currentDay = progress.day;
+        progress.dayIndex = currentDayIndex + 1;
+        localStorage.setItem('safety_progress', JSON.stringify(progress));
+        currentDayIndex = progress.dayIndex;
         renderDailyTask();
         speakText('أحسنت! أنهيت مهمة اليوم. تعال غداً لمهمة جديدة.');
         document.getElementById('guideMessage').textContent = '🎉 مبروك! أنهيت المهمة. غداً مهمة جديدة بإذن الله.';
@@ -763,95 +722,80 @@ document.addEventListener('click', function(e) {
 });
 
 // ============================================================
-// لعبة الجسم (جسدي ملكي) - شكل إنسان حقيقي
+// لعبة الجسم (جسدي ملكي) - شكل إنسان عادي، تلوين الجذع باللون الأحمر
 // ============================================================
 function renderBodyGame(container) {
     const parts = [
-        { id: 'head', label: 'الرأس', private: false, style: 'part-head' },
-        { id: 'chest', label: 'الصدر', private: true, style: 'part-chest' },
-        { id: 'belly', label: 'البطن', private: true, style: 'part-belly' },
-        { id: 'private', label: 'المنطقة الخاصة', private: true, style: 'part-private' },
-        { id: 'arm-left', label: 'الذراع', private: false, style: 'part-arm part-arm-left' },
-        { id: 'arm-right', label: 'الذراع', private: false, style: 'part-arm part-arm-right' },
-        { id: 'leg-left', label: 'الساق', private: false, style: 'part-leg part-leg-left' },
-        { id: 'leg-right', label: 'الساق', private: false, style: 'part-leg part-leg-right' },
+        { id: 'head', label: 'الرأس', private: false, cls: 'part-head' },
+        { id: 'torso', label: 'الجذع (منطقة خاصة)', private: true, cls: 'part-torso' },
+        { id: 'arm-left', label: 'الذراع', private: false, cls: 'part-arm part-arm-left' },
+        { id: 'arm-right', label: 'الذراع', private: false, cls: 'part-arm part-arm-right' },
+        { id: 'leg-left', label: 'الساق', private: false, cls: 'part-leg part-leg-left' },
+        { id: 'leg-right', label: 'الساق', private: false, cls: 'part-leg part-leg-right' },
     ];
 
     let html = `
         <div class="human-body-wrapper">
-            <div style="font-weight:700; color:#ffc93c; margin-bottom:0.8rem;">👇 اضغط على الأعضاء الخاصة (التي لا يجوز لمسها)</div>
+            <div style="font-weight:700; color:#ffc93c; margin-bottom:0.8rem;">👇 اضغط على المنطقة الخاصة (التي لا يجوز لمسها)</div>
             <div class="human-body" id="humanBody">
     `;
     parts.forEach(p => {
         html += `
-            <div class="body-part ${p.style}" data-id="${p.id}" data-private="${p.private}">
+            <div class="body-part ${p.cls}" data-id="${p.id}" data-private="${p.private}">
                 <span class="part-label">${p.label}</span>
             </div>
         `;
     });
     html += `
             </div>
-            <div class="game-feedback" id="bodyFeedback">اختر الأعضاء الخاصة (المناطق المحرم لمسها).</div>
-            <div style="font-size:0.9rem; color:#b9abd4;">✅ أخضر = آمن (مسموح) | 🌟 أصفر = خاص (ممنوع)</div>
+            <div class="game-feedback" id="bodyFeedback">🔴 اضغط على الجذع (المنطقة الخاصة).</div>
+            <div style="font-size:0.9rem; color:#b9abd4;">🟢 الأطراف والرأس مسموح لمسها | 🔴 الجذع ممنوع</div>
         </div>
     `;
     container.innerHTML = html;
 
     const body = document.getElementById('humanBody');
     const feedback = document.getElementById('bodyFeedback');
-    let selectedPrivate = 0;
-    const totalPrivate = parts.filter(p => p.private).length;
     let completed = false;
 
     body.querySelectorAll('.body-part').forEach(el => {
-        el.addEventListener('click', function(e) {
+        el.addEventListener('click', function() {
             if (this.classList.contains('disabled-part') || completed) return;
             const isPrivate = this.dataset.private === 'true';
             const label = this.querySelector('.part-label').textContent;
 
             if (isPrivate) {
-                // اختيار صحيح (عضو خاص)
+                // اختيار صحيح (الجذع)
                 this.classList.add('selected-private');
                 this.classList.add('disabled-part');
-                selectedPrivate++;
-                feedback.innerHTML = `✅ صحيح! "${label}" منطقة خاصة، لا يجوز لأحد لمسها. 🌟`;
+                completed = true;
+                feedback.innerHTML = `✅ صحيح! "${label}" منطقة خاصة، لا يجوز لأحد لمسها. 🌟🌟`;
                 feedback.style.color = '#2ec4b6';
-                speakText(`أحسنت! ${label} عضو خاص.`);
-                // تأثير تحفيزي فوري
-                this.style.transform = 'scale(1.2)';
-                setTimeout(() => this.style.transform = '', 300);
-
-                if (selectedPrivate === totalPrivate) {
-                    completed = true;
-                    feedback.innerHTML = `🎉🎉 ممتاز! اخترت كل الأعضاء الخاصة. أنت تعرف كيف تحمي جسدك! 🌟🌟🌟`;
-                    feedback.style.color = '#ffc93c';
-                    speakText('ممتاز! أنت تعرف جيداً كيف تحمي جسدك.');
-                    enableDailyTask();
-                    // مكافأة إضافية
-                    setTimeout(() => addStar(), 500);
-                }
+                speakText(`أحسنت! الجذع منطقة خاصة.`);
+                enableDailyTask();
+                setTimeout(addStar, 400);
+                setTimeout(addStar, 800); // مكافأة مضاعفة للتركيز
             } else {
-                // عضو آمن - تنبيه لطيف مع تشجيع
+                // عضو آمن
                 this.classList.add('wrong-click');
-                feedback.innerHTML = `❌ "${label}" ليس عضواً خاصاً، لا بأس بلمسه. لكن تذكر أن تحترم حدود الآخرين.`;
+                feedback.innerHTML = `❌ "${label}" ليس منطقة خاصة، لا بأس بلمسه. لكن تذكر احترام حدود الآخرين.`;
                 feedback.style.color = '#ff6b6b';
-                speakText(`تذكر، ${label} ليس عضواً خاصاً.`);
+                speakText(`تذكر، ${label} ليس منطقة خاصة.`);
                 setTimeout(() => {
                     this.classList.remove('wrong-click');
                 }, 500);
-                // لا نعاقب بشدة، فقط ننبه
             }
         });
     });
 }
 
 // ============================================================
-// باقي الألعاب (مسافة، كلمات سر، إبلاغ) - مختصرة لكن عاملة
+// باقي الألعاب (مسافة، كلمات سر، إبلاغ)
 // ============================================================
 function renderDistanceGame(container) {
     container.innerHTML = `
         <p style="font-weight:700; color:#ffc93c;">اسحب الشخصية للدائرة الآمنة (المنقطة).</p>
-        <div class="distance-game" style="position:relative;height:200px;background:radial-gradient(circle at 20% 30%, #1a1040, #0a061a);border-radius:30px;overflow:hidden;touch-action:none;">
+        <div style="position:relative;height:200px;background:radial-gradient(circle at 20% 30%, #1a1040, #0a061a);border-radius:30px;overflow:hidden;touch-action:none;">
             <div id="dragPerson" style="position:absolute;bottom:20px;left:15%;font-size:4rem;cursor:grab;user-select:none;">🧒</div>
             <div style="position:absolute;bottom:20px;right:15%;font-size:3rem;opacity:0.7;">👤</div>
             <div style="position:absolute;bottom:0;left:30%;width:40%;height:100%;border:3px dashed rgba(46,196,182,0.4);border-radius:30px 30px 0 0;pointer-events:none;"></div>
@@ -859,7 +803,7 @@ function renderDistanceGame(container) {
         <div id="distanceFeedback" style="text-align:center;margin-top:1rem;font-weight:700;">اسحبني للمنطقة الآمنة!</div>
     `;
     const person = document.getElementById('dragPerson');
-    const game = container.querySelector('.distance-game');
+    const game = container.querySelector('.distance-game') || container;
     const feedback = document.getElementById('distanceFeedback');
     let isDragging = false, done = false;
     const handleMove = (e) => {
@@ -997,26 +941,7 @@ document.addEventListener('click', function(e) {
 });
 
 // ============================================================
-// موسيقى وقراءة
-// ============================================================
-let bgMusic = document.getElementById('bgMusic'), musicStarted = false;
-document.addEventListener('click', () => {
-    if (!musicStarted) { bgMusic.volume = 0.2; bgMusic.play().catch(()=>{}); musicStarted = true; }
-}, { once: true });
-
-function speakText(text) {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ar-SA'; u.rate = 1.1; u.pitch = 1.2;
-    const voices = speechSynthesis.getVoices();
-    const ar = voices.find(v => v.lang.startsWith('ar'));
-    if (ar) u.voice = ar;
-    speechSynthesis.speak(u);
-}
-
-// ============================================================
-// عرض المحتوى الإضافي (جميع الدروس) في الأسفل
+// عرض المحتوى الإضافي (زر الإظهار/الإخفاء)
 // ============================================================
 function renderExtraContent() {
     const grid = document.getElementById('extraGrid');
@@ -1038,16 +963,38 @@ function renderExtraContent() {
     grid.innerHTML = html;
 }
 
+// إظهار/إخفاء المحتوى الإضافي
+document.getElementById('toggleExtraBtn').addEventListener('click', function() {
+    const section = document.getElementById('extraSection');
+    section.classList.toggle('hidden-extra');
+    this.textContent = section.classList.contains('hidden-extra') ? '📚 استعرض كل دروس الحماية' : '📕 إخفاء الدروس';
+});
+
+// ============================================================
+// موسيقى وقراءة
+// ============================================================
+let bgMusic = document.getElementById('bgMusic'), musicStarted = false;
+document.addEventListener('click', () => {
+    if (!musicStarted) { bgMusic.volume = 0.2; bgMusic.play().catch(()=>{}); musicStarted = true; }
+}, { once: true });
+
+function speakText(text) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ar-SA'; u.rate = 1.1; u.pitch = 1.2;
+    const voices = speechSynthesis.getVoices();
+    const ar = voices.find(v => v.lang.startsWith('ar'));
+    if (ar) u.voice = ar;
+    speechSynthesis.speak(u);
+}
+
 // ============================================================
 // بدء التشغيل
 // ============================================================
 renderDailyTask();
 renderExtraContent();
 setTimeout(() => speakText('مرحباً بطل! مهمة اليوم في انتظارك.'), 1000);
-
-// إظهار القسم الإضافي إذا تم إتمام كل شيء (اختياري)
-// لكن نتركه مرئياً في الأسفل دائماً للاستكشاف.
-document.getElementById('extraSection').classList.remove('hidden');
 
 </script>
 
