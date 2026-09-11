@@ -3,912 +3,810 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 
-// جلب كل محتوى الحماية المناسب لعمر الطفل
-$stmt = $pdo->prepare("SELECT * FROM safety_content WHERE age_min <= ? AND age_max >= ? ORDER BY id");
+/* json_encode آمن */
+function safe_json($d){
+    $j = json_encode($d,
+        JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_AMP|
+        JSON_HEX_APOS|JSON_HEX_QUOT|JSON_INVALID_UTF8_SUBSTITUTE);
+    return $j === false ? '[]' : $j;
+}
+
+/* جلب دروس الحماية المناسبة لعمر الطفل */
+$stmt = $pdo->prepare("
+  SELECT id,type,title,description,youtube_id,game_type,age_min,age_max
+  FROM safety_content
+  WHERE age_min <= ? AND age_max >= ? AND (is_premium=0 OR is_premium IS NULL)
+  ORDER BY id ASC
+");
 $stmt->execute([$child['age'], $child['age']]);
-$allItems = $stmt->fetchAll();
+$lessons = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-$videoItems = array_filter($allItems, fn($i) => $i['type'] === 'video');
-
-// المراحل الأساسية (الأيام الأربعة الأولى)
-$stages = [
-    [
-        'id' => 1,
-        'title' => 'جسدي ملكي',
-        'icon' => '🛡️',
-        'description' => 'تعلّم أعضاء جسدك الخاصة التي لا يجوز لأحد لمسها.',
-        'video' => array_values($videoItems)[0] ?? null,
-        'activity' => 'body_game'
-    ],
-    [
-        'id' => 2,
-        'title' => 'المسافة الآمنة',
-        'icon' => '📏',
-        'description' => 'تدرب على الحفاظ على مسافة آمنة مع الآخرين.',
-        'video' => array_values($videoItems)[1] ?? null,
-        'activity' => 'distance_game'
-    ],
-    [
-        'id' => 3,
-        'title' => 'كلمات السر',
-        'icon' => '🔐',
-        'description' => 'تعلّم كيفية اختيار كلمة سر قوية وآمنة.',
-        'video' => array_values($videoItems)[2] ?? null,
-        'activity' => 'password_game'
-    ],
-    [
-        'id' => 4,
-        'title' => 'الإبلاغ عن التحرش',
-        'icon' => '📢',
-        'description' => 'تدرب على التصرف الصحيح عند التعرض للتحرش.',
-        'video' => array_values($videoItems)[3] ?? null,
-        'activity' => 'reporting_game'
-    ],
-];
-
-// باقي المحتوى الإضافي
-$usedIds = array_column(array_filter($stages, fn($s) => $s['video']), 'id');
-$extraItems = array_values(array_filter($allItems, fn($item) => !in_array($item['id'], $usedIds)));
+if (!$lessons) {
+  $lessons = [[
+    'id'=>0,'type'=>'video','title'=>'جسدي ملكي',
+    'description'=>'جسمك لك وحدك.',
+    'youtube_id'=>null,'game_type'=>'body'
+  ]];
+}
 
 $__pageTitle = 'قسم الحماية — Kidora';
-$__pageLine = "حماية نفسك أهم مهارة يا بطل 🛡️";
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
 
 <style>
-  .safety-page {
-    background: linear-gradient(135deg, #0a061a 0%, #1a1040 100%);
-    color: #f1f5f9;
-    min-height: 100vh;
-    padding: 2rem 1rem 4rem;
-  }
-  .safety-container {
-    max-width: 1000px;
-    margin: 0 auto;
-  }
+.safety-page{background:linear-gradient(135deg,#0a061a,#1a1040);color:#f1f5f9;min-height:100vh;padding:1.5rem 1rem 4rem}
+.sf-wrap{max-width:900px;margin:0 auto}
+.sf-guide{display:flex;align-items:center;gap:1rem;background:rgba(255,255,255,.08);border-radius:24px;padding:1rem 1.4rem;margin-bottom:1.5rem;border:1px solid rgba(255,255,255,.12)}
+.sf-guide-av{width:70px;height:70px;border-radius:50%;background:linear-gradient(145deg,#f5a623,#ffc93c);display:grid;place-items:center;font-size:40px;flex-shrink:0;box-shadow:0 8px 24px rgba(255,201,60,.3);animation:sfFloat 3s ease-in-out infinite}
+@keyframes sfFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.sf-guide-name{color:#ffc93c;font-weight:900;display:block;margin-bottom:.2rem;font-size:.95rem}
+.sf-guide-msg{line-height:1.7;font-size:1rem}
+.sf-card{background:rgba(255,255,255,.06);border-radius:26px;padding:1.5rem;border:1px solid rgba(255,255,255,.08);margin-bottom:1.2rem}
+.sf-kicker{display:inline-block;background:linear-gradient(135deg,#ffe99a,#ffc93c);color:#241645;font-weight:900;font-size:.75rem;padding:.25rem .8rem;border-radius:30px;margin-bottom:.6rem}
+.sf-title{font-family:var(--font-display);font-size:1.5rem;margin:.2rem 0 .5rem;color:#fff}
+.sf-desc{color:#d9d0ff;line-height:1.8;margin:0 0 1rem}
+.sf-video{background:rgba(0,0,0,.3);border-radius:18px;padding:1rem;border-right:4px solid #ffc93c;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.sf-video-icon{font-size:2.2rem}
+.sf-video-info{flex:1;min-width:180px}
+.sf-video-info h4{color:#ffc93c;margin:0 0 .2rem;font-size:1rem}
+.sf-video-info p{color:#e0d8f0;line-height:1.6;margin:0;font-size:.9rem}
+.btn{background:linear-gradient(135deg,#ffc93c,#f5a623);border:none;color:#241645;font-weight:900;padding:.7rem 1.5rem;border-radius:50px;cursor:pointer;transition:.2s;font-family:inherit;font-size:.9rem;box-shadow:0 6px 20px rgba(255,201,60,.25)}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(255,201,60,.4)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-ghost{background:rgba(255,255,255,.1);color:#d9d0ff;border:1px solid rgba(255,255,255,.15);box-shadow:none}
+.sf-game{background:rgba(0,0,0,.2);border-radius:22px;padding:1.4rem;text-align:center;margin-bottom:1rem}
+.sf-hint{font-weight:800;color:#ffc93c;margin-bottom:1rem;font-size:1rem}
+.sf-fb{min-height:2.8rem;margin-top:1rem;padding:.8rem 1rem;border-radius:18px;background:rgba(255,255,255,.06);font-weight:700;font-size:1rem;display:grid;place-items:center}
+.sf-finish{text-align:center;margin-top:1rem}
 
-  .safety-guide {
-    display: flex;
-    align-items: center;
-    gap: 1.2rem;
-    background: rgba(255,255,255,0.08);
-    backdrop-filter: blur(10px);
-    border-radius: 30px;
-    padding: 1.2rem 1.8rem;
-    margin-bottom: 2.5rem;
-    border: 1px solid rgba(255,255,255,0.12);
-  }
-  .safety-guide-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: linear-gradient(145deg, #f5a623, #ffc93c);
-    display: grid;
-    place-items: center;
-    font-size: 48px;
-    flex-shrink: 0;
-    box-shadow: 0 10px 30px rgba(255,201,60,0.3);
-  }
-  .safety-guide-bubble {
-    font-size: 1.1rem;
-    line-height: 1.8;
-    font-weight: 500;
-  }
-  .safety-guide-name {
-    display: block;
-    color: #ffc93c;
-    font-weight: 900;
-    font-size: 1rem;
-    margin-bottom: 0.25rem;
-  }
+/* ========== BODY ========== */
+.body-wrap{position:relative;width:200px;height:300px;margin:0 auto;display:grid;place-items:center}
+.body{position:relative;width:170px;height:280px}
+.bp{position:absolute;transition:all .25s cubic-bezier(.34,1.56,.64,1);cursor:pointer;border:3px solid rgba(255,255,255,.15);box-shadow:inset 0 -5px 10px rgba(0,0,0,.15)}
+.bp:hover:not(.off){transform:scale(1.08);border-color:#ffc93c;z-index:5}
+.bp .lbl{position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:3px 9px;border-radius:20px;font-size:.65rem;white-space:nowrap;opacity:0;transition:.25s;pointer-events:none}
+.bp:hover .lbl{opacity:1}
+.bp-head{width:65px;height:65px;top:0;left:50%;transform:translateX(-50%);border-radius:50%;background:linear-gradient(145deg,#ffe0b2,#f7d9aa)}
+.bp-torso{width:95px;height:105px;top:60px;left:50%;transform:translateX(-50%);border-radius:30px 30px 40px 40px;background:linear-gradient(145deg,#f0cfa0,#e6b87a)}
+.bp-arm{width:20px;height:75px;top:65px;border-radius:20px;background:linear-gradient(145deg,#ffe0b2,#f7d9aa)}
+.bp-armL{left:5px;transform:rotate(15deg);transform-origin:top center}
+.bp-armR{right:5px;transform:rotate(-15deg);transform-origin:top center}
+.bp-leg{width:26px;height:85px;bottom:0;border-radius:20px 20px 10px 10px;background:linear-gradient(145deg,#ffe0b2,#f7d9aa)}
+.bp-legL{left:40px}.bp-legR{right:40px}
+.bp.ok{border-color:#2ec4b6;background:#2ec4b6!important;box-shadow:0 0 35px rgba(46,196,182,.7);animation:pop .5s}
+.bp.no{border-color:#ff6b6b;animation:shake .4s}
+.bp.off{pointer-events:none;opacity:.7}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1.05)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 
-  .daily-task {
-    background: rgba(255,255,255,0.06);
-    border-radius: 30px;
-    padding: 2rem;
-    border: 1px solid rgba(255,255,255,0.08);
-    backdrop-filter: blur(5px);
-    margin-bottom: 2rem;
-  }
-  .daily-task .stage-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  .daily-task .stage-icon {
-    font-size: 2.8rem;
-    background: rgba(255,255,255,0.1);
-    width: 70px;
-    height: 70px;
-    border-radius: 20px;
-    display: grid;
-    place-items: center;
-  }
-  .daily-task .stage-title {
-    font-family: var(--font-display);
-    font-size: 1.8rem;
-    margin: 0;
-    color: #fff;
-  }
-  .daily-task .stage-desc {
-    color: #d9d0ff;
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
-  }
+/* ========== DISTANCE ========== */
+.dist-zone{position:relative;height:220px;background:radial-gradient(circle at 30% 30%,#1a1040,#0a061a);border-radius:22px;overflow:hidden;touch-action:none}
+.dist-safe{position:absolute;bottom:0;left:32%;width:36%;height:100%;border:3px dashed rgba(46,196,182,.6);border-radius:22px 22px 0 0;background:radial-gradient(circle at 50% 100%,rgba(46,196,182,.18),transparent 70%);pointer-events:none;display:grid;place-items:end center;padding-bottom:10px;color:rgba(46,196,182,.8);font-weight:800;font-size:.8rem}
+.dist-kid{position:absolute;bottom:20px;left:8%;font-size:3.5rem;cursor:grab;user-select:none;transition:transform .1s;filter:drop-shadow(0 6px 12px rgba(0,0,0,.4))}
+.dist-kid:active{cursor:grabbing;transform:scale(1.1)}
+.dist-bad{position:absolute;bottom:20px;right:8%;font-size:3rem;filter:drop-shadow(0 6px 12px rgba(0,0,0,.4))}
 
-  .video-story {
-    background: rgba(0,0,0,0.3);
-    border-radius: 20px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    border-left: 4px solid #ffc93c;
-  }
-  .video-story h4 { color: #ffc93c; margin-top: 0; }
-  .video-story p { color: #e0d8f0; line-height: 1.8; }
-  .video-story .btn-play {
-    background: #ffc93c;
-    border: none;
-    color: #241645;
-    font-weight: 900;
-    padding: 0.5rem 1.5rem;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: 0.2s;
-  }
-  .video-story .btn-play:hover {
-    transform: scale(1.05);
-    box-shadow: 0 8px 25px rgba(255,201,60,0.4);
-  }
+/* ========== HOTSPOT ========== */
+.hs-scene{position:relative;background:linear-gradient(160deg,#2a1b4a,#1a1040);border-radius:22px;min-height:280px;padding:1.2rem;display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem}
+.hs-item{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12);border-radius:18px;padding:1rem .6rem;cursor:pointer;transition:.25s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;min-height:90px}
+.hs-item:hover{transform:translateY(-4px);border-color:#ffc93c}
+.hs-item .ico{font-size:2.2rem}
+.hs-item .txt{font-size:.75rem;color:#d9d0ff;font-weight:700;text-align:center;line-height:1.3}
+.hs-item.danger-ok{background:rgba(255,59,59,.2);border-color:#ff3b3b;animation:pop .5s}
+.hs-item.safe-ok{background:rgba(46,196,182,.15);border-color:#2ec4b6;opacity:.55;pointer-events:none}
+.hs-item.wrong{background:rgba(255,107,107,.2);border-color:#ff6b6b;animation:shake .4s}
 
-  .activity-area {
-    min-height: 280px;
-    padding: 1rem 0;
-  }
+/* ========== SCENARIO ========== */
+.sc-box{background:rgba(255,255,255,.05);border-radius:18px;padding:1.2rem}
+.sc-q{font-weight:800;font-size:1.05rem;margin-bottom:1rem;line-height:1.6}
+.sc-choices{display:flex;flex-direction:column;gap:.6rem}
+.sc-choice{background:rgba(255,255,255,.08);border:2px solid transparent;border-radius:14px;padding:.8rem 1rem;color:#fff;font-weight:700;cursor:pointer;transition:.2s;font-family:inherit;text-align:right;font-size:.95rem;display:flex;align-items:center;gap:.6rem}
+.sc-choice:hover{background:rgba(255,255,255,.14);border-color:rgba(255,201,60,.5)}
+.sc-choice.ok{border-color:#2ec4b6;background:rgba(46,196,182,.2);animation:pop .4s}
+.sc-choice.no{border-color:#ff6b6b;background:rgba(255,107,107,.2);animation:shake .4s}
+.sc-num{background:rgba(255,201,60,.9);color:#241645;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:.85rem;flex-shrink:0}
 
-  /* ===== تصميم جسم الإنسان (جسدي ملكي) ===== */
-  .human-body-wrapper {
-    background: rgba(0,0,0,0.2);
-    border-radius: 40px;
-    padding: 1.5rem;
-    text-align: center;
-  }
-  .human-body {
-    position: relative;
-    width: 180px;
-    height: 280px;
-    margin: 0 auto 1rem;
-  }
-  .body-part {
-    position: absolute;
-    background: #f7d9aa;
-    border: 3px solid rgba(255,255,255,0.2);
-    border-radius: 40px;
-    transition: all 0.2s ease;
-    cursor: pointer;
-    user-select: none;
-    box-shadow: inset 0 -4px 8px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 900;
-    color: #1a1040;
-    font-size: 0.7rem;
-  }
-  .body-part .part-label {
-    background: rgba(0,0,0,0.6);
-    color: #fff;
-    padding: 2px 8px;
-    border-radius: 30px;
-    font-size: 0.6rem;
-    position: absolute;
-    bottom: -22px;
-    white-space: nowrap;
-    opacity: 0;
-    transition: 0.3s;
-    pointer-events: none;
-  }
-  .body-part:hover .part-label {
-    opacity: 1;
-    bottom: -30px;
-  }
-  .body-part:hover {
-    transform: scale(1.05);
-    z-index: 10;
-    border-color: #ffc93c;
-  }
+/* ========== MATCH ========== */
+.mt-board{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.5rem}
+.mt-col{display:flex;flex-direction:column;gap:.5rem}
+.mt-item{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12);border-radius:14px;padding:.8rem;color:#fff;font-weight:800;cursor:pointer;transition:.2s;font-family:inherit;font-size:1rem;display:flex;align-items:center;justify-content:center;gap:.5rem;min-height:52px}
+.mt-item:hover{background:rgba(255,255,255,.15)}
+.mt-item.sel{border-color:#ffc93c;background:rgba(255,201,60,.2);transform:scale(1.03)}
+.mt-item.done{border-color:#2ec4b6;background:rgba(46,196,182,.2);opacity:.6;pointer-events:none}
+.mt-item.err{border-color:#ff6b6b;animation:shake .4s}
 
-  .part-head {
-    width: 60px;
-    height: 60px;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    border-radius: 50%;
-    background: #f7d9aa;
-  }
-  .part-torso {
-    width: 90px;
-    height: 100px;
-    top: 55px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-radius: 30px 30px 40px 40px;
-    background: #f0cfa0;
-  }
-  .part-arm {
-    width: 20px;
-    height: 70px;
-    top: 60px;
-    border-radius: 20px;
-    background: #f7d9aa;
-  }
-  .part-arm-left { left: 5px; transform: rotate(15deg); transform-origin: top center; }
-  .part-arm-right { right: 5px; transform: rotate(-15deg); transform-origin: top center; }
-  .part-leg {
-    width: 26px;
-    height: 80px;
-    bottom: 0;
-    border-radius: 20px 20px 10px 10px;
-    background: #f7d9aa;
-  }
-  .part-leg-left { left: 35px; }
-  .part-leg-right { right: 35px; }
+/* ========== QUIZ ========== */
+.qz-box{background:rgba(255,255,255,.05);border-radius:18px;padding:1.2rem}
+.qz-progress{height:8px;background:rgba(255,255,255,.1);border-radius:10px;overflow:hidden;margin-bottom:1rem}
+.qz-fill{height:100%;background:linear-gradient(90deg,#ffc93c,#2ec4b6);transition:.4s;border-radius:10px}
+.qz-q{font-weight:800;font-size:1.05rem;margin-bottom:1rem;line-height:1.6}
+.qz-btns{display:flex;gap:.8rem;justify-content:center}
+.qz-btn{flex:1;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);border-radius:14px;padding:1rem;color:#fff;font-weight:900;font-size:1.1rem;cursor:pointer;transition:.2s;font-family:inherit}
+.qz-btn:hover{background:rgba(255,255,255,.15);border-color:#ffc93c}
+.qz-btn.ok{background:rgba(46,196,182,.25);border-color:#2ec4b6}
+.qz-btn.no{background:rgba(255,107,107,.25);border-color:#ff6b6b}
 
-  .body-part.selected-private {
-    border-color: #ff3b3b;
-    background: #ff3b3b !important;
-    box-shadow: 0 0 30px rgba(255,59,59,0.7);
-    transform: scale(1.05);
-  }
-  .body-part.selected-safe {
-    border-color: #2ec4b6;
-    box-shadow: 0 0 25px rgba(46,196,182,0.4);
-    transform: scale(0.95);
-  }
-  .body-part.wrong-click {
-    border-color: #ff6b6b;
-    animation: shake 0.4s ease;
-  }
-  @keyframes shake {
-    0%, 100% { transform: translateX(0) rotate(0); }
-    25% { transform: translateX(-8px) rotate(-3deg); }
-    75% { transform: translateX(8px) rotate(3deg); }
-  }
-  .body-part.disabled-part {
-    pointer-events: none;
-    opacity: 0.7;
-    filter: grayscale(0.3);
-  }
+/* ========== PASSWORD ========== */
+.pw-box{max-width:380px;margin:0 auto;text-align:center}
+.pw-input{width:100%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.15);border-radius:14px;padding:.9rem 1rem;color:#fff;font-size:1.1rem;text-align:center;font-family:inherit;letter-spacing:2px}
+.pw-input:focus{outline:none;border-color:#ffc93c}
+.pw-bar{height:10px;border-radius:10px;background:rgba(255,255,255,.1);margin-top:.8rem;overflow:hidden}
+.pw-fill{height:100%;width:0;background:linear-gradient(90deg,#ff6b6b,#ffc93c,#2ec4b6);transition:.4s;border-radius:10px}
+.pw-rules{margin-top:1rem;text-align:right;color:#d9d0ff;font-size:.85rem;line-height:1.9}
 
-  .game-feedback {
-    font-size: 1.2rem;
-    font-weight: 700;
-    min-height: 3rem;
-    margin: 0.8rem 0;
-    padding: 0.8rem;
-    border-radius: 40px;
-    background: rgba(255,255,255,0.05);
-  }
+/* ========== STREET ========== */
+.st-scene{position:relative;background:linear-gradient(180deg,#1a1040 0%,#1a1040 40%,#333 40%,#333 55%,#1a1040 55%);border-radius:22px;height:280px;overflow:hidden;padding:1rem}
+.st-road{position:absolute;top:40%;left:0;right:0;height:15%;background:#2a2a2a;border-top:3px dashed #ffc93c;border-bottom:3px dashed #ffc93c}
+.st-kid{position:absolute;bottom:8%;left:50%;transform:translateX(-50%);font-size:3rem;transition:.3s}
+.st-car{position:absolute;top:43%;font-size:2.5rem;transition:left 1.5s linear}
+.st-light{position:absolute;top:8%;right:8%;width:60px;height:120px;background:#222;border-radius:14px;padding:6px;display:flex;flex-direction:column;gap:5px}
+.st-lamp{flex:1;border-radius:50%;background:#333}
+.st-lamp.on-r{background:#ff3b3b;box-shadow:0 0 20px #ff3b3b}
+.st-lamp.on-g{background:#2ec4b6;box-shadow:0 0 20px #2ec4b6}
+.st-btn{position:absolute;bottom:5%;right:5%;background:rgba(255,201,60,.9);color:#241645;border:none;border-radius:14px;padding:.7rem 1.2rem;font-weight:900;cursor:pointer;font-family:inherit;font-size:.9rem}
 
-  .btn-next {
-    background: linear-gradient(135deg, #ffc93c, #f5a623);
-    border: none;
-    color: #241645;
-    font-weight: 900;
-    padding: 0.8rem 2.5rem;
-    border-radius: 50px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: 0.3s;
-    margin-top: 1.5rem;
-    box-shadow: 0 8px 25px rgba(255,201,60,0.25);
-  }
-  .btn-next:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 35px rgba(255,201,60,0.4);
-  }
-  .btn-next:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
+/* ========== MODAL ========== */
+.sf-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);z-index:999;justify-content:center;align-items:center;padding:1rem}
+.sf-modal.open{display:flex}
+.sf-modal-box{background:#1a1040;border-radius:26px;max-width:760px;width:100%;padding:1.5rem;position:relative;border:1px solid rgba(255,255,255,.1)}
+.sf-modal-close{position:absolute;top:10px;left:10px;background:rgba(255,255,255,.1);color:#fff;border:none;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.2rem}
+.sf-player{width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;display:grid;place-items:center;color:#b9abd4}
+.sf-player iframe{width:100%;height:100%;border:0}
 
-  .modal-video {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(10px);
-    z-index: 999;
-    justify-content: center;
-    align-items: center;
-  }
-  .modal-video.open { display: flex; }
-  .modal-video-content {
-    background: #1a1040;
-    border-radius: 30px;
-    max-width: 700px;
-    width: 90%;
-    padding: 2rem;
-    position: relative;
-    border: 1px solid rgba(255,255,255,0.1);
-  }
-  .modal-video-content .close-modal {
-    position: absolute;
-    top: 10px;
-    right: 20px;
-    font-size: 2rem;
-    color: #fff;
-    cursor: pointer;
-    background: none;
-    border: none;
-  }
-  .modal-video-content .video-player {
-    width: 100%;
-    aspect-ratio: 16/9;
-    background: #000;
-    border-radius: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #b9abd4;
-    font-size: 1.2rem;
-  }
-
-  .extra-section {
-    margin-top: 2rem;
-    border-top: 2px dashed rgba(255,201,60,0.2);
-    padding-top: 2rem;
-  }
-  .extra-section h2 {
-    font-size: 1.6rem;
-    color: #ffc93c;
-    text-align: center;
-    margin-bottom: 1.5rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-  .extra-section h2:hover { opacity: 0.8; }
-  .extra-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.2rem;
-  }
-  .extra-item {
-    background: rgba(255,255,255,0.06);
-    border-radius: 20px;
-    padding: 1.2rem;
-    border: 1px solid rgba(255,255,255,0.08);
-    transition: 0.3s;
-  }
-  .extra-item:hover { transform: translateY(-4px); }
-  .extra-item h4 { color: #fff; margin: 0.2rem 0; }
-  .extra-item p { color: #d9d0ff; font-size: 0.9rem; }
-  .extra-item .btn-play-sm {
-    background: rgba(255,201,60,0.2);
-    border: 1px solid #ffc93c;
-    color: #ffc93c;
-    padding: 0.3rem 1.2rem;
-    border-radius: 50px;
-    cursor: pointer;
-    font-weight: 700;
-    transition: 0.2s;
-    font-size: 0.9rem;
-  }
-  .extra-item .btn-play-sm:hover {
-    background: #ffc93c;
-    color: #241645;
-  }
-
-  .hidden-extra { display: none; }
-
-  @media (max-width: 600px) {
-    .safety-guide { flex-direction: column; text-align: center; }
-    .human-body { transform: scale(0.8); }
-    .daily-task .stage-header { flex-direction: column; text-align: center; }
-  }
+@media(max-width:600px){
+  .sf-guide{flex-direction:column;text-align:center}
+  .body{transform:scale(.85);transform-origin:top center}
+  .body-wrap{height:260px}
+  .hs-scene{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 
 <div class="safety-page">
-  <div class="safety-container">
+  <div class="sf-wrap">
 
-    <!-- شخصية المرشدة -->
-    <div class="safety-guide">
-      <div class="safety-guide-avatar">🦉</div>
-      <div class="safety-guide-bubble">
-        <span class="safety-guide-name">رفيقتك الحكيمة</span>
-        <span id="guideMessage">مرحباً بطل! 🌟 مهمة جديدة تنتظرك اليوم.</span>
+    <div class="sf-guide">
+      <div class="sf-guide-av">🦉</div>
+      <div>
+        <span class="sf-guide-name">رفيقتك الحكيمة</span>
+        <span class="sf-guide-msg" id="sfMsg">مرحباً بطل! 🌟 درس اليوم جاهز.</span>
       </div>
     </div>
 
-    <!-- ===== تم حذف شريط اليوم والنجوم بالكامل ===== -->
-
-    <!-- حاوية المهمة اليومية (عنصر واحد فقط) -->
-    <div id="dailyTaskContainer" class="daily-task">
-      <!-- يتم ملؤها بالجافا سكريبت -->
-    </div>
-
-    <!-- زر استكشاف المحتوى الإضافي -->
-    <div style="text-align:center; margin-top:1rem;">
-      <button id="toggleExtraBtn" class="btn-next" style="background:rgba(255,255,255,0.1); color:#d9d0ff; box-shadow:none; border:1px solid rgba(255,255,255,0.1); padding:0.6rem 2rem;">
-        📚 استعرض كل دروس الحماية
-      </button>
-    </div>
-
-    <!-- قسم المحتوى الإضافي (مخفي افتراضيًا) -->
-    <div id="extraSection" class="extra-section hidden-extra">
-      <h2>📚 كل دروس الحماية</h2>
-      <div class="extra-grid" id="extraGrid">
-        <!-- يتم ملؤها بالجافا سكريبت -->
-      </div>
+    <div class="sf-card" id="sfLesson">
+      <div style="text-align:center;padding:2rem;color:#d9d0ff;">جاري التحميل...</div>
     </div>
 
   </div>
 </div>
 
-<!-- نافذة الفيديو -->
-<div class="modal-video" id="videoModal">
-  <div class="modal-video-content">
-    <button class="close-modal" onclick="closeVideoModal()">✕</button>
-    <div class="video-player" id="videoPlayer"></div>
+<div class="sf-modal" id="sfVideoModal">
+  <div class="sf-modal-box">
+    <button class="sf-modal-close" onclick="sfCloseVideo()">✕</button>
+    <div class="sf-player" id="sfPlayer"></div>
   </div>
 </div>
-
-<audio id="bgMusic" loop preload="auto">
-  <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
-</audio>
 
 <script>
-// ============================================================
-// بيانات من PHP
-// ============================================================
-const STAGES = <?php echo json_encode($stages, JSON_UNESCAPED_UNICODE); ?>;
-const EXTRA_ITEMS = <?php echo json_encode($extraItems, JSON_UNESCAPED_UNICODE); ?>;
+/* ============================================================
+   البيانات من PHP
+   ============================================================ */
+const LESSONS = <?= safe_json($lessons) ?>;
+const CHILD   = <?= safe_json(['name'=>$child['name']??'بطل','age'=>(int)($child['age']??6)]) ?>;
 
-// ============================================================
-// إدارة الأيام (مهمة واحدة في اليوم) - بدون عداد أو نجوم
-// ============================================================
-function getTodayKey() {
-    return new Date().toDateString();
+/* ============================================================
+   إدارة التقدم
+   ============================================================ */
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function getProgress(){
+  let p = {day:0,last:null,done:false};
+  try{ p = JSON.parse(localStorage.getItem('kidora_safety_v4')) || p; }catch(e){}
+  const t = todayKey();
+  if (p.last !== t){
+    if (p.done) p.day += 1;
+    p.last = t; p.done = false;
+    localStorage.setItem('kidora_safety_v4', JSON.stringify(p));
+  }
+  return p;
 }
+let PROG = getProgress();
+const todayLesson = LESSONS[PROG.day % LESSONS.length];
 
-function getProgress() {
-    let progress = localStorage.getItem('safety_progress');
-    if (!progress) {
-        progress = { dayIndex: 0, lastDate: null };
-    } else {
-        progress = JSON.parse(progress);
-    }
-    const today = getTodayKey();
-    const totalItems = STAGES.length + EXTRA_ITEMS.length;
+/* ============================================================
+   رسم الدرس
+   ============================================================ */
+function renderLesson(){
+  const wrap = document.getElementById('sfLesson');
+  const L = todayLesson;
+  if (!L){ wrap.innerHTML = '<p>لا يوجد محتوى</p>'; return; }
 
-    if (progress.lastDate !== today) {
-        if (progress.dayIndex < totalItems - 1) {
-            progress.dayIndex += 1;
-        } else {
-            progress.dayIndex = Math.min(progress.dayIndex, totalItems - 1);
-        }
-        progress.lastDate = today;
-        localStorage.setItem('safety_progress', JSON.stringify(progress));
-    }
-    return progress;
-}
+  const hasYT = L.youtube_id && String(L.youtube_id).trim() !== '';
+  let html = `
+    <span class="sf-kicker">📖 قصة اليوم</span>
+    <h2 class="sf-title">${esc(L.title)}</h2>
+    <p class="sf-desc">${esc(L.description)}</p>
+  `;
 
-let progress = getProgress();
-let currentDayIndex = progress.dayIndex;
-
-// ============================================================
-// عرض المهمة اليومية (عنصر واحد فقط)
-// ============================================================
-function renderDailyTask() {
-    const container = document.getElementById('dailyTaskContainer');
-    const totalItems = STAGES.length + EXTRA_ITEMS.length;
-
-    if (currentDayIndex >= totalItems) {
-        container.innerHTML = `
-            <div style="text-align:center; padding:2rem;">
-                <div style="font-size:4rem;">🏆</div>
-                <h2 style="color:#ffc93c;">أنت البطل الكبير!</h2>
-                <p style="color:#d9d0ff;">لقد أنهيت جميع دروس الحماية. عد غداً لمهمة جديدة!</p>
-                <button class="btn-next" onclick="location.reload();">🔄 تحديث</button>
-            </div>
-        `;
-        document.getElementById('guideMessage').textContent = 'أنت مذهل! أنهيت كل الدروس. عد غداً لمزيد من التعلم.';
-        return;
-    }
-
-    let stageData;
-    let isExtra = false;
-    if (currentDayIndex < STAGES.length) {
-        stageData = STAGES[currentDayIndex];
-    } else {
-        isExtra = true;
-        const extraIdx = currentDayIndex - STAGES.length;
-        const item = EXTRA_ITEMS[extraIdx];
-        if (!item) {
-            container.innerHTML = '<p style="color:#b9abd4;">جاري تجهيز المهام...</p>';
-            return;
-        }
-        stageData = {
-            id: item.id,
-            title: item.title,
-            icon: item.type === 'video' ? '🎬' : '🎮',
-            description: item.description,
-            video: item,
-            activity: 'extra_content'
-        };
-    }
-
-    let html = `
-        <div class="stage-header">
-            <div class="stage-icon">${stageData.icon}</div>
-            <h2 class="stage-title">${stageData.title}</h2>
-        </div>
-        <p class="stage-desc">${stageData.description}</p>
-    `;
-
-    if (stageData.video) {
-        const vid = stageData.video;
-        if (vid.youtube_id) {
-            html += `
-                <div class="video-story">
-                    <h4>🎬 ${vid.title}</h4>
-                    <p>${vid.description}</p>
-                    <button class="btn-play" data-youtube="${vid.youtube_id}">▶ شاهد القصة</button>
-                </div>
-            `;
-        } else {
-            html += `
-                <div class="video-story" style="border-left-color: #6C63FF;">
-                    <h4>📖 قصة توعوية</h4>
-                    <p>${vid.description}</p>
-                    <button class="btn-play" onclick="speakText('${vid.description.replace(/['"]/g, '')}');">🔊 استمع للقصة</button>
-                </div>
-            `;
-        }
-    }
-
-    html += `<div class="activity-area" id="activityArea"></div>`;
+  if (hasYT){
     html += `
-        <button class="btn-next" id="finishTaskBtn" disabled>
-            ${isExtra ? '📚 أنهيت الدرس' : '🎯 أنهيت المهمة'}
-        </button>
+      <div class="sf-video">
+        <div class="sf-video-icon">🎬</div>
+        <div class="sf-video-info">
+          <h4>شاهد القصة</h4>
+          <p>فيديو قصير يعلّمك درس اليوم.</p>
+        </div>
+        <button class="btn" id="sfWatch">▶ شاهد</button>
+      </div>
     `;
-
-    container.innerHTML = html;
-
-    const activityContainer = document.getElementById('activityArea');
-    if (!isExtra && currentDayIndex < STAGES.length) {
-        switch (currentDayIndex) {
-            case 0: renderBodyGame(activityContainer); break;
-            case 1: renderDistanceGame(activityContainer); break;
-            case 2: renderPasswordGame(activityContainer); break;
-            case 3: renderReportingGame(activityContainer); break;
-            default: activityContainer.innerHTML = '<p style="color:#b9abd4;">نشاط قادم...</p>';
-        }
-    } else {
-        if (stageData.video && stageData.video.type === 'game') {
-            activityContainer.innerHTML = `
-                <div style="text-align:center; padding:1.5rem; background:rgba(255,255,255,0.05); border-radius:30px;">
-                    <div style="font-size:3rem;">🎮</div>
-                    <p style="color:#d9d0ff;">لعبة "${stageData.title}" قيد التطوير، لكن يمكنك مشاهدة الفيديو أعلاه!</p>
-                    <button class="btn-next" style="margin-top:0.5rem;" onclick="enableDailyTask()">✅ أنهيت المشاهدة</button>
-                </div>
-            `;
-        } else {
-            activityContainer.innerHTML = `
-                <div style="text-align:center; padding:1.5rem; background:rgba(255,255,255,0.05); border-radius:30px;">
-                    <p style="color:#d9d0ff;">📺 شاهد الفيديو أعلاه لتتعلم معلومة جديدة.</p>
-                    <button class="btn-next" style="margin-top:0.5rem;" onclick="enableDailyTask()">✅ شاهدت الفيديو</button>
-                </div>
-            `;
-        }
-    }
-
-    document.getElementById('guideMessage').textContent = `اليوم: "${stageData.title}". أنجز النشاط لتنتقل للمهمة التالية غداً.`;
-}
-
-// ============================================================
-// تمكين زر إنهاء المهمة (بدون نجوم)
-// ============================================================
-function enableDailyTask() {
-    const btn = document.getElementById('finishTaskBtn');
-    if (btn) {
-        btn.disabled = false;
-        btn.style.opacity = 1;
-    }
-}
-
-document.addEventListener('click', function(e) {
-    if (e.target.id === 'finishTaskBtn' && !e.target.disabled) {
-        const today = getTodayKey();
-        progress.lastDate = today;
-        progress.dayIndex = currentDayIndex + 1;
-        localStorage.setItem('safety_progress', JSON.stringify(progress));
-        currentDayIndex = progress.dayIndex;
-        renderDailyTask();
-        speakText('أحسنت! أنهيت مهمة اليوم. تعال غداً لمهمة جديدة.');
-        document.getElementById('guideMessage').textContent = '🎉 مبروك! أنهيت المهمة. غداً مهمة جديدة بإذن الله.';
-    }
-});
-
-// ============================================================
-// لعبة الجسم (جسدي ملكي)
-// ============================================================
-function renderBodyGame(container) {
-    const parts = [
-        { id: 'head', label: 'الرأس', private: false, cls: 'part-head' },
-        { id: 'torso', label: 'الجذع (منطقة خاصة)', private: true, cls: 'part-torso' },
-        { id: 'arm-left', label: 'الذراع', private: false, cls: 'part-arm part-arm-left' },
-        { id: 'arm-right', label: 'الذراع', private: false, cls: 'part-arm part-arm-right' },
-        { id: 'leg-left', label: 'الساق', private: false, cls: 'part-leg part-leg-left' },
-        { id: 'leg-right', label: 'الساق', private: false, cls: 'part-leg part-leg-right' },
-    ];
-
-    let html = `
-        <div class="human-body-wrapper">
-            <div style="font-weight:700; color:#ffc93c; margin-bottom:0.8rem;">👇 اضغط على المنطقة الخاصة (التي لا يجوز لمسها)</div>
-            <div class="human-body" id="humanBody">
-    `;
-    parts.forEach(p => {
-        html += `
-            <div class="body-part ${p.cls}" data-id="${p.id}" data-private="${p.private}">
-                <span class="part-label">${p.label}</span>
-            </div>
-        `;
-    });
+  } else {
     html += `
-            </div>
-            <div class="game-feedback" id="bodyFeedback">🔴 اضغط على الجذع (المنطقة الخاصة).</div>
-            <div style="font-size:0.9rem; color:#b9abd4;">🟢 الأطراف والرأس مسموح لمسها | 🔴 الجذع ممنوع</div>
+      <div class="sf-video">
+        <div class="sf-video-icon">🔊</div>
+        <div class="sf-video-info">
+          <h4>استمع للقصة</h4>
+          <p>اضغط لسماع القصة قبل اللعبة.</p>
         </div>
+        <button class="btn" id="sfListen">🔊 استمع</button>
+      </div>
     `;
-    container.innerHTML = html;
+  }
 
-    const body = document.getElementById('humanBody');
-    const feedback = document.getElementById('bodyFeedback');
-    let completed = false;
+  html += `
+    <span class="sf-kicker">🎮 لعبة اليوم</span>
+    <h3 class="sf-title" style="font-size:1.2rem">${gameTitle(L.game_type)}</h3>
+    <p class="sf-desc" style="margin-bottom:.6rem">${gameDesc(L.game_type)}</p>
+    <div class="sf-game" id="sfGameBox"></div>
+    <div class="sf-fb" id="sfFb">جرّب اللعبة 👇</div>
+    <div class="sf-finish">
+      <button class="btn" id="sfFinish" disabled>🎯 أنهيت المهمة</button>
+    </div>
+  `;
+  wrap.innerHTML = html;
 
-    body.querySelectorAll('.body-part').forEach(el => {
-        el.addEventListener('click', function() {
-            if (this.classList.contains('disabled-part') || completed) return;
-            const isPrivate = this.dataset.private === 'true';
-            const label = this.querySelector('.part-label').textContent;
+  /* ربط الفيديو */
+  const wBtn = document.getElementById('sfWatch');
+  if (wBtn) wBtn.addEventListener('click', () => {
+    openVideo(`https://www.youtube.com/embed/${encodeURIComponent(L.youtube_id)}?autoplay=1&rel=0`);
+    setTimeout(enableFinish, 2000);
+  });
+  const lBtn = document.getElementById('sfListen');
+  if (lBtn) lBtn.addEventListener('click', () => {
+    speak(L.title + '. ' + L.description);
+    setTimeout(enableFinish, 1500);
+  });
 
-            if (isPrivate) {
-                this.classList.add('selected-private');
-                this.classList.add('disabled-part');
-                completed = true;
-                feedback.innerHTML = `✅ صحيح! "${label}" منطقة خاصة، لا يجوز لأحد لمسها. 🌟`;
-                feedback.style.color = '#2ec4b6';
-                speakText(`أحسنت! الجذع منطقة خاصة.`);
-                enableDailyTask();
-            } else {
-                this.classList.add('wrong-click');
-                feedback.innerHTML = `❌ "${label}" ليس منطقة خاصة، لا بأس بلمسه. لكن تذكر احترام حدود الآخرين.`;
-                feedback.style.color = '#ff6b6b';
-                speakText(`تذكر، ${label} ليس منطقة خاصة.`);
-                setTimeout(() => {
-                    this.classList.remove('wrong-click');
-                }, 500);
-            }
-        });
-    });
+  /* تشغيل اللعبة المناسبة */
+  const box = document.getElementById('sfGameBox');
+  const gt = (L.game_type || 'body').toLowerCase();
+  const Engine = GAMES[gt] || GAMES.body;
+  Engine(box, L);
+
+  document.getElementById('sfMsg').textContent = `اليوم: "${L.title}". أنهِ اللعبة لفتح درس الغد.`;
 }
 
-// ============================================================
-// باقي الألعاب (مسافة، كلمات سر، إبلاغ) - مختصرة
-// ============================================================
-function renderDistanceGame(container) {
-    container.innerHTML = `
-        <p style="font-weight:700; color:#ffc93c;">اسحب الشخصية للدائرة الآمنة (المنقطة).</p>
-        <div style="position:relative;height:200px;background:radial-gradient(circle at 20% 30%, #1a1040, #0a061a);border-radius:30px;overflow:hidden;touch-action:none;">
-            <div id="dragPerson" style="position:absolute;bottom:20px;left:15%;font-size:4rem;cursor:grab;user-select:none;">🧒</div>
-            <div style="position:absolute;bottom:20px;right:15%;font-size:3rem;opacity:0.7;">👤</div>
-            <div style="position:absolute;bottom:0;left:30%;width:40%;height:100%;border:3px dashed rgba(46,196,182,0.4);border-radius:30px 30px 0 0;pointer-events:none;"></div>
-        </div>
-        <div id="distanceFeedback" style="text-align:center;margin-top:1rem;font-weight:700;">اسحبني للمنطقة الآمنة!</div>
-    `;
-    const person = document.getElementById('dragPerson');
-    const game = container.querySelector('.distance-game') || container;
-    const feedback = document.getElementById('distanceFeedback');
-    let isDragging = false, done = false;
-    const handleMove = (e) => {
-        if (!isDragging || done) return;
-        const rect = game.getBoundingClientRect();
-        let x = (e.clientX || e.touches?.[0]?.clientX || 0) - rect.left;
-        x = Math.max(0, Math.min(x, rect.width - 60));
-        person.style.left = x + 'px';
-        const pct = (x / rect.width) * 100;
-        if (pct >= 30 && pct <= 70) {
-            feedback.innerHTML = '✅ ممتاز! في المنطقة الآمنة.';
-            feedback.style.color = '#2ec4b6';
-            if (!done) { done = true; speakText('أحسنت! حافظت على مسافة آمنة.'); enableDailyTask(); }
-        } else {
-            feedback.innerHTML = '⬅️ حركني داخل المنطقة المنقطة.';
-            feedback.style.color = '#ffc93c';
+/* ============================================================
+   عناوين الألعاب
+   ============================================================ */
+function gameTitle(t){
+  return ({
+    body:'🛡️ لعبة المنطقة الخاصة',
+    distance:'📏 لعبة المسافة الآمنة',
+    hotspot:'🔥 لعبة اكتشف الخطر',
+    scenario:'🤔 لعبة اتخاذ القرار',
+    match:'📞 لعبة أرقام الطوارئ',
+    quiz:'✅ لعبة صح أم خطأ',
+    password:'🔐 لعبة كلمة السر القوية',
+    street:'🚦 لعبة عبور الشارع'
+  })[t] || '🎮 لعبة';
+}
+function gameDesc(t){
+  return ({
+    body:'اضغط على المنطقة التي لا يجوز لأحد لمسها.',
+    distance:'اسحب نفسك إلى المنطقة الآمنة.',
+    hotspot:'اضغط على الأشياء الخطيرة في المشهد.',
+    scenario:'اختر التصرف الصحيح في كل موقف.',
+    match:'وصّل الرقم بالجهة الصحيحة.',
+    quiz:'أجب صح أو خطأ على الأسئلة.',
+    password:'اكتب كلمة سر قوية لتربح.',
+    street:'اعبر الشارع عندما تكون الإشارة خضراء.'
+  })[t] || '';
+}
+
+/* ============================================================
+   محرك 1: BODY
+   ============================================================ */
+function gameBody(box){
+  box.innerHTML = `
+    <div class="sf-hint">👇 اضغط على المنطقة التي لا يجوز لأحد لمسها</div>
+    <div class="body-wrap">
+      <div class="body" id="bodyEl">
+        <div class="bp bp-head" data-priv="0"><span class="lbl">الرأس</span></div>
+        <div class="bp bp-torso" data-priv="1"><span class="lbl">المنطقة الخاصة</span></div>
+        <div class="bp bp-arm bp-armL" data-priv="0"><span class="lbl">الذراع</span></div>
+        <div class="bp bp-arm bp-armR" data-priv="0"><span class="lbl">الذراع</span></div>
+        <div class="bp bp-leg bp-legL" data-priv="0"><span class="lbl">الساق</span></div>
+        <div class="bp bp-leg bp-legR" data-priv="0"><span class="lbl">الساق</span></div>
+      </div>
+    </div>
+  `;
+  const fb = document.getElementById('sfFb');
+  let done = false;
+  document.querySelectorAll('#bodyEl .bp').forEach(el=>{
+    el.addEventListener('click', function(){
+      if (done || this.classList.contains('off')) return;
+      if (this.dataset.priv === '1'){
+        this.classList.add('ok','off');
+        fb.innerHTML = '✅ أحسنت! هذه هي المنطقة الخاصة. 🌟';
+        fb.style.color = '#2ec4b6';
+        speak('أحسنت! هذه المنطقة الخاصة.');
+        done = true; enableFinish();
+      } else {
+        this.classList.add('no');
+        fb.innerHTML = '❌ هذه ليست المنطقة الخاصة. جرّب غيرها.';
+        fb.style.color = '#ff6b6b';
+        setTimeout(()=>this.classList.remove('no'), 600);
+      }
+    });
+  });
+}
+
+/* ============================================================
+   محرك 2: DISTANCE
+   ============================================================ */
+function gameDistance(box){
+  box.innerHTML = `
+    <div class="sf-hint">👇 اسحب نفسك إلى المنطقة الآمنة (الدائرة المنقطة)</div>
+    <div class="dist-zone" id="dz">
+      <div class="dist-safe">منطقة آمنة</div>
+      <div class="dist-kid" id="dk">🧒</div>
+      <div class="dist-bad">🧔</div>
+    </div>
+  `;
+  const dz = document.getElementById('dz');
+  const dk = document.getElementById('dk');
+  const fb = document.getElementById('sfFb');
+  let drag=false, done=false;
+
+  function move(clientX){
+    if (!drag || done) return;
+    const r = dz.getBoundingClientRect();
+    let x = clientX - r.left - 28;
+    x = Math.max(0, Math.min(x, r.width - 60));
+    dk.style.left = x + 'px';
+    const pct = (x / r.width) * 100;
+    if (pct >= 32 && pct <= 68){
+      done = true;
+      fb.innerHTML = '✅ ممتاز! هذا هو البعد الآمن عن الغريب.';
+      fb.style.color = '#2ec4b6';
+      speak('أحسنت! هذه هي المسافة الآمنة.');
+      enableFinish();
+    } else {
+      fb.innerHTML = '⬅️ تابع السحب حتى المنطقة المنقطة';
+      fb.style.color = '#ffc93c';
+    }
+  }
+  dk.addEventListener('mousedown', e=>{drag=true;e.preventDefault();});
+  dk.addEventListener('touchstart', e=>{drag=true;e.preventDefault();}, {passive:false});
+  document.addEventListener('mousemove', e=>move(e.clientX));
+  document.addEventListener('touchmove', e=>move(e.touches[0].clientX), {passive:false});
+  document.addEventListener('mouseup', ()=>drag=false);
+  document.addEventListener('touchend', ()=>drag=false);
+}
+
+/* ============================================================
+   محرك 3: HOTSPOT
+   ============================================================ */
+function gameHotspot(box, L){
+  /* نحدد مجموعة العناصر حسب العنوان */
+  const title = (L.title || '').toLowerCase();
+  let items;
+  if (title.includes('مطبخ')) items = kitchenItems();
+  else if (title.includes('سباح')) items = poolItems();
+  else items = homeItems();
+
+  box.innerHTML = `
+    <div class="sf-hint">👇 اضغط على كل الأشياء الخطيرة في المشهد</div>
+    <div class="hs-scene" id="hsScene"></div>
+  `;
+  const scene = document.getElementById('hsScene');
+  const fb = document.getElementById('sfFb');
+  let found=0;
+  const totalDanger = items.filter(i=>i.danger).length;
+
+  items.forEach(it=>{
+    const el = document.createElement('div');
+    el.className='hs-item';
+    el.dataset.danger = it.danger ? '1' : '0';
+    el.innerHTML = `<div class="ico">${it.ico}</div><div class="txt">${it.txt}</div>`;
+    el.addEventListener('click', function(){
+      if (this.classList.contains('done')) return;
+      this.classList.add('done');
+      if (this.dataset.danger === '1'){
+        this.classList.add('danger-ok');
+        found++;
+        fb.innerHTML = `✅ صحيح! "${it.txt}" خطير. (${found}/${totalDanger})`;
+        fb.style.color = '#2ec4b6';
+        if (found === totalDanger){
+          fb.innerHTML = '🎉 أحسنت! اكتشفت كل الأشياء الخطيرة.';
+          speak('ممتاز! اكتشفت كل الأشياء الخطيرة.');
+          enableFinish();
         }
+      } else {
+        this.classList.add('wrong');
+        fb.innerHTML = `❌ "${it.txt}" آمن، ليس خطراً.`;
+        fb.style.color = '#ff6b6b';
+        setTimeout(()=>{ this.classList.remove('done','wrong'); }, 800);
+      }
+    });
+    scene.appendChild(el);
+  });
+}
+function kitchenItems(){
+  return [
+    {ico:'🔪',txt:'سكين',danger:1},
+    {ico:'🔥',txt:'فرن ساخن',danger:1},
+    {ico:'🥤',txt:'كوب ماء',danger:0},
+    {ico:'🍳',txt:'مقلاة ساخنة',danger:1},
+    {ico:'🧴',txt:'منظف',danger:1},
+    {ico:'🍎',txt:'تفاحة',danger:0}
+  ];
+}
+function poolItems(){
+  return [
+    {ico:'🏊',txt:'السباحة مع شخص كبير',danger:0},
+    {ico:'🛟',txt:'عوامة',danger:0},
+    {ico:'🏃',txt:'الجري على الحافة',danger:1},
+    {ico:'🌊',txt:'السباحة وحدك',danger:1},
+    {ico:'💧',txt:'القفز في ماء غير معروف',danger:1},
+    {ico:'🕶️',txt:'نظارة سباحة',danger:0}
+  ];
+}
+function homeItems(){
+  return [
+    {ico:'🔌',txt:'قابس كهرباء',danger:1},
+    {ico:'🔥',txt:'ولّاعة',danger:1},
+    {ico:'🧸',txt:'دمية',danger:0},
+    {ico:'💊',txt:'أدوية',danger:1},
+    {ico:'📚',txt:'كتاب',danger:0},
+    {ico:'🪜',txt:'درج مرتفع',danger:1}
+  ];
+}
+
+/* ============================================================
+   محرك 4: SCENARIO
+   ============================================================ */
+function gameScenario(box, L){
+  const title = (L.title || '').toLowerCase();
+  let qs;
+  if (title.includes('حريق'))    qs = fireQs();
+  else if (title.includes('تنمر')) qs = bullyQs();
+  else if (title.includes('لا') || title.includes('قول')) qs = noQs();
+  else if (title.includes('مشاعر') || title.includes('خائف')) qs = feelingsQs();
+  else qs = generalQs();
+
+  let i = 0;
+  function render(){
+    if (i >= qs.length){
+      box.innerHTML = `<div style="padding:2rem"><div style="font-size:3rem">🎉</div><p style="font-weight:800;color:#2ec4b6">أحسنت! أجبت على كل المواقف.</p></div>`;
+      speak('ممتاز! أنهيت كل المواقف.'); enableFinish(); return;
+    }
+    const q = qs[i];
+    box.innerHTML = `
+      <div class="sc-box">
+        <div class="sc-q">${q.q}</div>
+        <div class="sc-choices">
+          ${q.a.map((opt,idx)=>`<button class="sc-choice" data-i="${idx}"><span class="sc-num">${idx+1}</span>${opt}</button>`).join('')}
+        </div>
+      </div>
+    `;
+    const fb = document.getElementById('sfFb');
+    box.querySelectorAll('.sc-choice').forEach(b=>{
+      b.addEventListener('click', function(){
+        const i2 = parseInt(this.dataset.i);
+        box.querySelectorAll('.sc-choice').forEach(x=>x.disabled=true);
+        if (i2 === q.correct){
+          this.classList.add('ok');
+          fb.innerHTML = '✅ إجابة صحيحة!'; fb.style.color = '#2ec4b6';
+          speak('إجابة صحيحة!');
+          setTimeout(()=>{ i++; render(); }, 1300);
+        } else {
+          this.classList.add('no');
+          box.querySelectorAll('.sc-choice')[q.correct].classList.add('ok');
+          fb.innerHTML = '❌ الإجابة الصحيحة معلمة بالأخضر.'; fb.style.color = '#ff6b6b';
+          setTimeout(()=>{ i++; render(); }, 1800);
+        }
+      });
+    });
+  }
+  render();
+}
+function fireQs(){return[
+  {q:'🔥 بدأ حريق في المطبخ. ماذا تفعل أولاً؟',a:['أختبئ تحت السرير','أخرج من البيت فوراً','أفتح كل الأبواب'],correct:1},
+  {q:'🚪 الباب ساخن. ماذا تفعل؟',a:['أفتحه بسرعة','لا أفتحه وأبحث عن مخرج آخر','أقفز من الشباك'],correct:1},
+  {q:'📞 بعد الخروج، ماذا تفعل؟',a:['أتصل بالدفاع المدني 102','أرجع للبيت','أبتعد وأسكت'],correct:0}
+];}
+function bullyQs(){return[
+  {q:'💬 زميل يكتب كلاماً سيئاً عنك في مجموعة الصف. ماذا تفعل؟',a:['أرد بمثل كلامه','أحفظ الرسائل وأخبر والدي','أنسحب من المجموعة وأسكت'],correct:1},
+  {q:'📸 أحد نشر صورتك بدون إذن. ماذا تفعل؟',a:['أنشر صورته','أخبر والدي وأطلب من المنصة حذفها','أتجاهل الموضوع'],correct:1}
+];}
+function noQs(){return[
+  {q:'😟 شخص أكبر منك يطلب منك شيئاً لا تريده. ماذا تفعل؟',a:['أوافق خوفاً','أقول "لا" بصوت واضح وأخبر أهلي','أهرب وأسكت'],correct:1},
+  {q:'🎁 غريب أعطاك حلوى في الشارع. ماذا تفعل؟',a:['آخذها وأكلها','أرفض وأبتعد وأخبر والدي','آخذها وأشكره'],correct:1}
+];}
+function feelingsQs(){return[
+  {q:'😨 شعرت بالخوف. ماذا تفعل؟',a:['أكتم مشاعري','أخبر شخصاً كبيراً أثق به','أضحك وأتجاهل'],correct:1},
+  {q:'😢 حزين لأن أحداً أذاك. ما الأفضل؟',a:['أخبر والدي أو معلمي','أبقى صامتاً','أنتقم بنفسي'],correct:0}
+];}
+function generalQs(){return[
+  {q:'🤝 هل من حقك أن ترفض لمسة لا تريدها؟',a:['نعم، دائماً','لا، هذا وقاحة','فقط مع الغرباء'],correct:0},
+  {q:'🗣️ إذا حدث شيء يزعجك، الأفضل أن...',a:['أخبر شخصاً كبيراً أثق به','أبقيه سرّاً','أضحك وأتجاهل'],correct:0}
+];}
+
+/* ============================================================
+   محرك 5: MATCH
+   ============================================================ */
+function gameMatch(box){
+  const pairs = [
+    {a:'🚓',b:'100 - الشرطة'},
+    {a:'🚑',b:'101 - الإسعاف'},
+    {a:'🚒',b:'102 - الدفاع المدني'}
+  ];
+  const left  = pairs.map((p,i)=>({t:p.a,id:i}));
+  const right = pairs.map((p,i)=>({t:p.b,id:i})).sort(()=>Math.random()-.5);
+
+  box.innerHTML = `
+    <div class="sf-hint">👇 وصّل الرمز بالرقم الصحيح</div>
+    <div class="mt-board">
+      <div class="mt-col" id="mtL">${left.map(x=>`<button class="mt-item" data-id="${x.id}" data-side="L">${x.t}</button>`).join('')}</div>
+      <div class="mt-col" id="mtR">${right.map(x=>`<button class="mt-item" data-id="${x.id}" data-side="R">${x.t}</button>`).join('')}</div>
+    </div>
+  `;
+  let sel = null, matches = 0;
+  const fb = document.getElementById('sfFb');
+  box.querySelectorAll('.mt-item').forEach(el=>{
+    el.addEventListener('click', function(){
+      if (this.classList.contains('done')) return;
+      if (!sel){ sel = this; this.classList.add('sel'); return; }
+      if (sel === this){ this.classList.remove('sel'); sel = null; return; }
+      if (sel.dataset.side === this.dataset.side){
+        sel.classList.remove('sel'); sel = this; this.classList.add('sel'); return;
+      }
+      if (sel.dataset.id === this.dataset.id){
+        sel.classList.remove('sel'); sel.classList.add('done'); this.classList.add('done');
+        matches++;
+        fb.innerHTML = `✅ صحيح! (${matches}/3)`; fb.style.color = '#2ec4b6';
+        if (matches === 3){
+          fb.innerHTML = '🎉 رائع! تعلمت أرقام الطوارئ.'; speak('ممتاز! تعلمت أرقام الطوارئ.'); enableFinish();
+        }
+      } else {
+        const a = sel; sel = null;
+        this.classList.add('err'); a.classList.add('err');
+        setTimeout(()=>{ this.classList.remove('err','sel'); a.classList.remove('err','sel'); }, 600);
+        fb.innerHTML = '❌ غير متطابق، جرّب مرة أخرى'; fb.style.color = '#ff6b6b';
+      }
+      sel = null;
+    });
+  });
+}
+
+/* ============================================================
+   محرك 6: QUIZ
+   ============================================================ */
+function gameQuiz(box){
+  const qs = [
+    {q:'🔒 كلمة السر يجب أن تكون سهلة مثل "1234"', a:false},
+    {q:'👤 لا تشارك اسمك وعنوانك مع غريب على الإنترنت', a:true},
+    {q:'📸 من الآمن نشر صورك مع أي شخص', a:false},
+    {q:'🚫 إذا أزعجك شخص على الإنترنت، أخبر والديك', a:true},
+    {q:'👥 من الآمن مقابلة شخص تعرفت عليه على الإنترنت وحدك', a:false}
+  ];
+  let i = 0;
+  function render(){
+    if (i >= qs.length){
+      box.innerHTML = `<div style="padding:2rem"><div style="font-size:3rem">🏆</div><p style="font-weight:800;color:#2ec4b6">أنهيت الاختبار!</p></div>`;
+      speak('أحسنت! أنهيت الاختبار.'); enableFinish(); return;
+    }
+    const q = qs[i];
+    const pct = (i/qs.length)*100;
+    box.innerHTML = `
+      <div class="qz-box">
+        <div class="qz-progress"><div class="qz-fill" style="width:${pct}%"></div></div>
+        <div class="qz-q">${q.q}</div>
+        <div class="qz-btns">
+          <button class="qz-btn" data-v="1">✅ صح</button>
+          <button class="qz-btn" data-v="0">❌ خطأ</button>
+        </div>
+      </div>
+    `;
+    const fb = document.getElementById('sfFb');
+    box.querySelectorAll('.qz-btn').forEach(b=>{
+      b.addEventListener('click', function(){
+        const v = this.dataset.v === '1';
+        box.querySelectorAll('.qz-btn').forEach(x=>x.disabled=true);
+        if (v === q.a){ this.classList.add('ok'); fb.innerHTML='✅ صحيح!'; fb.style.color='#2ec4b6'; speak('صحيح'); }
+        else { this.classList.add('no'); fb.innerHTML='❌ خطأ'; fb.style.color='#ff6b6b'; speak('خطأ'); }
+        setTimeout(()=>{ i++; render(); }, 1200);
+      });
+    });
+  }
+  render();
+}
+
+/* ============================================================
+   محرك 7: PASSWORD
+   ============================================================ */
+function gamePassword(box){
+  box.innerHTML = `
+    <div class="sf-hint">🔐 اكتب كلمة سر قوية لتربح</div>
+    <div class="pw-box">
+      <input type="text" id="pwIn" class="pw-input" placeholder="••••••••" autocomplete="off">
+      <div class="pw-bar"><div class="pw-fill" id="pwFill"></div></div>
+      <div class="pw-rules" id="pwRules"></div>
+    </div>
+  `;
+  const inp = document.getElementById('pwIn');
+  const fill = document.getElementById('pwFill');
+  const rules = document.getElementById('pwRules');
+  const fb = document.getElementById('sfFb');
+  let done = false;
+
+  inp.addEventListener('input', function(){
+    if (done) return;
+    const v = this.value;
+    const c = {
+      len: v.length >= 8,
+      up:  /[A-Z]/.test(v),
+      lo:  /[a-z]/.test(v),
+      num: /\d/.test(v),
+      sym: /[!@#$%^&*]/.test(v)
     };
-    person.addEventListener('mousedown', (e) => { isDragging = true; e.preventDefault(); });
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', () => isDragging = false);
-    person.addEventListener('touchstart', (e) => { isDragging = true; e.preventDefault(); });
-    document.addEventListener('touchmove', handleMove, { passive: false });
-    document.addEventListener('touchend', () => isDragging = false);
-}
-
-function renderPasswordGame(container) {
-    container.innerHTML = `
-        <p style="font-weight:700; color:#ffc93c;">اكتب كلمة سر قوية (8 أحرف، حروف كبيرة وصغيرة، رقم، رمز).</p>
-        <div style="text-align:center;">
-            <input type="text" id="passwordInput" placeholder="كلمة السر..." style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.15);border-radius:15px;padding:0.8rem 1.2rem;color:#fff;font-size:1.2rem;width:100%;max-width:350px;text-align:center;">
-            <div id="passFeedback" style="margin-top:0.8rem;font-weight:bold;"></div>
-        </div>
+    const score = Object.values(c).filter(Boolean).length;
+    fill.style.width = (score*20)+'%';
+    rules.innerHTML = `
+      <div>${c.len?'✅':'⬜'} 8 أحرف على الأقل</div>
+      <div>${c.up?'✅':'⬜'} حرف كبير A-Z</div>
+      <div>${c.lo?'✅':'⬜'} حرف صغير a-z</div>
+      <div>${c.num?'✅':'⬜'} رقم 0-9</div>
+      <div>${c.sym?'✅':'⬜'} رمز مثل !@#</div>
     `;
-    const input = document.getElementById('passwordInput');
-    const fb = document.getElementById('passFeedback');
-    let done = false;
-    input.addEventListener('input', function() {
-        if (done) return;
-        const v = this.value;
-        const checks = [
-            v.length >= 8,
-            /[A-Z]/.test(v),
-            /[a-z]/.test(v),
-            /\d/.test(v),
-            /[!@#$%^&*()]/.test(v)
-        ];
-        if (checks.every(c => c) && v.length > 0) {
-            fb.innerHTML = '🎉 كلمة سر قوية! أحسنت.';
-            fb.style.color = '#2ec4b6';
-            done = true;
-            speakText('كلمة سر قوية!');
-            enableDailyTask();
-        } else {
-            fb.innerHTML = '⚠️ أكمل كل القواعد.';
-            fb.style.color = '#ffc93c';
-        }
-    });
+    if (score === 5){
+      done = true;
+      fb.innerHTML = '🎉 كلمة سر قوية جداً!'; fb.style.color = '#2ec4b6';
+      speak('ممتاز! كلمة سر قوية.'); enableFinish();
+    } else if (score >= 3){ fb.innerHTML = '👍 جيدة، كمّل'; fb.style.color = '#ffc93c'; }
+    else { fb.innerHTML = '⚠️ ضعيفة'; fb.style.color = '#ff6b6b'; }
+  });
 }
 
-function renderReportingGame(container) {
-    const scenarios = [
-        { q: 'غريب على الإنترنت طلب صورتك؟', choices: ['أرسلها', 'أخبر والدي', 'أتجاهل'], correct: 1 },
-        { q: 'شخص بالغ طلب منك السر؟', choices: ['أوافق', 'أرفض وأخبر أهلي', 'أخبر صديقي'], correct: 1 },
-        { q: 'زميل يلمسك بشكل مزعج؟', choices: ['أصرخ وأطلب مساعدة', 'أضربه', 'أبتعد وأسكت'], correct: 0 }
-    ];
-    let idx = 0;
-    function renderScenario() {
-        if (idx >= scenarios.length) {
-            container.innerHTML = `<div style="text-align:center;padding:1.5rem;"><div style="font-size:3rem;">🎉</div><p style="font-weight:700;color:#ffc93c;">أجبت على كل السيناريوهات!</p></div>`;
-            speakText('أحسنت! أنهيت السيناريوهات.');
-            enableDailyTask();
-            return;
-        }
-        const s = scenarios[idx];
-        let html = `<div style="background:rgba(255,255,255,0.05);border-radius:20px;padding:1.5rem;"><p style="font-weight:700;">${s.q}</p><div style="display:flex;flex-wrap:wrap;gap:0.8rem;justify-content:center;">`;
-        s.choices.forEach((c, i) => {
-            html += `<button class="choice-btn" data-idx="${i}" data-correct="${s.correct}" style="background:rgba(255,255,255,0.08);border:2px solid transparent;border-radius:50px;padding:0.6rem 1.5rem;color:#fff;font-weight:700;cursor:pointer;transition:0.3s;">${c}</button>`;
-        });
-        html += `</div><div id="scenarioFeedback" style="margin-top:0.8rem;font-weight:bold;"></div></div>`;
-        container.innerHTML = html;
-        container.querySelectorAll('.choice-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                if (this.disabled) return;
-                const correct = parseInt(this.dataset.correct);
-                const chosen = parseInt(this.dataset.idx);
-                const fb = document.getElementById('scenarioFeedback');
-                container.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
-                if (chosen === correct) {
-                    this.style.borderColor = '#2ec4b6';
-                    this.style.background = 'rgba(46,196,182,0.2)';
-                    fb.innerHTML = '✅ صحيح! أحسنت.';
-                    fb.style.color = '#2ec4b6';
-                    speakText('إجابة صحيحة!');
-                    setTimeout(() => { idx++; renderScenario(); }, 1200);
-                } else {
-                    this.style.borderColor = '#ff6b6b';
-                    this.style.background = 'rgba(255,107,107,0.2)';
-                    fb.innerHTML = '❌ ليس تماماً. فكر مرة أخرى.';
-                    fb.style.color = '#ff6b6b';
-                    speakText('ليس تماماً. حاول مرة أخرى.');
-                    setTimeout(() => {
-                        container.querySelectorAll('.choice-btn').forEach(b => { b.disabled = false; b.style.borderColor = 'transparent'; b.style.background = 'rgba(255,255,255,0.08)'; });
-                    }, 1500);
-                }
-            });
-        });
+/* ============================================================
+   محرك 8: STREET
+   ============================================================ */
+function gameStreet(box){
+  box.innerHTML = `
+    <div class="sf-hint">🚦 اضغط "اعبر" عندما تكون الإشارة خضراء</div>
+    <div class="st-scene" id="stScene">
+      <div class="st-road"></div>
+      <div class="st-light" id="stLight">
+        <div class="st-lamp" id="stR"></div>
+        <div class="st-lamp" id="stG"></div>
+      </div>
+      <div class="st-kid" id="stKid">🧒</div>
+      <div class="st-car" id="stCar" style="left:-100px">🚗</div>
+      <button class="st-btn" id="stBtn">🚶 اعبر</button>
+    </div>
+  `;
+  const R = document.getElementById('stR'), G = document.getElementById('stG');
+  const car = document.getElementById('stCar'), kid = document.getElementById('stKid');
+  const btn = document.getElementById('stBtn');
+  const fb  = document.getElementById('sfFb');
+  let green = false, done = false, carMoving = false;
+
+  function newRound(){
+    if (done) return;
+    green = Math.random() < 0.5;
+    R.classList.toggle('on-r', !green);
+    G.classList.toggle('on-g',  green);
+    /* حرّك السيارة أحياناً */
+    if (!green){
+      car.style.transition = 'none';
+      car.style.left = '-100px';
+      setTimeout(()=>{
+        car.style.transition = 'left 2s linear';
+        car.style.left = '110%';
+      }, 200);
     }
-    renderScenario();
-}
+  }
+  newRound();
+  const lightTimer = setInterval(()=>{ if (!done) newRound(); }, 2500);
 
-// ============================================================
-// عرض الفيديو
-// ============================================================
-function openVideoModal(embedUrl) {
-    const modal = document.getElementById('videoModal');
-    const player = document.getElementById('videoPlayer');
-    if (embedUrl) {
-        player.innerHTML = `<iframe width="100%" height="100%" src="${embedUrl}" frameborder="0" allowfullscreen></iframe>`;
+  btn.addEventListener('click', ()=>{
+    if (done) return;
+    const carX = car.getBoundingClientRect();
+    const kidX = kid.getBoundingClientRect();
+    const carNear = carX.left < kidX.right + 100 && carX.right > kidX.left - 100;
+
+    if (green && !carNear){
+      done = true; clearInterval(lightTimer);
+      kid.textContent = '🧒✅';
+      fb.innerHTML = '🎉 أحسنت! عبرت الشارع بأمان.'; fb.style.color = '#2ec4b6';
+      speak('أحسنت! عبرت بأمان.'); enableFinish();
     } else {
-        player.innerHTML = '<p style="color:#b9abd4;">لا يوجد فيديو</p>';
+      fb.innerHTML = green ? '⚠️ السيارة قادمة! انتظر.' : '⛔ الإشارة حمراء! انتظر.'; fb.style.color = '#ff6b6b';
+      kid.style.transform = 'translateX(-50%) rotate(10deg)';
+      setTimeout(()=> kid.style.transform = 'translateX(-50%)', 400);
     }
-    modal.classList.add('open');
+  });
 }
-function closeVideoModal() {
-    document.getElementById('videoModal').classList.remove('open');
-    document.getElementById('videoPlayer').innerHTML = '';
+
+/* ============================================================
+   خريطة المحركات
+   ============================================================ */
+const GAMES = {
+  body:     gameBody,
+  distance: gameDistance,
+  hotspot:  gameHotspot,
+  scenario: gameScenario,
+  match:    gameMatch,
+  quiz:     gameQuiz,
+  password: gamePassword,
+  street:   gameStreet
+};
+
+/* ============================================================
+   فيديو مودال
+   ============================================================ */
+function openVideo(url){
+  document.getElementById('sfPlayer').innerHTML =
+    `<iframe src="${url}" allow="autoplay;encrypted-media" allowfullscreen></iframe>`;
+  document.getElementById('sfVideoModal').classList.add('open');
 }
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('btn-play') && e.target.dataset.youtube) {
-        openVideoModal(`https://www.youtube.com/embed/${e.target.dataset.youtube}`);
-    }
+function sfCloseVideo(){
+  document.getElementById('sfVideoModal').classList.remove('open');
+  document.getElementById('sfPlayer').innerHTML = '';
+}
+document.getElementById('sfVideoModal').addEventListener('click', e=>{
+  if (e.target.id === 'sfVideoModal') sfCloseVideo();
 });
 
-// ============================================================
-// عرض المحتوى الإضافي (زر الإظهار/الإخفاء)
-// ============================================================
-function renderExtraContent() {
-    const grid = document.getElementById('extraGrid');
-    if (EXTRA_ITEMS.length === 0) {
-        grid.innerHTML = '<p style="color:#b9abd4; text-align:center; grid-column:1/-1;">لا يوجد محتوى إضافي حالياً.</p>';
-        return;
-    }
-    let html = '';
-    EXTRA_ITEMS.forEach(item => {
-        html += `
-            <div class="extra-item">
-                <h4>${item.type === 'video' ? '🎬' : '🎮'} ${item.title}</h4>
-                <p>${item.description}</p>
-                ${item.type === 'video' && item.youtube_id ? `<button class="btn-play-sm" onclick="openVideoModal('https://www.youtube.com/embed/${item.youtube_id}')">▶ شاهد</button>` : ''}
-                ${item.type === 'game' ? `<button class="btn-play-sm" onclick="alert('سيتم إطلاق اللعبة قريباً!')">🎮 العب</button>` : ''}
-            </div>
-        `;
-    });
-    grid.innerHTML = html;
+/* ============================================================
+   مساعدات
+   ============================================================ */
+function enableFinish(){
+  const b = document.getElementById('sfFinish');
+  if (b){ b.disabled = false; b.style.opacity = 1; }
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);}
+
+function speak(t){
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(String(t||''));
+  u.lang = 'ar-SA'; u.rate = 1; u.pitch = 1.15;
+  const v = speechSynthesis.getVoices().find(x=>x.lang.startsWith('ar'));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+if ('speechSynthesis' in window){
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = ()=>speechSynthesis.getVoices();
 }
 
-document.getElementById('toggleExtraBtn').addEventListener('click', function() {
-    const section = document.getElementById('extraSection');
-    section.classList.toggle('hidden-extra');
-    this.textContent = section.classList.contains('hidden-extra') ? '📚 استعرض كل دروس الحماية' : '📕 إخفاء الدروس';
+/* زر الإنهاء */
+document.addEventListener('click', e=>{
+  if (e.target && e.target.id === 'sfFinish' && !e.target.disabled){
+    PROG.day += 1; PROG.last = todayKey(); PROG.done = true;
+    localStorage.setItem('kidora_safety_v4', JSON.stringify(PROG));
+    document.getElementById('sfMsg').textContent = '🎉 مبروك! أنهيت درس اليوم. غداً درس جديد.';
+    speak('مبروك! أنهيت درس اليوم.');
+    setTimeout(()=>location.reload(), 2200);
+  }
 });
 
-// ============================================================
-// موسيقى وقراءة
-// ============================================================
-let bgMusic = document.getElementById('bgMusic'), musicStarted = false;
-document.addEventListener('click', () => {
-    if (!musicStarted) { bgMusic.volume = 0.2; bgMusic.play().catch(()=>{}); musicStarted = true; }
-}, { once: true });
-
-function speakText(text) {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ar-SA'; u.rate = 1.1; u.pitch = 1.2;
-    const voices = speechSynthesis.getVoices();
-    const ar = voices.find(v => v.lang.startsWith('ar'));
-    if (ar) u.voice = ar;
-    speechSynthesis.speak(u);
-}
-
-// ============================================================
-// بدء التشغيل
-// ============================================================
-renderDailyTask();
-renderExtraContent();
-setTimeout(() => speakText('مرحباً بطل! مهمة اليوم في انتظارك.'), 1000);
-
+/* ============================================================
+   تشغيل
+   ============================================================ */
+renderLesson();
+setTimeout(()=>speak(`مرحباً ${CHILD.name}! درس اليوم جاهز.`), 800);
 </script>
-
-<div class="safety-footer">
-  Kidora © 2026 — تعلم الحماية بذكاء ومتعة
-</div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
