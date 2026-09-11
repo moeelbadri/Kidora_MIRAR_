@@ -653,3 +653,30 @@ function character_media_dir(string $kind, string $slug): string {
     if (!is_dir($dir)) mkdir($dir, 0777, true);
     return $dir;
 }
+
+
+/* ============================================================
+   يتفحص الكوكي بدون ما يسجّل الدخول
+   عشان نعرض "متابعة كـ ريمان"
+   ============================================================ */
+function kidora_peek_remember(PDO $pdo): ?array {
+    $token = $_COOKIE['kidora_remember'] ?? '';
+    if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) return null;
+
+    $stmt = $pdo->prepare("SELECT * FROM children WHERE remember_token = ? AND remember_expires > NOW() LIMIT 1");
+    $stmt->execute([$token]);
+    $child = $stmt->fetch();
+    if (!$child) return null;
+
+    // نجيب الشخصية الأولى عشان اللون والأيقونة
+    if (!empty($child['character_1'])) {
+        $c = get_character($pdo, (int)$child['character_1']);
+        if ($c) {
+            $child['_char_color'] = $c['color'] ?? '#6C63FF';
+            $child['_char_icon']  = character_icons($c)[0] ?? '✨';
+        }
+    }
+    return $child;
+}
+
+
