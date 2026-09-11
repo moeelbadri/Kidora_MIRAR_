@@ -152,6 +152,454 @@ require_once __DIR__ . '/includes/navbar.php';
 
 <footer class="site-footer">Kidora © 2026 — منصة الأطفال الذكية للتعلّم والمغامرة الآمنة</footer>
 <script>window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;</script>
+
+<!-- =============================================================
+     شاشة الوداع — تظهر لما الطفل ينجز مهامه اليومية كاملة
+     ============================================================= -->
+<div class="goodbye-modal" id="goodbyeModal" aria-hidden="true">
+  <div class="goodbye-card">
+
+    <!-- نجوم متلألئة -->
+    <div class="goodbye-stars">
+      <span>✨</span><span>⭐</span><span>✨</span>
+      <span>🌟</span><span>💫</span>
+    </div>
+
+    <!-- الشخصيتان تودّعان -->
+    <div class="goodbye-chars">
+      <?php foreach ($myChars as $idx => $c): ?>
+        <div class="goodbye-char" style="--c-color:<?php echo h($c['color']); ?>; animation-delay:<?php echo $idx * 0.3; ?>s;">
+          <div class="char-bubble">باي باي يا بطل! 👋</div>
+          <div class="char-visual">
+            <?php if (!empty($c['image_path'])): ?>
+              <img src="<?php echo h($c['image_path']); ?>" alt="<?php echo h($c['name']); ?>">
+            <?php else: ?>
+              <span class="char-emoji"><?php echo character_icons($c)[0] ?? '✨'; ?></span>
+            <?php endif; ?>
+            <div class="char-hand">👋</div>
+          </div>
+          <div class="char-name"><?php echo h($c['name']); ?></div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+
+    <!-- النص التحفيزي -->
+    <h2 class="goodbye-title">خلص وقتك في المنصة يا بطل! 🌟</h2>
+    <p class="goodbye-sub">لقد أنجزت كل شيء اليوم:</p>
+
+    <!-- قائمة الإنجازات -->
+    <div class="goodbye-checks">
+      <div class="goodbye-check">
+        <span class="chk-ico">✅</span>
+        <span class="chk-txt">المهام اليومية</span>
+      </div>
+      <div class="goodbye-check">
+        <span class="chk-ico">🎮</span>
+        <span class="chk-txt">لعبة ممتعة</span>
+      </div>
+      <div class="goodbye-check">
+        <span class="chk-ico">🛡️</span>
+        <span class="chk-txt">درس الحماية</span>
+      </div>
+    </div>
+
+    <!-- رسالة الوداع -->
+    <p class="goodbye-msg">
+      <strong>بنشوفك بكرا</strong><br>
+      بمهام ومغامرات جديدة وأحلى! 🚀
+    </p>
+
+    <!-- أزرار -->
+    <div class="goodbye-actions">
+      <a href="<?php echo BASE_PATH; ?>/dashboard.php" class="goodbye-btn goodbye-btn-primary">
+        🏠 العودة للرئيسية
+      </a>
+    </div>
+
+    <p class="goodbye-note">
+      💚 اذهب الآن وأكمل أنشطتك اليومية<br>
+      رفقاؤك فخورون بك!
+    </p>
+
+  </div>
+</div>
+
+<style>
+/* ============================================================= */
+/*              شاشة الوداع — Goodbye Screen                     */
+/* ============================================================= */
+
+.goodbye-modal{
+  position:fixed; inset:0; z-index:9999;
+  display:none; align-items:center; justify-content:center;
+  padding:1rem;
+  background:radial-gradient(circle at 50% 40%, rgba(20,10,45,.94), rgba(5,2,20,.98));
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  animation:goodbyeFadeIn .5s ease;
+}
+.goodbye-modal.open{ display:flex; }
+@keyframes goodbyeFadeIn{ from{opacity:0} to{opacity:1} }
+
+.goodbye-card{
+  position:relative;
+  background:linear-gradient(160deg, rgba(35,25,70,.98), rgba(15,8,40,.98));
+  border:2px solid rgba(251,191,36,.35);
+  border-radius:32px;
+  padding:2rem 1.6rem 1.8rem;
+  max-width:520px; width:100%;
+  text-align:center;
+  box-shadow:
+    0 30px 80px rgba(0,0,0,.6),
+    0 0 80px rgba(251,191,36,.12) inset,
+    0 0 100px rgba(139,92,246,.15);
+  animation:goodbyePop .7s cubic-bezier(.34,1.56,.64,1);
+  overflow:hidden;
+}
+@keyframes goodbyePop{
+  0%{ transform:scale(.75) translateY(20px); opacity:0; }
+  100%{ transform:scale(1) translateY(0); opacity:1; }
+}
+
+/* نجوم متلألئة في الخلفية */
+.goodbye-stars{
+  position:absolute; inset:0;
+  pointer-events:none; overflow:hidden;
+}
+.goodbye-stars span{
+  position:absolute;
+  font-size:1.2rem;
+  animation:goodbyeStarFloat 4s ease-in-out infinite;
+  opacity:.7;
+}
+.goodbye-stars span:nth-child(1){ top:8%;  left:8%;  animation-delay:0s;   }
+.goodbye-stars span:nth-child(2){ top:15%; right:10%; animation-delay:.6s; font-size:1.6rem;}
+.goodbye-stars span:nth-child(3){ top:50%; left:5%;  animation-delay:1.2s; }
+.goodbye-stars span:nth-child(4){ top:70%; right:8%; animation-delay:1.8s; font-size:1.4rem;}
+.goodbye-stars span:nth-child(5){ top:30%; left:85%; animation-delay:2.4s; }
+@keyframes goodbyeStarFloat{
+  0%,100%{ transform:translateY(0) scale(1); opacity:.5; }
+  50%    { transform:translateY(-15px) scale(1.3); opacity:1; }
+}
+
+/* ====== الشخصيتان ====== */
+.goodbye-chars{
+  position:relative; z-index:2;
+  display:flex; justify-content:center; gap:2rem;
+  margin-bottom:1.2rem;
+}
+.goodbye-char{
+  position:relative;
+  animation:charGoodbyeBounce 1.4s ease-in-out infinite;
+}
+@keyframes charGoodbyeBounce{
+  0%,100%{ transform:translateY(0) rotate(0); }
+  25%    { transform:translateY(-10px) rotate(-3deg); }
+  75%    { transform:translateY(-10px) rotate(3deg); }
+}
+
+/* فقاعة الكلام */
+.char-bubble{
+  position:absolute;
+  top:-38px; left:50%;
+  transform:translateX(-50%);
+  background:linear-gradient(135deg,#ffe99a,#ffc93c);
+  color:#241645;
+  font-weight:900;
+  font-size:.7rem;
+  padding:.35rem .7rem;
+  border-radius:30px;
+  white-space:nowrap;
+  box-shadow:0 6px 16px rgba(255,201,60,.35);
+  animation:charBubblePop 2s ease-in-out infinite;
+}
+.char-bubble::after{
+  content:'';
+  position:absolute;
+  bottom:-6px; left:50%;
+  transform:translateX(-50%);
+  width:0; height:0;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:7px solid #ffc93c;
+}
+@keyframes charBubblePop{
+  0%,100%{ transform:translateX(-50%) scale(1); }
+  50%    { transform:translateX(-50%) scale(1.08); }
+}
+
+/* صورة الشخصية */
+.char-visual{
+  position:relative;
+  width:90px; height:90px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.35), transparent 45%),
+             linear-gradient(145deg, var(--c-color,#6c63ff), rgba(10,6,26,.85));
+  border:4px solid var(--c-color,#ffc93c);
+  display:grid; place-items:center;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.4),
+    0 0 40px color-mix(in srgb, var(--c-color,#6c63ff) 55%, transparent);
+  overflow:hidden;
+}
+.char-visual img{
+  width:100%; height:100%;
+  object-fit:cover;
+  border-radius:50%;
+}
+.char-emoji{
+  font-size:2.6rem;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.4));
+}
+
+/* اليد تلوّح */
+.char-hand{
+  position:absolute;
+  bottom:-8px; right:-12px;
+  font-size:1.8rem;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.5));
+  animation:handWave 0.9s ease-in-out infinite;
+  transform-origin:70% 80%;
+}
+@keyframes handWave{
+  0%,100%{ transform:rotate(0); }
+  25%    { transform:rotate(-25deg); }
+  75%    { transform:rotate(25deg); }
+}
+
+/* اسم الشخصية */
+.char-name{
+  margin-top:.6rem;
+  font-size:.85rem;
+  font-weight:900;
+  color:var(--c-color,#ffc93c);
+  text-shadow:0 2px 8px rgba(0,0,0,.5);
+}
+
+/* ====== العنوان والرسائل ====== */
+.goodbye-title{
+  position:relative; z-index:2;
+  font-family:var(--font-display,inherit);
+  font-size:1.7rem;
+  margin:.4rem 0 .3rem;
+  background:linear-gradient(135deg,#fff,#ffe99a,#ffc93c);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  line-height:1.3;
+}
+.goodbye-sub{
+  position:relative; z-index:2;
+  color:#d9d0ff; font-size:.95rem;
+  margin:0 0 .8rem;
+}
+
+/* ====== قائمة الإنجازات ====== */
+.goodbye-checks{
+  position:relative; z-index:2;
+  display:flex; flex-wrap:wrap;
+  gap:.5rem; justify-content:center;
+  margin-bottom:1rem;
+}
+.goodbye-check{
+  display:flex; align-items:center; gap:.4rem;
+  background:rgba(46,196,182,.12);
+  border:1px solid rgba(46,196,182,.35);
+  border-radius:30px;
+  padding:.45rem .9rem;
+  font-size:.82rem;
+  font-weight:800;
+  color:#d9f7f3;
+  animation:checkPop .5s ease backwards;
+}
+.goodbye-check:nth-child(1){ animation-delay:.3s; }
+.goodbye-check:nth-child(2){ animation-delay:.5s; }
+.goodbye-check:nth-child(3){ animation-delay:.7s; }
+@keyframes checkPop{
+  0%{ transform:scale(0); opacity:0; }
+  70%{ transform:scale(1.15); }
+  100%{ transform:scale(1); opacity:1; }
+}
+.goodbye-check .chk-ico{ font-size:1rem; }
+.goodbye-check .chk-txt{ color:#fff; }
+
+/* ====== رسالة الوداع ====== */
+.goodbye-msg{
+  position:relative; z-index:2;
+  color:#e0d8f0;
+  font-size:1rem;
+  line-height:1.9;
+  margin:.6rem 0 1.2rem;
+  padding:.9rem 1rem;
+  background:rgba(139,92,246,.12);
+  border:1px dashed rgba(139,92,246,.35);
+  border-radius:18px;
+}
+.goodbye-msg strong{
+  color:#ffc93c;
+  font-size:1.15rem;
+  display:inline-block;
+  margin-bottom:.2rem;
+}
+
+/* ====== الأزرار ====== */
+.goodbye-actions{
+  position:relative; z-index:2;
+  display:flex; justify-content:center;
+  gap:.6rem; flex-wrap:wrap;
+  margin-bottom:.8rem;
+}
+.goodbye-btn{
+  padding:.85rem 1.6rem;
+  border-radius:50px;
+  font-weight:900;
+  font-size:.95rem;
+  text-decoration:none;
+  border:none;
+  cursor:pointer;
+  font-family:inherit;
+  transition:.25s;
+  display:inline-flex;
+  align-items:center;
+  gap:.4rem;
+}
+.goodbye-btn-primary{
+  background:linear-gradient(135deg,#ffe99a,#ffc93c);
+  color:#241645;
+  box-shadow:0 10px 30px rgba(255,201,60,.4);
+}
+.goodbye-btn-primary:hover{
+  transform:translateY(-3px);
+  box-shadow:0 16px 40px rgba(255,201,60,.6);
+}
+
+/* ====== ملاحظة أخيرة ====== */
+.goodbye-note{
+  position:relative; z-index:2;
+  color:#b9abd4;
+  font-size:.8rem;
+  line-height:1.7;
+  margin:.4rem 0 0;
+}
+
+/* ====== الجوال ====== */
+@media (max-width:520px){
+  .goodbye-card{ padding:1.5rem 1.1rem; border-radius:24px; }
+  .goodbye-title{ font-size:1.35rem; }
+  .goodbye-chars{ gap:1.2rem; }
+  .char-visual{ width:72px; height:72px; }
+  .char-emoji{ font-size:2rem; }
+  .char-hand{ font-size:1.4rem; }
+  .char-bubble{ font-size:.62rem; padding:.3rem .6rem; top:-32px; }
+  .goodbye-check{ font-size:.75rem; padding:.4rem .75rem; }
+  .goodbye-msg{ font-size:.9rem; }
+}
+
+/* Confetti */
+.kidora-confetti{
+  position:fixed; inset:0; z-index:9998;
+  pointer-events:none; overflow:hidden;
+}
+.kidora-confetti span{
+  position:absolute; top:-60px;
+  font-size:1.4rem;
+  animation:kidoraConfettiFall 3.4s linear forwards;
+}
+@keyframes kidoraConfettiFall{
+  0%  { transform:translateY(-60px) rotate(0);   opacity:1; }
+  100%{ transform:translateY(110vh) rotate(720deg); opacity:0; }
+}
+</style>
+
+<script>
+/* =============================================================
+   شاشة الوداع — تظهر لما الطفل ينجز:
+   1) المهام اليومية
+   2) لعبة من games.php
+   3) درس حماية من safety.php
+   ============================================================= */
+(function(){
+
+  const TODAY = new Date().toISOString().slice(0,10);
+  const K = {
+    tasks:  'kidora_done_tasks_'   + TODAY,
+    game:   'kidora_done_game_'    + TODAY,
+    safety: 'kidora_done_safety_'  + TODAY,
+    shown:  'kidora_goodbye_shown_' + TODAY
+  };
+
+  /* ما نعرضها مرتين بنفس اليوم */
+  if (localStorage.getItem(K.shown)) return;
+
+  /* فحص الشروط الثلاثة */
+  const allDone =
+    localStorage.getItem(K.tasks)  === '1' &&
+    localStorage.getItem(K.game)   === '1' &&
+    localStorage.getItem(K.safety) === '1';
+
+  if (!allDone) return;
+
+  /* ننتظر شوي حتى تحمّل الصفحة */
+  setTimeout(showGoodbye, 700);
+
+  function showGoodbye(){
+    /* Confetti */
+    const conf = document.createElement('div');
+    conf.className = 'kidora-confetti';
+    const emojis = ['🎉','🎊','⭐','🌟','✨','💫','🏆','💜','🎈'];
+    for (let i=0; i<70; i++){
+      const s = document.createElement('span');
+      s.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      s.style.left = Math.random()*100 + '%';
+      s.style.animationDelay = (Math.random()*2.5) + 's';
+      s.style.fontSize = (16 + Math.random()*20) + 'px';
+      conf.appendChild(s);
+    }
+    document.body.appendChild(conf);
+
+    /* عرض المودال */
+    const modal = document.getElementById('goodbyeModal');
+    if (modal) modal.classList.add('open');
+
+    /* نطق صوتي */
+    speakGoodbye();
+
+    /* علامة أنه اتعرّض */
+    localStorage.setItem(K.shown, '1');
+
+    /* إزالة الـ confetti بعد ما يخلص */
+    setTimeout(() => conf.remove(), 6000);
+  }
+
+  /* صوت الوداع */
+  function speakGoodbye(){
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+
+    const name = <?php echo json_encode($child['name'] ?? 'بطل', JSON_UNESCAPED_UNICODE); ?>;
+    const text = `خلص وقتك في المنصة يا ${name}! بنشوفك بكرا بمهام ومغامرات جديدة. باي باي يا بطل!`;
+
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ar-SA'; u.rate = 1; u.pitch = 1.15;
+    const v = speechSynthesis.getVoices().find(x => x.lang.startsWith('ar'));
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  }
+
+  /* ============================================================
+     دالة عامة للصفحات الأخرى عشان تعلّم الإنجاز
+     استخدمها من tasks.php / games.php / safety.php
+     ============================================================ */
+  window.kidoraMarkDone = function(type){
+    if (!['tasks','game','safety'].includes(type)) return;
+    const today = new Date().toISOString().slice(0,10);
+    localStorage.setItem('kidora_done_' + type + '_' + today, '1');
+  };
+
+})();
+</script>
+
+
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
 
 <!-- ===== الأنماط ===== -->
