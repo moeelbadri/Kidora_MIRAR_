@@ -1031,6 +1031,16 @@ document.addEventListener('click', e=>{
    شاشة الاحتفال
    ============================================================ */
 function showCelebration(){
+
+      try {
+    var _t = new Date().toISOString().slice(0,10);
+    localStorage.setItem('kidora_done_safety_' + _t, '1');
+  } catch(e){}
+
+  speak(`مبروك يا ${CHILD.name}! أنهيت مهمة اليوم بنجاح. أنت رائع!`);
+  
+  /* Confetti */
+  const confetti = document.createElement('div');
   speak(`مبروك يا ${CHILD.name}! أنهيت مهمة اليوم بنجاح. أنت رائع!`);
 
   /* Confetti */
