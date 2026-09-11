@@ -550,6 +550,100 @@ function grand_story_scenes(array $child, array $stories, array $sum, string $co
     return $scenes;
 }
 
+
+// 
+
+
+
+/* ============================================================
+   نظام "تذكرني" — دخول تلقائي بدون إيميل وكلمة مرور
+   ============================================================ */
+
+/**
+ * يسجّل الدخول التلقائي: يخزّن توكن آمن في الداتابيس + كوكي
+ */
+function kidora_remember_login(PDO $pdo, int $childId): void {
+    // 1) توكن عشوائي قوي (64 حرف hex)
+    $token = bin2hex(random_bytes(32));
+    
+    // 2) تاريخ الانتهاء (90 يوم من الآن)
+    $expires = date('Y-m-d H:i:s', time() + 60 * 60 * 24 * 90);
+    
+    // 3) خزّنه في الداتابيس
+    $pdo->prepare("UPDATE children SET remember_token = ?, remember_expires = ? WHERE id = ?")
+        ->execute([$token, $expires, $childId]);
+    
+    // 4) أرسل الكوكي
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    setcookie('kidora_remember', $token, [
+        'expires'  => time() + 60 * 60 * 24 * 90,
+        'path'     => '/',
+        'secure'   => $secure,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+}
+
+/**
+ * يمسح التوكن (عند الخروج)
+ */
+function kidora_clear_remember(PDO $pdo, ?int $childId = null): void {
+    if ($childId) {
+        $pdo->prepare("UPDATE children SET remember_token = NULL, remember_expires = NULL WHERE id = ?")
+            ->execute([$childId]);
+    }
+    setcookie('kidora_remember', '', [
+        'expires'  => time() - 3600,
+        'path'     => '/',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+}
+
+/**
+ * يحاول الدخول التلقائي من الكوكي
+ * @return array|null بيانات الطفل لو نجح، أو null
+ */
+function kidora_try_auto_login(PDO $pdo): ?array {
+    $token = $_COOKIE['kidora_remember'] ?? '';
+    
+    // تحقق من صيغة التوكن (64 hex)
+    if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) {
+        return null;
+    }
+    
+    // ابحث في الداتابيس
+    $stmt = $pdo->prepare("
+        SELECT * FROM children 
+        WHERE remember_token = ? 
+          AND remember_expires > NOW() 
+        LIMIT 1
+    ");
+    $stmt->execute([$token]);
+    $child = $stmt->fetch();
+    
+    if (!$child) {
+        // توكن غلط أو منتهي → امسح الكوكي بهدوء
+        setcookie('kidora_remember', '', [
+            'expires' => time() - 3600,
+            'path' => '/'
+        ]);
+        return null;
+    }
+    
+    // ✅ نجح! جدّد التوكن (rotation) وابدأ الجلسة
+    kidora_remember_login($pdo, (int)$child['id']);
+    
+    session_regenerate_id(true);
+    $_SESSION['child_id']   = $child['id'];
+    $_SESSION['child_name'] = $child['name'];
+    
+    return $child;
+}
+
+
+// 
+
 /** يبني مجلد صورة/صوت مخصّص لكل شخصية assets/images/characters/{slug}/ أو assets/audio/characters/{slug}/ */
 function character_media_dir(string $kind, string $slug): string {
     $base = $kind === 'audio' ? __DIR__ . '/../assets/audio/characters' : __DIR__ . '/../assets/images/characters';
