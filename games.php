@@ -97,6 +97,13 @@ function playGame(btn){
     fetch(window.KIDAURA_BASE + '/api/play-game.php', {method:'POST'})
       .then(r=>r.json()).then(data => {
         if (data.ok) document.getElementById('gamesPlayedLabel').textContent = data.games_played;
+
+        /* ✅ علّم أن الطفل لعب لعبة اليوم — عشان شاشة الوداع في الداشبورد */
+        try {
+          var _t = new Date().toISOString().slice(0,10);
+          localStorage.setItem('kidora_done_game_' + _t, '1');
+        } catch(e){}
+
         window.companionSay('أحسنت! لعبة رائعة 🎮');
       });
   }, { category: btn.dataset.category });
