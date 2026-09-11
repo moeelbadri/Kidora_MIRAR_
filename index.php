@@ -292,6 +292,85 @@ require_once __DIR__ . '/includes/public-nav.php';
   @media(max-width:900px){.public-hero{grid-template-columns:1fr;text-align:center;padding-top:52px}.public-hero-copy,.public-hero-lead{margin-inline:auto}.public-actions,.public-stat-row{justify-content:center}.public-hero-art{min-height:315px}.public-hero-character{width:220px}.public-video-frame{min-height:52svh;border-radius:23px}.public-features{grid-template-columns:1fr 1fr}.public-plans{grid-template-columns:1fr}.public-plan.featured{transform:none}}
   @media(max-width:600px){.public-section{padding:64px 0}.public-container{width:min(100% - 22px,560px)}.public-features{grid-template-columns:1fr}.public-form-grid{grid-template-columns:1fr}.public-field.full{grid-column:auto}.public-pick-grid{grid-template-columns:repeat(3,1fr)}.public-auth-card{padding:20px 14px}.public-carousel-window{margin:0 28px}.public-character-card{flex-basis:calc(82vw - 22px)}.public-character-poster{height:185px}.public-stat{min-width:calc(50% - 6px)}.public-stat strong{font-size:22px}}
   @media(prefers-reduced-motion:reduce){.public-orbit,.public-hero-character{animation:none}.public-feature{opacity:1;transform:none}}
+
+
+/* ============================================================
+   شاشة "متابعة كـ ريمان"
+   ============================================================ */
+.continue-card{
+  max-width:480px;margin:0 auto;padding:36px 28px;
+  border:1px solid rgba(255,255,255,.16);border-radius:32px;
+  background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03));
+  backdrop-filter:blur(18px);
+  box-shadow:0 26px 70px rgba(0,0,0,.35), 0 0 60px rgba(255,201,60,.06) inset;
+  text-align:center;
+  animation:continueIn .6s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes continueIn{
+  0%{transform:scale(.92) translateY(12px);opacity:0}
+  100%{transform:scale(1) translateY(0);opacity:1}
+}
+
+.continue-avatar{
+  width:130px;height:130px;margin:0 auto 18px;border-radius:50%;
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.4),transparent 30%),
+             linear-gradient(145deg,var(--c-color,#6C63FF),rgba(10,6,26,.85));
+  border:5px solid var(--c-color,#ffc93c);
+  box-shadow:
+    0 15px 40px rgba(0,0,0,.4),
+    0 0 60px color-mix(in srgb,var(--c-color,#6C63FF) 45%,transparent);
+  animation:continueFloat 3s ease-in-out infinite;
+}
+@keyframes continueFloat{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-8px)}
+}
+.continue-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.continue-emoji{font-size:4rem;filter:drop-shadow(0 4px 12px rgba(0,0,0,.4))}
+
+.continue-title{
+  font-family:var(--font-display,inherit);
+  font-size:1.4rem;margin:.3rem 0 .2rem;
+  color:#d9d0ff;font-weight:700;
+}
+.continue-name{
+  font-family:var(--font-display,inherit);
+  font-size:2.2rem;margin:.3rem 0 1.5rem;
+  background:linear-gradient(135deg,#fff,#ffe99a,#ffc93c);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+  font-weight:900;
+}
+
+.continue-actions{display:flex;flex-direction:column;gap:.8rem}
+.continue-btn-main{
+  width:100%;
+  font-size:1.05rem !important;
+  min-height:60px !important;
+  animation:continuePulse 2s ease-in-out infinite;
+}
+@keyframes continuePulse{
+  0%,100%{box-shadow:0 12px 28px rgba(255,201,60,.28)}
+  50%{box-shadow:0 16px 40px rgba(255,201,60,.55)}
+}
+
+.continue-btn-switch{
+  background:transparent;border:none;
+  color:#b9abd4;font-size:.9rem;
+  padding:.7rem;cursor:pointer;
+  font-family:inherit;font-weight:700;
+  transition:.2s;
+  text-decoration:underline;text-underline-offset:3px;
+}
+.continue-btn-switch:hover{color:#ffc93c}
+
+@media(max-width:600px){
+  .continue-card{padding:28px 18px;border-radius:24px}
+  .continue-avatar{width:105px;height:105px}
+  .continue-emoji{font-size:3.2rem}
+  .continue-name{font-size:1.8rem}
+}
 </style>
 
 <div class="public-page">
@@ -444,6 +523,38 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
+
+               <?php if ($showContinue): ?>
+  <!-- 🎬 شاشة "متابعة كـ ريمان" -->
+  <section class="public-auth-section public-container" id="continue">
+    <div class="continue-card">
+      <div class="continue-avatar"
+           style="--c-color:<?php echo h($rememberChild['_char_color'] ?? '#6C63FF'); ?>">
+        <?php if (!empty($rememberChild['photo_path'])): ?>
+          <img src="<?php echo h(BASE_PATH . '/' . ltrim($rememberChild['photo_path'], '/')); ?>"
+               alt="<?php echo h($rememberChild['name']); ?>">
+        <?php else: ?>
+          <span class="continue-emoji"><?php echo h($rememberChild['_char_icon'] ?? '✨'); ?></span>
+        <?php endif; ?>
+      </div>
+
+      <h2 class="continue-title">مرحباً بعودتك! 👋</h2>
+      <p class="continue-name"><?php echo h($rememberChild['name']); ?></p>
+
+      <div class="continue-actions">
+        <a href="?continue=1" class="k-btn k-btn-gold continue-btn-main">
+          🚀 متابعة كـ <?php echo h($rememberChild['name']); ?>
+        </a>
+        <button type="button" class="continue-btn-switch" onclick="showLoginForm()">
+          لست <?php echo h($rememberChild['name']); ?>؟ سجّل بحساب آخر
+        </button>
+      </div>
+    </div>
+  </section>
+<?php endif; ?>
+
+               
+
     <!-- تسجيل الدخول / التسجيل -->
     <section class="public-auth-section public-container" id="auth">
       <div class="public-section-head">
@@ -451,8 +562,7 @@ require_once __DIR__ . '/includes/public-nav.php';
         <h2>جاهز لمغامرة جديدة؟</h2>
         <p>أنشئ حساباً للطفل في دقائق، أو عد إلى رحلتك من هنا.</p>
       </div>
-      <div class="public-auth-card">
-        <div class="public-auth-tabs" role="tablist" aria-label="تسجيل الدخول أو إنشاء الحساب">
+<div class="public-auth-card" id="authCard" <?php echo $showContinue ? 'style="display:none"' : ''; ?>>        <div class="public-auth-tabs" role="tablist" aria-label="تسجيل الدخول أو إنشاء الحساب">
           <button type="button" class="public-auth-tab <?php echo $shouldOpenRegister ? '' : 'active'; ?>" data-auth-tab="login" role="tab" aria-selected="<?php echo $shouldOpenRegister ? 'false' : 'true'; ?>">تسجيل الدخول</button>
           <button type="button" class="public-auth-tab <?php echo $shouldOpenRegister ? 'active' : ''; ?>" data-auth-tab="register" role="tab" aria-selected="<?php echo $shouldOpenRegister ? 'true' : 'false'; ?>">إنشاء حساب</button>
         </div>
@@ -532,6 +642,19 @@ window.KIDORA_LANDING = <?php echo json_encode([
     'hasVideo' => $introVideo['mp4'] || $introVideo['webm'],
     'reducedMotion' => false,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+
+</script>
+
+                 <script>
+function showLoginForm(){
+  const cont = document.getElementById('continue');
+  const card = document.getElementById('authCard');
+  if (cont) cont.style.display = 'none';
+  if (card) card.style.display = '';
+  // ننزل تلقائياً عند الفورم
+  if (card) card.scrollIntoView({behavior:'smooth', block:'center'});
+}
 </script>
 <script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/gsap.min.js'); ?>"></script>
 <script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/ScrollTrigger.min.js'); ?>"></script>
