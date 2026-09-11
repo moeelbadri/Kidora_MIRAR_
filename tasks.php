@@ -224,8 +224,10 @@ require_once __DIR__ . '/includes/navbar.php';
 </main>
 </div>
 <footer class="site-footer">Kidora © 2026</footer>
+
 <script>
   window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;
+
   <?php if ($currentTask): ?>
     document.addEventListener('DOMContentLoaded', function(){
       setTimeout(function(){
@@ -233,11 +235,12 @@ require_once __DIR__ . '/includes/navbar.php';
       }, 700);
     });
   <?php endif; ?>
+
   <?php if ($flashStory): ?>
     document.addEventListener('DOMContentLoaded', function(){
       // إطلاق تأثيرات الاحتفال
       launchConfetti(80);
-      
+
       const btn = document.getElementById('toGameBtn');
       if (btn) btn.onclick = function(){
         btn.style.display = 'none';
@@ -267,6 +270,14 @@ require_once __DIR__ . '/includes/navbar.php';
             setTimeout(() => { piece.remove(); }, 4000);
         }
     }
+
+    <?php if ($allTasksDone): ?>
+      /* الطفل أنهى آخر مهمة → علّم "tasks" كمكتملة لشاشة الوداع في الداشبورد */
+      try {
+        var _today = new Date().toISOString().slice(0,10);
+        localStorage.setItem('kidora_done_tasks_' + _today, '1');
+      } catch(e){}
+    <?php endif; ?>
   <?php endif; ?>
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
