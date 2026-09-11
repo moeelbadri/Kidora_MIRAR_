@@ -563,25 +563,27 @@ function grand_story_scenes(array $child, array $stories, array $sum, string $co
  * يسجّل الدخول التلقائي: يخزّن توكن آمن في الداتابيس + كوكي
  */
 function kidora_remember_login(PDO $pdo, int $childId): void {
-    // 1) توكن عشوائي قوي (64 حرف hex)
     $token = bin2hex(random_bytes(32));
-    
-    // 2) تاريخ الانتهاء (90 يوم من الآن)
     $expires = date('Y-m-d H:i:s', time() + 60 * 60 * 24 * 90);
     
-    // 3) خزّنه في الداتابيس
-    $pdo->prepare("UPDATE children SET remember_token = ?, remember_expires = ? WHERE id = ?")
-        ->execute([$token, $expires, $childId]);
+    $stmt = $pdo->prepare("UPDATE children SET remember_token = ?, remember_expires = ? WHERE id = ?");
+    $stmt->execute([$token, $expires, $childId]);
     
-    // 4) أرسل الكوكي
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
-    setcookie('kidora_remember', $token, [
-        'expires'  => time() + 60 * 60 * 24 * 90,
-        'path'     => '/',
-        'secure'   => $secure,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
+    // ✅ نسخة تعمل على كل إصدارات PHP (بدون array)
+    $secure   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    $expireTs = time() + 60 * 60 * 24 * 90;
+    
+    // نجرب الطريقتين — وحدة منهم رح تشتغل
+    setcookie('kidora_remember', $token, $expireTs, '/', '', $secure, true);
+    
+    // نسخة احتياطية عبر header مباشر
+    $cookieValue = 'kidora_remember=' . rawurlencode($token)
+                 . '; expires=' . gmdate('D, d-M-Y H:i:s T', $expireTs)
+                 . '; path=/'
+                 . '; httponly'
+                 . ($secure ? '; secure' : '')
+                 . '; samesite=Lax';
+    header('Set-Cookie: ' . $cookieValue, false);
 }
 
 /**
