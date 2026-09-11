@@ -38,8 +38,12 @@ require_once __DIR__ . '/includes/navbar.php';
 /* =========================================================
    قسم الحماية — يندمج مع ثيم الموقع (بدون خلفية خاصة)
    ========================================================= */
-.sf-wrap{max-width:900px;margin:0 auto;padding:1.5rem 1rem 3rem;direction:rtl}
+.sf-wrap{max-width:1100px;margin:0 auto;padding:3rem 1rem 3rem;direction:rtl}
 
+    @media(min-width:900px){
+  .sf-card{max-width:900px;margin-left:auto;margin-right:auto}
+  .sf-guide{max-width:900px;margin-left:auto;margin-right:auto}
+}
 /* المرشدة */
 .sf-guide{
   display:flex;align-items:center;gap:1rem;
