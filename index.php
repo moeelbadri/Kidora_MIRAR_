@@ -21,13 +21,30 @@ if (isset($_GET['logout'])) {
 /* ============================================================
    الدخول التلقائي — للطفل اللي سجّل قبل (كوكي "تذكرني")
    ============================================================ */
+/* ============================================================
+   إذا الكوكي موجود:
+   - ?continue=1  → دخول تلقائي فعلي
+   - بدونها        → نعرض "متابعة كـ ريمان"
+   ============================================================ */
+$rememberChild = null;
+
 if (empty($_SESSION['child_id'])) {
-    $autoChild = kidora_try_auto_login($pdo);
-    if ($autoChild) {
-        header('Location: ' . (needs_assessment($autoChild) ? 'welcome.php' : 'dashboard.php'));
-        exit;
+
+    if (isset($_GET['continue'])) {
+        // الطفل ضغط "متابعة كـ ريمان"
+        $autoChild = kidora_try_auto_login($pdo);
+        if ($autoChild) {
+            header('Location: ' . (needs_assessment($autoChild) ? 'welcome.php' : 'dashboard.php'));
+            exit;
+        }
+    } else {
+        // نتفحص بدون دخول — عشان نعرض الشاشة
+        $rememberChild = kidora_peek_remember($pdo);
     }
 }
+
+/* إذا كان طلب POST (نموذج)، نعرض الفورم دايماً */
+$showContinue = ($rememberChild && $_SERVER['REQUEST_METHOD'] !== 'POST');
 
 /* ============================================================
    إذا عندو جلسة أصلية — روح للداشبورد
