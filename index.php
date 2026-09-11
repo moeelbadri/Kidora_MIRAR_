@@ -4,12 +4,34 @@ session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
+/* ============================================================
+   تسجيل الخروج — امسح التوكن + الجلسة
+   ============================================================ */
 if (isset($_GET['logout'])) {
+    if (!empty($_SESSION['child_id'])) {
+        kidora_clear_remember($pdo, (int)$_SESSION['child_id']);
+    } else {
+        kidora_clear_remember($pdo);
+    }
     session_destroy();
     header('Location: ' . BASE_PATH . '/index.php');
     exit;
 }
 
+/* ============================================================
+   الدخول التلقائي — للطفل اللي سجّل قبل (كوكي "تذكرني")
+   ============================================================ */
+if (empty($_SESSION['child_id'])) {
+    $autoChild = kidora_try_auto_login($pdo);
+    if ($autoChild) {
+        header('Location: ' . (needs_assessment($autoChild) ? 'welcome.php' : 'dashboard.php'));
+        exit;
+    }
+}
+
+/* ============================================================
+   إذا عندو جلسة أصلية — روح للداشبورد
+   ============================================================ */
 if (!empty($_SESSION['child_id'])) {
     $chk = $pdo->prepare("SELECT * FROM children WHERE id = ?");
     $chk->execute([$_SESSION['child_id']]);
@@ -34,7 +56,9 @@ if (!$prefillChar && !empty($_GET['char']) && preg_match('/^[a-z0-9_-]+$/i', (st
 $prefillCharRow = $prefillChar ? get_character($pdo, $prefillChar) : null;
 if (!$prefillCharRow || !empty($prefillCharRow['is_premium'])) $prefillChar = 0;
 
-// تسجيل الدخول
+/* ============================================================
+   تسجيل الدخول
+   ============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -50,6 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             session_regenerate_id(true);
             $_SESSION['child_id'] = $user['id'];
             $_SESSION['child_name'] = $user['name'];
+
+            /* ✅ سجّل "تذكرني" للدخول التلقائي مستقبلاً */
+            kidora_remember_login($pdo, (int)$user['id']);
+
             $fullUser = $pdo->prepare("SELECT * FROM children WHERE id = ?");
             $fullUser->execute([$user['id']]);
             $fullUser = $fullUser->fetch();
@@ -60,7 +88,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     }
 }
 
-// إنشاء الحساب — اختيار الشخصيتين يبقى مقيداً بالمجانيتين على الخادم
+/* ============================================================
+   إنشاء الحساب — اختيار الشخصيتين مقيد بالمجانيتين على الخادم
+   ============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $name = trim($_POST['child_name'] ?? '');
     $age = (int)($_POST['child_age'] ?? 0);
@@ -118,6 +148,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     session_regenerate_id(true);
                     $_SESSION['child_id'] = $childId;
                     $_SESSION['child_name'] = $name;
+
+                    /* ✅ سجّل "تذكرني" للدخول التلقائي مستقبلاً */
+                    kidora_remember_login($pdo, $childId);
+
                     header('Location: subscriptions.php?welcome=1');
                     exit;
                 }
@@ -185,34 +219,11 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-video-frame:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(10,6,26,.02),rgba(10,6,26,.5))}
   .public-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
   
-  /* CHANGE: New full-screen video section styles */
-  .public-video-full {
-    width: 100vw;
-    min-height: 100vh;
-    margin: 0;
-    padding: 0;
-    position: relative;
-    overflow: hidden;
-    background: #0a061a;
-  }
-  .public-video-full .public-video-frame {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .public-video-full .public-video-frame iframe {
-    width: 100%;
-    height: 100%;
-    border: 0;
-  }
-  .public-video-full .public-video-frame:after {
-    display: none; /* Remove overlay for cleaner look */
-  }
-  /* END CHANGE */
+  /* Full-screen video */
+  .public-video-full{width:100vw;min-height:100vh;margin:0;padding:0;position:relative;overflow:hidden;background:#0a061a}
+  .public-video-full .public-video-frame{position:absolute;inset:0;width:100%;height:100%;border:none;border-radius:0;box-shadow:none}
+  .public-video-full .public-video-frame iframe{width:100%;height:100%;border:0}
+  .public-video-full .public-video-frame:after{display:none}
 
   .public-orbit{position:absolute;width:min(100%,430px);aspect-ratio:1;border:1px solid rgba(255,201,60,.22);border-radius:50%;box-shadow:0 0 80px rgba(91,141,239,.15) inset,0 0 80px rgba(255,105,170,.1);animation:publicOrbit 18s linear infinite}
   .public-orbit:before,.public-orbit:after{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#ffc93c;box-shadow:0 0 22px #ffc93c}
@@ -310,7 +321,7 @@ require_once __DIR__ . '/includes/public-nav.php';
   <?php endif; ?>
 
   <main>
-    <!-- CHANGE: Moved video section to be the FIRST section after intro -->
+    <!-- فيديو تعريفي بملء الشاشة -->
     <section class="public-video-full" id="videoShowcase">
       <div class="public-video-frame">
         <iframe
@@ -321,9 +332,8 @@ require_once __DIR__ . '/includes/public-nav.php';
           allowfullscreen></iframe>
       </div>
     </section>
-    <!-- END CHANGE -->
 
-    <!-- CHANGE: The hero section now comes after the video, not before -->
+    <!-- البطل الرئيسي -->
     <section class="public-container public-hero" id="hero">
       <div>
         <span class="public-eyebrow">✨ منصة آمنة تصنع مغامرات حقيقية</span>
@@ -350,9 +360,8 @@ require_once __DIR__ . '/includes/public-nav.php';
         <div class="public-floating-badge">رفيقك يرافقك في كل خطوة<br><span style="color:#ffe99a;">صوت وتشجيع وثيم خاص بك</span></div>
       </div>
     </section>
-    <!-- END CHANGE -->
 
-    <!-- The rest of sections (characters, features, plans, auth) remain unchanged -->
+    <!-- الشخصيات -->
     <section class="public-section public-container" id="characters">
       <div class="public-section-head">
         <span class="public-section-kicker">رفقاء الرحلة</span>
@@ -379,6 +388,7 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
+    <!-- الميزات -->
     <section class="public-section public-container" id="features">
       <div class="public-section-head">
         <span class="public-section-kicker">لماذا Kidora؟</span>
@@ -395,6 +405,7 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
+    <!-- الخطط -->
     <section class="public-section public-container" id="plans">
       <div class="public-section-head">
         <span class="public-section-kicker">خطط بسيطة</span>
@@ -416,6 +427,7 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
+    <!-- تسجيل الدخول / التسجيل -->
     <section class="public-auth-section public-container" id="auth">
       <div class="public-section-head">
         <span class="public-section-kicker">خطوتك الأولى</span>
@@ -476,6 +488,7 @@ require_once __DIR__ . '/includes/public-nav.php';
     </section>
   </main>
 
+  <!-- مودال الشخصية -->
   <div class="public-modal" id="characterModal" role="dialog" aria-modal="true" aria-labelledby="modalCharacterName" aria-hidden="true">
     <div class="public-modal-card">
       <button type="button" class="public-modal-close" id="modalClose" aria-label="إغلاق">×</button>
