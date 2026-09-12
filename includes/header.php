@@ -55,6 +55,7 @@ $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية'
       'color' => $__activeChar['color'] ?? '#6C63FF',
       'icons' => $__activeChar ? character_icons($__activeChar) : ['✨','⭐','🌟'],
       'audio' => $__activeChar['audio_path'] ?? null,
+      'image' => $__activeChar['image_path'] ?? null,
       'name'  => $__activeChar['name'] ?? '',
   ], JSON_UNESCAPED_UNICODE); ?>;
   window.KIDAURA_BASE = "<?php echo BASE_PATH; ?>";

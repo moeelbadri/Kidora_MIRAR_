@@ -144,6 +144,13 @@ require_once __DIR__ . '/includes/navbar.php';
         <div class="card-desc">قصة تفاعلية طويلة</div>
         <div class="card-btn">استكشف الآن ✨</div>
       </a>
+      <a href="<?php echo BASE_PATH; ?>/draw.php" class="discovery-card draw">
+        <div class="card-glow"></div>
+        <div class="card-icon">🎨</div>
+        <div class="card-title">لوحتي</div>
+        <div class="card-desc">ارسم ما تشعر به اليوم</div>
+        <div class="card-btn">ارسم الآن 🖌️</div>
+      </a>
     </div>
   </div>
 
@@ -1030,6 +1037,15 @@ require_once __DIR__ . '/includes/navbar.php';
 .discovery-card.grand:hover {
   border-color: rgba(251, 191, 36, 0.3);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(251, 191, 36, 0.08);
+}
+
+.discovery-card.draw {
+  background: linear-gradient(145deg, rgba(255, 111, 165, 0.1), rgba(255, 122, 80, 0.04));
+  border-color: rgba(255, 111, 165, 0.14);
+}
+.discovery-card.draw:hover {
+  border-color: rgba(255, 111, 165, 0.32);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 111, 165, 0.1);
 }
 
 /* ============================================================= */

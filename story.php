@@ -20,40 +20,19 @@ $todayStory = $st->fetch();
 
 // ---------------- توليد القصة ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_story']) && $isPremium && $ready && !$todayStory) {
-    $myChars = array_filter([get_character($pdo, $child['character_1']), get_character($pdo, $child['character_2'])]);
-    $names = implode(' و', array_map(fn($c) => $c['name'], $myChars));
+    $myChars = array_values(array_filter([get_character($pdo, $child['character_1']), get_character($pdo, $child['character_2'])]));
 
     $doneTasks = [];
-    foreach ($taskPool as $tid) {
-        $t = $pdo->prepare("SELECT * FROM tasks WHERE id = ?"); $t->execute([$tid]); $doneTasks[] = $t->fetch();
-    }
-    $grads = ['#6C63FF,#FF6FA5','#2EC4B6,#6C63FF','#FF7A50,#FFC93C','#FF6FA5,#FFC93C','#2EC4B6,#241645'];
-    // الجمل اسمية بلا فعل مُسنَد إلى اسم الطفل — التطبيق لا يسجّل جنسه،
-    // و«استيقظ البطل سلمى» كان يُخاطب البنات بصيغة المذكّر.
-    // لكل مشهد أيقونة وعنوان (فصل) يعرضهما StoryPlayer فوق المشهد.
-    $scenes = [];
-    $scenes[] = [
-        'caption' => "صباح مشرق، و{$child['name']} مع الصديقين {$names} على أول الطريق.",
-        'grad' => $grads[0], 'icon' => '🌅', 'title' => 'بداية اليوم',
-    ];
-    foreach ($doneTasks as $i => $t) {
-        $scenes[] = [
-            'caption' => $t['story_line'],
-            'grad'    => $grads[($i + 1) % count($grads)],
-            'icon'    => category_icon($t['category']),
-            'title'   => $t['title'],
-        ];
-    }
-    $totalPts = array_sum(array_column($doneTasks, 'points'));
-    $scenes[] = [
-        'caption' => "{$child['name']} في البيت الآن، وفي الجيب {$totalPts} نجمة ✨ من نجوم اليوم!",
-        'grad' => $grads[count($grads) - 1], 'icon' => '⭐', 'title' => 'نجوم اليوم',
-    ];
-
-    $photoPath = save_upload('photo', __DIR__ . '/uploads/photos', ['jpg','jpeg','png','webp']);
-    $photoRel = $photoPath ? 'uploads/photos/' . basename($photoPath) : null;
+    $tq = $pdo->prepare("SELECT * FROM tasks WHERE id = ?");
+    foreach ($taskPool as $tid) { $tq->execute([(int)$tid]); if ($row = $tq->fetch()) $doneTasks[] = $row; }
 
     $dayIndex = (int)$child['ring_days'] + 1;
+    // الحكاية الكاملة (غلاف، افتتاحية، فصول، عقبة، شخصية تراثية، حكمة، خاتمة)
+    // تُبنى في daily_story_scenes() — الصياغة محايدة جنسياً حول اسم الطفل.
+    $scenes = daily_story_scenes($pdo, $child, $doneTasks, $myChars, $dayIndex);
+
+    $photoPath = save_image_upload('photo', __DIR__ . '/uploads/photos');
+    $photoRel = $photoPath ? 'uploads/photos/' . basename($photoPath) : null;
     $ins = $pdo->prepare("INSERT INTO daily_stories (child_id, day_index, title, scenes_json, photo_path) VALUES (?,?,?,?,?)");
     $ins->execute([$child['id'], $dayIndex, "مغامرة {$child['name']} — اليوم {$dayIndex}", json_encode($scenes, JSON_UNESCAPED_UNICODE), $photoRel]);
 
@@ -111,10 +90,12 @@ require_once __DIR__ . '/includes/navbar.php';
         title: <?php echo json_encode($todayStory['title'], JSON_UNESCAPED_UNICODE); ?>,
         scenes: <?php echo $todayStory['scenes_json']; ?>,
         photo: <?php echo json_encode($todayStory['photo_path'] ? BASE_PATH.'/'.$todayStory['photo_path'] : null); ?>,
-        spriteFace: <?php echo json_encode($__spriteFace, JSON_UNESCAPED_UNICODE); ?>
+        spriteFace: <?php echo json_encode($__spriteFace, JSON_UNESCAPED_UNICODE); ?>,
+        childName: <?php echo json_encode($child['name'], JSON_UNESCAPED_UNICODE); ?>
       }, 'dailyStoryBox', {
         badge: '✅ قصة اليوم جاهزة! عد غداً لقصة جديدة.',
-        animate: true
+        animate: true,
+        book: true
       });
     </script>
 

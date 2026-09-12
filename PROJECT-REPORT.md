@@ -135,14 +135,53 @@ assessment-due greeting.
 
 ### `safety.php` — child-protection module
 Body autonomy, safe strangers, saying no, digital safety — presented as narrated
-animated scenes plus a true/false game, sourced from `safety_content`.
+animated scenes plus a yes/no game («✅ نعم» / «🙅 لا»), sourced from `safety_content`.
+**The safety game never says «خطأ» and shows no score** (Sep 2026 decision: this is a
+protection module, the child must leave confident, not graded). Every question carries
+a `tip` (its golden rule); a right answer is praised, any other answer gets an
+encouraging line followed by «الأأمن دائماً: <tip>». The end screen («أنت الآن بطل
+الحماية!») lists all the rules so the child hears them twice. Items are age-ranged:
+the game row is 7–12, so younger children get the three narrated videos only.
 
 ### `games.php` — games library
 36 seeded rows grouped into 6 categories (تربوي / علمي / اجتماعي / سلوكي / ثقافي / صحي)
-× the 6 real mechanics, each with an icon + colour, age-filtered. Completion POSTs to
+× the 6 mechanics, each with an icon + colour, age-filtered. Completion POSTs to
 `api/play-game.php` which increments `daily_progress.games_played`. **No score is sent
 to the server.** Each card passes its category to `GamesEngine.run()` via `data-*`
 attributes, so a صحي game asks health questions and a ثقافي game asks heritage ones.
+
+**Mechanics (Sep 2026 rewrite — `reaction` and `memory` are gone):**
+
+| slug | label | what the child does |
+|---|---|---|
+| `catch` | التقط الصحيح | one target icon is announced; tap only it among drifting icons. Keeps spawning until 6 (5 calm) are caught, retargets every 3 |
+| `match` | مطابقة الأزواج | 3-D flip cards, find the pairs (4 pairs calm / 6 timed) |
+| `quiz` | طريق البطل (أسئلة) | a walker advances along a path one step per answered yes/no question (5 questions from `game_questions`) |
+| `puzzle` | البازل | a topic icon is tiled N×N (2 calm, 3 otherwise); tap two tiles to swap until the picture is whole |
+| `hide` | أين اختبأ صاحبي؟ | cup-shuffle: the companion hides under one of three cups, they shuffle, tap the right one — 3 rounds |
+| `adventure` | مغامرة بالاختيارات | 4 branching situations from `game_scenarios`, each choice gets its own gentle response |
+
+Every mechanic ends with the same `celebrate()` screen (confetti, companion, praise
+line) and **no mechanic ever tells the child «خطأ»/«غلط» or shows an X-of-Y score** —
+misses get one of the `ENCOURAGE` lines and the game continues. Puzzle and hide are
+the replacements for the old memory/reaction cards; `kidora_migrate()` renames legacy
+rows in place (`kidora_legacy_game_titles()` in `database/seed.php`) so a production
+DB seeded before Sep 2026 gets «بازل الحروف» / «أين اختبأ الحرف؟» without reseeding.
+Card titles with a judging tone were also renamed («قرارات صح وخطأ» → «قرارات البطل»,
+safety «صح أم خطأ: الإنترنت الآمن» → «بطل الإنترنت الآمن»).
+
+### `draw.php` — the drawing board (لوحتي)
+A free-expression canvas, added Sep 2026 because a child who draws is a child who
+lets something out. Tools: brush / thick marker / spray / eraser / stamps (the
+companions' icons + emoji), 12-colour palette + rainbow, six backgrounds, 25-step
+undo/redo, clear. **Save is server-side**: `POST api/save-drawing.php` with a PNG data
+URL → validated (magic bytes + `getimagesize`, ≤ 2 MiB, 16–4096 px) → stored under
+`uploads/drawings/{child_id}/` → row in `drawings`. **The first saved drawing of the
+day counts as one of today's games** (`games_played + 1`) so the daily loop treats
+drawing as play, not a side activity. After saving the child can download the PNG or
+share it through the parent's WhatsApp. The gallery (latest 12, delete-own-only) lives
+in `profile.php#drawings`; the board is linked from the navbar, `games.php` and the
+dashboard.
 
 **Subscription gating (Sep 2026).** Without an active paid plan the child sees only
 `FREE_LIBRARY_GAMES = 2` cards, picked by `visible_library_games()` to be **two
@@ -155,16 +194,26 @@ allowance — it belongs to the mission package and stays free.
   `generate_story` POST handler refuses (`$isPremium` is checked server-side, not
   just in the view). An already-generated story stays viewable if the plan lapses.
 - Gated on `tasksDone && games_played >= FREE_LIBRARY_GAMES`.
-- Child may upload a photo; scenes are assembled from the day's **actual completed
-  tasks'** `story_line` values plus an opening and closing scene, saved to
-  `daily_stories.scenes_json`, and `children.ring_days` is incremented (+10 points).
-- Each scene carries `icon` (from `category_icon()` of the task) and `title` (the task
-  title), and rendering passes `animate: true` plus the companion's first
-  `icons_json` emoji as `spriteFace` — so the daily story autoplays with a floating
-  companion and a per-scene chapter header, matching the grand story's presentation.
+- Child may upload a photo; scenes come from `daily_story_scenes()` in
+  `includes/functions.php` (Sep 2026): a **real narrative arc**, not a caption list —
+  cover → opening with a companion quote → one chapter per completed task (a
+  transition sentence + the task's `story_line` + a category-flavoured reaction) → an
+  obstacle scene after the second chapter → the historical figure met that day
+  (`figure_for_task()`) → climax with the day's points → a moral chosen from the
+  child's strongest category → an end page. Sentence pools are seeded with
+  `crc32(child_id|date)` so the same day always tells the same story but two children
+  (or two days) never read identical text. Saved to `daily_stories.scenes_json`
+  (each scene has `kind`, optional `speaker`/`quote`), `children.ring_days` +1
+  (+10 points). **No AI API** — this is PHP templating on purpose.
+- Rendering uses `StoryPlayer` **book mode** (`book: true`): a cream paper page with a
+  chapter ribbon («الفصل ١»…), scene art, the child's photo/name as hero, the
+  companion in the margin with a speech bubble, page-turn animation, dots, and
+  autoplay that waits for `SoundEngine.speak()` to finish each page (timed fallback
+  when voice is off).
 - Exportable as a real video file from the browser — Canvas + `MediaRecorder`,
-  640×360, 2.2 s per scene, tries `video/mp4` then falls back to `video/webm`.
-  No audio track, no paid AI service.
+  640×360, tries `video/mp4` then falls back to `video/webm`; book mode draws the
+  same paper layout (`drawBookScene`). `xopts.onBlob` receives the Blob (used by the
+  test harness). No audio track, no paid AI service.
 
 ### `grand-story.php` — the 30-day payoff
 Consumes **30** daily stories (`GRAND_STORY_DAYS`) and builds one "Grand Adventure"
@@ -181,6 +230,18 @@ This is what the `0/30` ring in the navbar tracks (`children.ring_days`).
 Copy is deliberately **gender-neutral** (nominal sentences) because `children` has no
 gender column — avoid adding verb forms that need agreement with the child's name.
 
+### Mail (`includes/mailer.php`, Sep 2026)
+Hand-rolled SMTP client (implicit TLS 465 or STARTTLS, `peer_name` verification,
+AUTH PLAIN → LOGIN, multipart text+HTML, base64 bodies, dot-stuffing). Config comes
+from env first — `KIDORA_SMTP_HOST/PORT/USER/PASS/FROM/FROM_NAME/TLS_NAME` — then from
+`settings.smtp_*` (editable in Admin → الإعدادات, with an «إرسال تجريبي» button).
+`mail_is_configured()` gates the reset form so an unconfigured install shows a
+WhatsApp fallback instead of a silent failure. **Production sends only from
+`no-reply@anivia.site`** through the host's own aaPanel Postfix (SPF `ip4:` +
+DKIM `default._domainkey` + DMARC published on Cloudflare; the SMTPS cert is
+`mail.ggpanel.site`, hence `TLS_NAME`). Nothing is sent from trafficwar.tech and no
+third-party mail API is used.
+
 ### Other pages
 - `friends.php` — per-character friend stories (**hardcoded** in JS, not DB).
 - `culture.php` — Arab/Islamic cultural story bank (**hardcoded** in JS, not DB).
@@ -188,7 +249,13 @@ gender column — avoid adding verb forms that need agreement with the child's n
   Brick Breaker (ضرب الطوب), Flappy Bird, Road Race (سباق الطريق). Fully
   client-side, not in the `games` table, not admin-manageable.
 - `profile.php` — editable profile, companion switcher, behaviour chart,
-  story archive, WhatsApp report button.
+  story archive, drawings gallery, WhatsApp report button.
+- `forgot-password.php` / `reset-password.php` — public password-reset pair (Sep
+  2026). Request: always the same neutral message (no account enumeration), max
+  `PASSWORD_RESET_MAX_PER_HOUR = 3` tokens per child, token = 64 hex chars stored as
+  SHA-256 in `password_resets`, TTL `PASSWORD_RESET_TTL_MIN = 60`, single use (all
+  pending tokens of the child are consumed together). Mail goes through
+  `includes/mailer.php`. Shared card styles: `includes/public-card.php`.
 
 ---
 
@@ -339,8 +406,8 @@ Session flash keys (`$_SESSION['flash_*']`) carry cross-redirect state:
 |---|---|---|
 | `theme-engine.js` | `ThemeEngine` | `applyBackground()` / `previewCharacter()` — recolours gradient, sets `--theme-accent`/`--theme-glow`, spawns floating icons |
 | `sound-engine.js` | `SoundEngine` | `speak()` via `SpeechSynthesis` (`ar-SA`, prefers an Arabic female voice), optional `onEnd` callback, `sfx()` tones for public interactions, pre-speech chime, and optional Web Audio background music. Toggles persist in `localStorage` (`kidaura_voice`, `kidaura_music`) |
-| `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay (4.5 s/scene), a play/pause button, and a caption/chapter cross-fade via the `is-out` class; manual navigation cancels autoplay |
-| `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `reaction` / `memory` / `adventure`. **Content is fetched from `api/game-content.php`, not hardcoded** (a small `FALLBACK` bank exists only so a failed request never shows a broken screen). `game_types()` in `includes/functions.php` is the authoritative slug→label list |
+| `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay, a play/pause button, and a caption/chapter cross-fade; `opts.book` (story + grand-story) switches to the paper-book layout with narration-synced page turns; manual navigation cancels autoplay |
+| `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `puzzle` / `hide` / `adventure`. **Content is fetched from `api/game-content.php`, not hardcoded** (a small `FALLBACK` bank exists only so a failed request never shows a broken screen). `game_types()` in `includes/functions.php` is the authoritative slug→label list. Feedback vocabulary is `PRAISE` / `ENCOURAGE` only |
 | `app.js` | `companionSay()` | bootstrap: nav toggle, voice/music buttons, companion click + swap, auto page greeting |
 
 **Age-adaptive play (Sep 2026).** `GAME_TIMER_MIN_AGE = 10` in
@@ -348,11 +415,11 @@ Session flash keys (`$_SESSION['flash_*']`) carry cross-redirect state:
 `calm` on the content endpoint — the client cannot opt into timers. When `calm`:
 
 - `quiz` drops the countdown entirely and reads each question aloud via `SoundEngine`.
-- `reaction` is **swapped for `match`**, because reaction time *is* the mechanic —
-  there is no timer to remove. The displayed title is replaced too, so
-  "سرعة القفز" does not promise a speed game the child will not play.
 - `adventure` reads the situation and its choices aloud and waits longer on outcomes.
-- `catch` spawns slower, `match` uses 4 pairs instead of 6, `memory` caps at 3 levels.
+- `catch` spawns slower and needs 5 catches instead of 6, `match` uses 4 pairs instead
+  of 6, `puzzle` is 2×2 instead of 3×3, `hide` shuffles slower. No mechanic is swapped
+  any more — the Sep 2026 set has no pure reaction-time game, so every card plays the
+  mechanic its title promises at every age.
 
 Read-aloud goes through `SoundEngine.speak()`, so the existing mute toggle still wins.
 
@@ -361,6 +428,8 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 - `POST api/play-game.php` → `games_played += 1`, returns `{ok, games_played}`.
 - `POST api/swap-companion.php` → toggles `active_character` between `character_1`
   and `character_2`, returns `{ok, active_character}`; client reloads the page.
+- `POST api/save-drawing.php` (JSON `{image: data:image/png;base64…, title?}`) →
+  `{ok, id, url, title, counted_as_game}`; 401/400/500 with `{ok:false, error}`.
 - `GET api/game-content.php?category=<arabic>` → `{ok, age, calm, topic, label, icons,
   quiz, adventure}`. The Arabic category is resolved to a topic through
   `game_topics.categories_json` (unknown → `general`), rows are filtered by the
@@ -393,10 +462,12 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 | `daily_progress` | one row per `(child_id, day_key)`: `task_pool_ids`, `completed_task_ids`, `games_played`, `quiz_*`, `story_generated` |
 | `daily_stories` / `grand_stories` | generated story scenes as JSON |
 | `safety_content` | protection module items |
+| `password_resets` | `child_id`, `token_hash` (sha256), `expires_at`, `used_at`, `created_at` — `created_at` is written from PHP (app timezone), never left to the DB default (UTC), otherwise the per-hour limit never triggers |
+| `drawings` | `child_id`, `title`, `image_path` (`uploads/drawings/{child}/d_*.png`), `created_at` (also PHP-written) |
 | `subscription_plans` / `subscriptions` | plans + one row per child (`pending`/`active`) |
 | `institutions` | partner school / org supervisors |
 | `wa_log` | every WhatsApp message generated |
-| `settings` | `whatsapp_number`, `platform_name`, `story_api_key` (key-value) |
+| `settings` | `whatsapp_number`, `platform_name`, `story_api_key`, `smtp_host/port/user/pass/from/from_name/tls_name` (key-value) |
 
 Seeded volumes: 6 characters, **29 tasks**, 36 games (6 mechanics × 6 categories),
 12 assessment questions, 29 history figures (every one reachable from a task),
@@ -687,6 +758,31 @@ machine-checked, but **nobody has watched them**, and for missions 14, 15 and 23
 nothing suitable surfaced after three searches each.
 
 ---
+
+### Found and fixed during the Sep 2026 games / mail / drawing pass
+Every game was driven to completion in headless Chromium (Playwright) for a
+6-year-old and an 11-year-old: all 36 library cards (age-filtered → 30 + 27 cards,
+together covering every row), 4 missions + their mini-games per age, safety
+(right-only and wrong-only runs), drawing save/gallery/delete, story generation +
+book autoplay + video export, the 4 arcade games, and the full reset-mail loop with a
+real message delivered by the host Postfix and DKIM-verified. Zero console errors.
+Defects that surfaced and were fixed on the way:
+
+- `api/save-drawing.php` used `mb_substr()`; the runtime has no `mbstring` → 500 on
+  every save. Replaced with a `preg` UTF-8 truncation. **Do not use `mb_*` anywhere in
+  this codebase.**
+- `password_resets.created_at` relied on `DEFAULT CURRENT_TIMESTAMP` (UTC) while the
+  rate-limit compare used `date()` in `Asia/Gaza` → the 3-per-hour limit could never
+  trigger. Both `password_resets` and `drawings` now write `created_at` from PHP.
+- The WhatsApp share captions for drawings said «{name} رسم لوحة» (bound masculine
+  verb next to the child's name) → «لوحة … من ريشة {name}».
+- `includes/footer.php` had a stray Arabic note after `</html>`.
+- Legacy `reaction`/`memory` rows: migration renames both `type` and title; verified on
+  a copy of a pre-Sep DB.
+
+Still open from this pass: the arcade games in `games2.php` are endless score games
+and were verified to render and respond to input, not to "complete" (they have no end
+state by design).
 
 ## 9. Running it locally
 

@@ -22,6 +22,7 @@ $__secondaryItems = [
     'culture.php' => ['label' => 'قصص ثقافية', 'icon' => '🌍'],
     'grand-story.php' => ['label' => 'مغامرتي الكبرى', 'icon' => '🏰'],
     'safety.php' => ['label' => 'الحماية', 'icon' => '🛡️'],
+    'draw.php' => ['label' => 'لوحتي', 'icon' => '🎨'],
     'subscriptions.php' => ['label' => 'الاشتراك', 'icon' => '💎'],
     'games2.php' => ['label' => 'معرض الألعاب', 'icon' => '🎯'],
     'profile.php' => ['label' => 'ملفي الشخصي', 'icon' => '👤'],

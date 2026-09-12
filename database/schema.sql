@@ -182,6 +182,8 @@ CREATE TABLE IF NOT EXISTS safety_content (
     title VARCHAR(150) NOT NULL,
     description TEXT,
     youtube_id VARCHAR(64) DEFAULT NULL,
+    game_type VARCHAR(30) DEFAULT 'body',
+    is_premium TINYINT(1) DEFAULT 0,
     age_min INT DEFAULT 4,
     age_max INT DEFAULT 12,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -227,6 +229,28 @@ CREATE TABLE IF NOT EXISTS wa_log (
 CREATE TABLE IF NOT EXISTS settings (
     setting_key VARCHAR(60) PRIMARY KEY,
     setting_value TEXT
+);
+
+-- رموز استرجاع كلمة المرور: يُخزَّن sha256 للرمز فقط، صالح ساعة، ولمرة واحدة
+CREATE TABLE IF NOT EXISTS password_resets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    child_id INT NOT NULL,
+    token_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_reset_token (token_hash),
+    INDEX idx_reset_child (child_id)
+);
+
+-- رسومات الطفل من لوحة الرسم (draw.php)
+CREATE TABLE IF NOT EXISTS drawings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    child_id INT NOT NULL,
+    title VARCHAR(120) DEFAULT '',
+    image_path VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_drawing_child (child_id)
 );
 
 -- ============================================================

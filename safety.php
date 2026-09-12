@@ -144,7 +144,7 @@ require_once __DIR__ . '/includes/navbar.php';
 .bp-legL{left:40px}.bp-legR{right:40px}
 .bp.ok{border-color:#2ec4b6;background:#2ec4b6!important;
   box-shadow:0 0 35px rgba(46,196,182,.7);animation:pop .5s}
-.bp.no{border-color:#ff6b6b;animation:shake .4s}
+.bp.no{border-color:#ffc93c;animation:shake .4s}
 .bp.off{pointer-events:none;opacity:.7}
 @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1.05)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
@@ -178,7 +178,7 @@ require_once __DIR__ . '/includes/navbar.php';
 .hs-item .txt{font-size:.75rem;color:#d9d0ff;font-weight:700;text-align:center;line-height:1.3}
 .hs-item.danger-ok{background:rgba(255,59,59,.2);border-color:#ff3b3b;animation:pop .5s}
 .hs-item.safe-ok{background:rgba(46,196,182,.15);border-color:#2ec4b6;opacity:.55;pointer-events:none}
-.hs-item.wrong{background:rgba(255,107,107,.2);border-color:#ff6b6b;animation:shake .4s}
+.hs-item.wrong{background:rgba(255,201,60,.2);border-color:#ffc93c;animation:shake .4s}
 
 /* ========== SCENARIO ========== */
 .sc-box{background:rgba(255,255,255,.05);border-radius:18px;padding:1.2rem}
@@ -190,7 +190,7 @@ require_once __DIR__ . '/includes/navbar.php';
   font-size:.95rem;display:flex;align-items:center;gap:.6rem}
 .sc-choice:hover{background:rgba(255,255,255,.14);border-color:rgba(255,201,60,.5)}
 .sc-choice.ok{border-color:#2ec4b6;background:rgba(46,196,182,.2);animation:pop .4s}
-.sc-choice.no{border-color:#ff6b6b;background:rgba(255,107,107,.2);animation:shake .4s}
+.sc-choice.no{border-color:#ffc93c;background:rgba(255,201,60,.2);animation:shake .4s}
 .sc-num{background:rgba(255,201,60,.9);color:#241645;width:26px;height:26px;
   border-radius:50%;display:grid;place-items:center;font-weight:900;
   font-size:.85rem;flex-shrink:0}
@@ -205,7 +205,7 @@ require_once __DIR__ . '/includes/navbar.php';
 .mt-item:hover{background:rgba(255,255,255,.15)}
 .mt-item.sel{border-color:#ffc93c;background:rgba(255,201,60,.2);transform:scale(1.03)}
 .mt-item.done{border-color:#2ec4b6;background:rgba(46,196,182,.2);opacity:.6;pointer-events:none}
-.mt-item.err{border-color:#ff6b6b;animation:shake .4s}
+.mt-item.err{border-color:#ffc93c;animation:shake .4s}
 
 /* ========== QUIZ ========== */
 .qz-box{background:rgba(255,255,255,.05);border-radius:18px;padding:1.2rem}
@@ -220,7 +220,7 @@ require_once __DIR__ . '/includes/navbar.php';
   cursor:pointer;transition:.2s;font-family:inherit}
 .qz-btn:hover{background:rgba(255,255,255,.15);border-color:#ffc93c}
 .qz-btn.ok{background:rgba(46,196,182,.25);border-color:#2ec4b6}
-.qz-btn.no{background:rgba(255,107,107,.25);border-color:#ff6b6b}
+.qz-btn.soft{background:rgba(255,201,60,.22);border-color:#ffc93c}
 
 /* ========== PASSWORD ========== */
 .pw-box{max-width:380px;margin:0 auto;text-align:center}
@@ -485,7 +485,13 @@ function renderLesson(){
 
 /* ============================================================
    عناوين الألعاب
+   قرار تربوي ثابت في هذا القسم: لا يُقال للطفل «خطأ»/«غلط» ولا تظهر
+   علامة X أو نتيجة. الإجابة الآمنة تُكافأ، وغيرها تُقابَل بتشجيع ثم
+   القاعدة الآمنة نفسها — فالهدف طفل واثق يحفظ القاعدة، لا طفل خائف
+   من العلامة. أي محرك جديد يلتزم بـ gentle() أدناه.
    ============================================================ */
+const SF_ENCOURAGE = ['فكرة جيدة! 💙', 'شكراً لأنك فكّرت 🤗', 'قريب جداً! 🌈', 'تفكيرك جميل ✨'];
+function gentle(rule){ return SF_ENCOURAGE[Math.floor(Math.random()*SF_ENCOURAGE.length)] + (rule ? ' الأأمن دائماً: ' + rule : ''); }
 function gameTitle(t){
   return ({
     body:'🛡️ لعبة المنطقة الخاصة',
@@ -493,7 +499,7 @@ function gameTitle(t){
     hotspot:'🔥 لعبة اكتشف الخطر',
     scenario:'🤔 لعبة اتخاذ القرار',
     match:'📞 لعبة أرقام الطوارئ',
-    quiz:'✅ لعبة صح أم خطأ',
+    quiz:'💬 لعبة نعم أم لا',
     password:'🔐 لعبة كلمة السر القوية',
     street:'🚦 لعبة عبور الشارع'
   })[t] || '🎮 لعبة';
@@ -505,7 +511,7 @@ function gameDesc(t){
     hotspot:'اضغط على الأشياء الخطيرة في المشهد.',
     scenario:'اختر التصرف الصحيح في كل موقف.',
     match:'وصّل الرقم بالجهة الصحيحة.',
-    quiz:'أجب صح أو خطأ على الأسئلة.',
+    quiz:'أجب بنعم أو لا، وتعلّم قاعدة ذهبية مع كل سؤال.',
     password:'اكتب كلمة سر قوية لتربح.',
     street:'اعبر الشارع عندما تكون الإشارة خضراء.'
   })[t] || '';
@@ -541,7 +547,8 @@ function gameBody(box){
         done = true; gameCompleted = true; checkBothDone();
       } else {
         this.classList.add('no');
-        updateFb('❌ هذه ليست المنطقة الخاصة. جرّب غيرها.', '#ff6b6b');
+        updateFb(gentle('المنطقة الخاصة هي التي نغطيها دائماً وتبقى سرّاً 🔒'), '#ffc93c');
+        speak('فكرة جيدة. المنطقة الخاصة هي التي نغطيها دائماً. جرّب مرة أخرى.');
         setTimeout(()=>this.classList.remove('no'), 600);
       }
     });
@@ -621,7 +628,7 @@ function gameHotspot(box, L){
       if (this.dataset.danger === '1'){
         this.classList.add('danger-ok');
         found++;
-        updateFb(`✅ صحيح! "${it.txt}" خطير. (${found}/${totalDanger})`, '#2ec4b6');
+        updateFb(`✅ أحسنت! "${it.txt}" قد يؤذينا، نبتعد عنه 🌟`, '#2ec4b6');
         if (found === totalDanger){
           updateFb('🎉 أحسنت! اكتشفت كل الأشياء الخطيرة.', '#2ec4b6');
           speak('ممتاز! اكتشفت كل الأشياء الخطيرة.');
@@ -629,7 +636,7 @@ function gameHotspot(box, L){
         }
       } else {
         this.classList.add('wrong');
-        updateFb(`❌ "${it.txt}" آمن، ليس خطراً.`, '#ff6b6b');
+        updateFb(gentle(`"${it.txt}" شيء آمن — نبحث عمّا قد يؤذينا 🔍`), '#ffc93c');
         setTimeout(()=>{ this.classList.remove('done','wrong'); }, 800);
       }
     });
@@ -712,8 +719,8 @@ function gameScenario(box, L){
         } else {
           this.classList.add('no');
           box.querySelectorAll('.sc-choice')[q.correct].classList.add('ok');
-          updateFb('❌ الإجابة الصحيحة معلمة بالأخضر.', '#ff6b6b');
-          speak('ليست الإجابة الصحيحة. الإجابة الصحيحة معلمة بالأخضر.');
+          updateFb(gentle(`الأبطال يختارون «${cleanEmoji(q.a[q.correct])}» — معلَّمة بالأخضر 💚`), '#ffc93c');
+          speak('شكراً لأنك فكّرت. الأبطال يختارون: ' + cleanEmoji(q.a[q.correct]));
           setTimeout(()=>{ i++; render(); }, 2000);
         }
       });
@@ -776,7 +783,7 @@ function gameMatch(box){
       if (sel.dataset.id === this.dataset.id){
         sel.classList.remove('sel'); sel.classList.add('done'); this.classList.add('done');
         matches++;
-        updateFb(`✅ صحيح! (${matches}/3)`, '#2ec4b6');
+        updateFb('✅ أحسنت! رقم مهم حفظته 🌟', '#2ec4b6');
         if (matches === 3){
           updateFb('🎉 رائع! تعلمت أرقام الطوارئ.', '#2ec4b6');
           speak('ممتاز! تعلمت أرقام الطوارئ.');
@@ -786,7 +793,7 @@ function gameMatch(box){
         const a = sel; sel = null;
         this.classList.add('err'); a.classList.add('err');
         setTimeout(()=>{ this.classList.remove('err','sel'); a.classList.remove('err','sel'); }, 600);
-        updateFb('❌ غير متطابق، جرّب مرة أخرى', '#ff6b6b');
+        updateFb(gentle('كل رمز له رقمه — جرّب رقماً آخر 📞'), '#ffc93c');
       }
       sel = null;
     });
@@ -797,18 +804,21 @@ function gameMatch(box){
    محرك 6: QUIZ
    ============================================================ */
 function gameQuiz(box){
+  /* كل سؤال يحمل قاعدته الذهبية (tip): تُقال للطفل بعد أي إجابة غير آمنة، وتُعرض كلها في النهاية */
   const qs = [
-    {q:'🔒 كلمة السر يجب أن تكون سهلة مثل 1234', a:false},
-    {q:'👤 لا تشارك اسمك وعنوانك مع غريب على الإنترنت', a:true},
-    {q:'📸 من الآمن نشر صورك مع أي شخص', a:false},
-    {q:'🚫 إذا أزعجك شخص على الإنترنت، أخبر والديك', a:true},
-    {q:'👥 من الآمن مقابلة شخص تعرفت عليه على الإنترنت وحدك', a:false}
+    {q:'🔒 هل كلمة السر يجب أن تكون سهلة مثل 1234؟', a:false, tip:'كلمة السر طويلة وسرّية، لا يعرفها إلا أنا وأهلي 🔑'},
+    {q:'👤 هل أُبقي اسمي وعنواني سرّاً عن الغرباء على الإنترنت؟', a:true, tip:'معلوماتي الشخصية سرّ لا أعطيه لأي غريب 🔒'},
+    {q:'📸 هل من الآمن نشر صوري مع أي شخص؟', a:false, tip:'صوري أشاركها فقط بإذن أهلي ومع من أعرفهم 🖼️'},
+    {q:'🚫 إذا أزعجني شخص على الإنترنت، هل أخبر أهلي؟', a:true, tip:'أي شيء يزعجني أخبر به أهلي فوراً — هذا تصرّف الأبطال 💪'},
+    {q:'👥 هل من الآمن مقابلة شخص تعرّفت عليه على الإنترنت وحدي؟', a:false, tip:'لا أذهب لأي لقاء لا يعرفه أهلي 🚫🤝'}
   ];
   let i = 0;
   function render(){
     if (i >= qs.length){
-      box.innerHTML = `<div style="padding:2rem;text-align:center"><div style="font-size:3rem">🏆</div><p style="font-weight:800;color:#2ec4b6">أنهيت الاختبار!</p></div>`;
-      speak('أحسنت! أنهيت الاختبار.');
+      box.innerHTML = `<div style="padding:1.6rem 1rem;text-align:center"><div style="font-size:3rem">🛡️</div>
+        <p style="font-weight:800;color:#2ec4b6;margin:.4rem 0 .8rem">أنت الآن بطل الحماية! هذه قواعدك الذهبية:</p>
+        <ul style="text-align:right;display:inline-block;margin:0;padding:0 1.2rem;line-height:1.9;font-weight:700">${qs.map(x=>`<li>${x.tip}</li>`).join('')}</ul></div>`;
+      speak('أنت الآن بطل الحماية! ' + qs.map(x=>cleanEmoji(x.tip)).join('. '));
       gameCompleted = true; checkBothDone();
       return;
     }
@@ -819,13 +829,13 @@ function gameQuiz(box){
         <div class="qz-progress"><div class="qz-fill" style="width:${pct}%"></div></div>
         <div class="qz-q">${q.q}</div>
         <div class="qz-btns">
-          <button class="qz-btn" data-v="1">✅ صح</button>
-          <button class="qz-btn" data-v="0">❌ خطأ</button>
+          <button class="qz-btn" data-v="1">✅ نعم</button>
+          <button class="qz-btn" data-v="0">🙅 لا</button>
         </div>
       </div>
     `;
     /* 🔊 قراءة السؤال تلقائياً */
-    setTimeout(()=>speak(`السؤال ${i+1} من ${qs.length}. ${cleanEmoji(q.q)}. صح أم خطأ؟`), 400);
+    setTimeout(()=>speak(`${cleanEmoji(q.q)} نعم أم لا؟`), 400);
 
     box.querySelectorAll('.qz-btn').forEach(b=>{
       b.addEventListener('click', function(){
@@ -833,12 +843,13 @@ function gameQuiz(box){
         box.querySelectorAll('.qz-btn').forEach(x=>x.disabled=true);
         if (v === q.a){
           this.classList.add('ok');
-          updateFb('✅ صحيح!', '#2ec4b6'); speak('صحيح');
+          updateFb('✅ أحسنت يا بطل! ' + q.tip, '#2ec4b6'); speak('أحسنت! ' + cleanEmoji(q.tip));
+          setTimeout(()=>{ i++; render(); }, 2200);
         } else {
-          this.classList.add('no');
-          updateFb('❌ خطأ', '#ff6b6b'); speak('خطأ');
+          this.classList.add('soft');
+          updateFb(gentle(q.tip), '#ffc93c'); speak('فكرة جيدة. الأأمن دائماً: ' + cleanEmoji(q.tip));
+          setTimeout(()=>{ i++; render(); }, 3200);
         }
-        setTimeout(()=>{ i++; render(); }, 1500);
       });
     });
   }
@@ -888,8 +899,8 @@ function gamePassword(box){
       updateFb('🎉 كلمة سر قوية جداً!', '#2ec4b6');
       speak('ممتاز! كلمة سر قوية.');
       gameCompleted = true; checkBothDone();
-    } else if (score >= 3){ updateFb('👍 جيدة، كمّل', '#ffc93c'); }
-    else { updateFb('⚠️ ضعيفة', '#ff6b6b'); }
+    } else if (score >= 3){ updateFb('👍 جيدة جداً، أضف ما بقي ✨', '#ffc93c'); }
+    else { updateFb('🌱 بداية جيدة! أضف حروفاً وأرقاماً لتصير أقوى', '#ffc93c'); }
   });
 }
 
@@ -947,7 +958,7 @@ function gameStreet(box){
       speak('أحسنت! عبرت بأمان.');
       gameCompleted = true; checkBothDone();
     } else {
-      updateFb(green ? '⚠️ السيارة قادمة! انتظر.' : '⛔ الإشارة حمراء! انتظر.', '#ff6b6b');
+      updateFb(green ? '🚗 السيارة قريبة — ننتظر حتى تبتعد، أنت بأمان 💙' : '🔴 الإشارة حمراء — ننتظر الأخضر معاً 💙', '#ffc93c');
       kid.style.transform = 'translateX(-50%) rotate(10deg)';
       setTimeout(()=> kid.style.transform = 'translateX(-50%)', 400);
     }

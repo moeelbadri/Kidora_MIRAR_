@@ -2,16 +2,43 @@
    StoryPlayer — مشغّل موحّد لكل أنواع القصص (اليومية، الكبرى،
    قصص الأصدقاء، القصص الثقافية): سلايدشو + سرد صوتي + تنزيل
    فيديو حقيقي (Canvas + MediaRecorder) + مشاركة (Web Share API)
+
+   وضعان للعرض:
+     الافتراضي  — مشهد متدرّج اللون مع تعليق (القصص الثقافية/الأصدقاء/البروفايل)
+     book: true — كتاب مصوّر: صفحة ورقية، شريط الفصل، لوحة مرسومة، فقاعة
+                  حوار الرفيق، صورة الطفل، تقليب ثلاثي الأبعاد، وتشغيل
+                  تلقائي يتبع نهاية السرد الصوتي (القصة اليومية والكبرى)
    ============================================================ */
 const StoryPlayer = (function () {
 
-  // زمن بقاء المشهد في التشغيل التلقائي، وزمن تلاشي النص بين مشهدين
+  // زمن بقاء المشهد في التشغيل التلقائي (بلا صوت)، وزمن تلاشي النص بين مشهدين
   const SCENE_MS = 4500;
   const FADE_MS = 260;
+  const TURN_MS = 520;
+
+  const KIND_LABEL = { cover: 'الغلاف', opening: 'البداية', chapter: 'الفصل', obstacle: 'عقبة!', figure: 'من تراثنا', climax: 'الذروة', moral: 'حكمة اليوم', end: 'الخاتمة' };
+  const AR_DIGITS = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  const arNum = n => String(n).replace(/\d/g, d => AR_DIGITS[+d]);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const stripEmoji = s => String(s || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '');
+
+  /** عنوان شريط الصفحة: «الفصل ٢» للفصول، واسم النوع لغيرها */
+  function ribbonLabel(story, idx) {
+    const s = story.scenes[idx];
+    if (!s.kind) return s.title || '';
+    if (s.kind === 'chapter') {
+      let n = 0;
+      for (let i = 0; i <= idx; i++) if (story.scenes[i].kind === 'chapter') n++;
+      return `الفصل ${arNum(n)}`;
+    }
+    return KIND_LABEL[s.kind] || s.title || '';
+  }
 
   function render(story, containerId, opts = {}) {
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container || !story || !story.scenes || !story.scenes.length) return;
+    if (opts.book) return renderBook(story, containerId, container, opts);
+
     // animate = قصة متحركة: تشغيل تلقائي + انتقال بين المشاهد.
     // بدونه يبقى السلوك القديم (تقليب يدوي) للقصص التي لا تحتاج حركة.
     const animate = !!opts.animate;
@@ -92,9 +119,149 @@ const StoryPlayer = (function () {
     }
   }
 
+  /* ---------------- وضع الكتاب المصوّر ---------------- */
+  function renderBook(story, containerId, container, opts) {
+    const total = story.scenes.length;
+    let idx = 0, playing = false, turning = false, playToken = 0, fallbackTimer = null;
+    const c = window.KIDAURA_ACTIVE_CHARACTER || {};
+    const companionHtml = c.image
+      ? `<img src="${(window.KIDAURA_BASE || '')}/${c.image}" alt="">`
+      : `<span>${story.spriteFace || (c.icons && c.icons[0]) || '✨'}</span>`;
+
+    container.innerHTML = `
+      ${opts.badge ? `<p style="text-align:center;color:var(--mint);font-weight:800;">${opts.badge}</p>` : ''}
+      <div class="story-book" id="${containerId}_book">
+        <div class="book-page" id="${containerId}_page">
+          <div class="book-ribbon" id="${containerId}_ribbon"></div>
+          <div class="book-art" id="${containerId}_art">
+            <div class="book-art-sky"></div>
+            <div class="book-art-hill"></div>
+            <div class="book-art-hill two"></div>
+            <div class="book-art-icon" id="${containerId}_icon"></div>
+            <div class="book-hero">
+              ${story.photo ? `<div class="book-hero-photo"><img src="${story.photo}" alt=""></div>` : `<div class="book-hero-photo book-hero-fallback">🧒</div>`}
+              ${story.childName ? `<div class="book-hero-name">${esc(story.childName)}</div>` : ''}
+            </div>
+            <div class="book-companion">${companionHtml}</div>
+            <div class="book-bubble" id="${containerId}_bubble" hidden></div>
+          </div>
+          <div class="book-text">
+            <h3 class="book-title" id="${containerId}_title"></h3>
+            <p class="book-caption" id="${containerId}_caption"></p>
+          </div>
+          <div class="book-foot">
+            <span class="book-pageno" id="${containerId}_counter"></span>
+            <div class="book-dots" id="${containerId}_dots">${story.scenes.map((_, i) => `<i data-i="${i}"></i>`).join('')}</div>
+          </div>
+        </div>
+        <div class="story-controls book-controls">
+          <button class="btn btn-sm btn-ghost" id="${containerId}_prev">◀ السابق</button>
+          <button class="btn btn-sm btn-primary" id="${containerId}_play">▶ اقرأ لي</button>
+          <button class="btn btn-sm btn-ghost" id="${containerId}_next">التالي ▶</button>
+        </div>
+      </div>
+      <div class="story-actions">
+        <button class="btn btn-primary btn-sm" id="${containerId}_download">⬇️ تنزيل كفيديو</button>
+        <button class="btn btn-ghost btn-sm" id="${containerId}_share">🔗 مشاركة</button>
+      </div>`;
+
+    const el = suffix => document.getElementById(`${containerId}_${suffix}`);
+    const page = el('page');
+
+    function apply() {
+      const s = story.scenes[idx];
+      const [g1, g2] = String(s.grad || '#6C63FF,#FF6FA5').split(',');
+      el('art').style.setProperty('--g1', g1.trim());
+      el('art').style.setProperty('--g2', (g2 || g1).trim());
+      el('icon').textContent = s.icon || '✨';
+      el('ribbon').textContent = ribbonLabel(story, idx);
+      el('title').textContent = s.title || '';
+      el('caption').textContent = s.caption || '';
+      const bubble = el('bubble');
+      if (s.quote) {
+        bubble.hidden = false;
+        bubble.innerHTML = `<b>${esc(s.speaker || '')}</b>${esc(s.quote)}`;
+      } else { bubble.hidden = true; bubble.innerHTML = ''; }
+      el('counter').textContent = `${arNum(idx + 1)} / ${arNum(total)}`;
+      el('dots').querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i === idx));
+      page.dataset.kind = s.kind || 'chapter';
+      page.classList.toggle('is-cover', s.kind === 'cover');
+      page.classList.toggle('is-end', s.kind === 'end');
+    }
+
+    /** تقليب ثلاثي الأبعاد: الصفحة تدور حتى ٩٠° ثم تُستبدل وتعود */
+    function turnTo(newIdx, dir) {
+      if (turning || newIdx === idx) return;
+      turning = true;
+      page.classList.add(dir < 0 ? 'turn-back' : 'turn-out');
+      setTimeout(() => {
+        idx = newIdx; apply();
+        page.classList.remove('turn-out', 'turn-back');
+        page.classList.add('turn-in');
+        setTimeout(() => { page.classList.remove('turn-in'); turning = false; }, TURN_MS / 2);
+      }, TURN_MS / 2);
+    }
+
+    function stopPlay() {
+      playing = false; playToken++;
+      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      const b = el('play');
+      b.textContent = '▶ اقرأ لي'; b.classList.remove('btn-primary'); b.classList.add('btn-ghost');
+      page.classList.remove('is-reading');
+    }
+
+    /** يقرأ الصفحة بصوت الرفيق، ويقلب للتالية عند انتهاء الصوت (أو بعد مهلة إن كان الصوت مكتوماً) */
+    function readPage() {
+      if (!playing) return;
+      const token = ++playToken;
+      const s = story.scenes[idx];
+      const text = stripEmoji((s.title ? s.title + '. ' : '') + s.caption + (s.quote ? '. ' + (s.speaker ? s.speaker + ' ' : '') + s.quote : ''));
+      page.classList.add('is-reading');
+      let spokeAsync = false, ended = false;
+      const advance = (delay) => {
+        if (ended || token !== playToken || !playing) return;
+        ended = true;
+        fallbackTimer = setTimeout(() => {
+          if (token !== playToken || !playing) return;
+          if (idx >= total - 1) { stopPlay(); return; }
+          turnTo(idx + 1, 1);
+          setTimeout(readPage, TURN_MS + 80);
+        }, delay);
+      };
+      let started = false;
+      if (typeof SoundEngine !== 'undefined' && typeof SoundEngine.speak === 'function') {
+        started = SoundEngine.speak(text, window.KIDAURA_ACTIVE_CHARACTER, { onEnd: () => { if (spokeAsync) advance(700); } });
+      }
+      spokeAsync = !!started;
+      // الصوت مكتوم/غير مدعوم: إيقاع قراءة بشري تقريبي حسب طول النص
+      if (!started) advance(Math.min(9000, Math.max(SCENE_MS, text.length * 55)));
+      // حماية من متصفح لا يُطلق onend أبداً
+      else fallbackTimer = setTimeout(() => advance(0), Math.min(25000, 4000 + text.length * 90));
+    }
+
+    function startPlay() {
+      if (playing) return;
+      playing = true;
+      if (idx >= total - 1) { idx = 0; apply(); }
+      const b = el('play');
+      b.textContent = '⏸️ إيقاف'; b.classList.remove('btn-ghost'); b.classList.add('btn-primary');
+      readPage();
+    }
+
+    apply();
+    el('prev').onclick = () => { stopPlay(); turnTo(Math.max(0, idx - 1), -1); };
+    el('next').onclick = () => { stopPlay(); turnTo(Math.min(total - 1, idx + 1), 1); };
+    el('play').onclick = () => (playing ? stopPlay() : startPlay());
+    el('dots').querySelectorAll('i').forEach(d => d.onclick = () => { stopPlay(); turnTo(+d.dataset.i, +d.dataset.i > idx ? 1 : -1); });
+    el('download').onclick = () => exportVideo(story, { book: true });
+    el('share').onclick = () => share(story);
+    if (opts.animate && total > 1) setTimeout(startPlay, 900);
+  }
+
   function narrate(story) {
-    const full = story.scenes.map(s => s.caption).join(". ");
-    SoundEngine.speak(full, window.KIDAURA_ACTIVE_CHARACTER);
+    const full = story.scenes.map(s => s.caption + (s.quote ? '. ' + s.quote : '')).join(". ");
+    SoundEngine.speak(stripEmoji(full), window.KIDAURA_ACTIVE_CHARACTER);
   }
 
   function share(story) {
@@ -103,8 +270,8 @@ const StoryPlayer = (function () {
     else { navigator.clipboard?.writeText(text); alert('تم نسخ نص المشاركة 📋'); }
   }
 
-  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-    const words = text.split(" ");
+  function wrapLines(ctx, text, maxWidth) {
+    const words = String(text).split(" ");
     let line = "", lines = [];
     words.forEach(w => {
       const test = line + w + " ";
@@ -112,11 +279,15 @@ const StoryPlayer = (function () {
       else line = test;
     });
     lines.push(line);
+    return lines.map(l => l.trim());
+  }
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const lines = wrapLines(ctx, text, maxWidth);
     const startY = y - (lines.length - 1) * lineHeight / 2;
-    lines.forEach((l, i) => ctx.fillText(l.trim(), x, startY + i * lineHeight));
+    lines.forEach((l, i) => ctx.fillText(l, x, startY + i * lineHeight));
   }
 
-  function exportVideo(story) {
+  function exportVideo(story, xopts = {}) {
     if (!("MediaRecorder" in window)) { alert('التصدير كفيديو غير مدعوم على هذا المتصفح'); return; }
     const canvas = document.createElement("canvas");
     canvas.width = 640; canvas.height = 360;
@@ -131,7 +302,8 @@ const StoryPlayer = (function () {
     const outExt = recorder.mimeType && recorder.mimeType.includes("mp4") ? "mp4" : "webm";
     const chunks = [];
     recorder.ondataavailable = e => chunks.push(e.data);
-    const perScene = 2200;
+    const perScene = xopts.book ? 3200 : 2200;
+    const photoImg = story.photo ? Object.assign(new Image(), { src: story.photo }) : null;
 
     function drawScene(s) {
       const [c1, c2] = s.grad.split(",");
@@ -160,8 +332,53 @@ const StoryPlayer = (function () {
       ctx.fillText("Kidora ✨", canvas.width / 2, 40);
     }
 
+    /** صفحة الكتاب نفسها: ورق فاتح، لوحة ملوّنة في الأعلى، نص داكن في الأسفل */
+    function drawBookScene(s, i) {
+      const W = canvas.width, H = canvas.height;
+      ctx.fillStyle = "#FFF9EE"; ctx.fillRect(0, 0, W, H);
+      // اللوحة
+      const [c1, c2] = String(s.grad).split(",");
+      const g = ctx.createLinearGradient(0, 0, W, 190);
+      g.addColorStop(0, c1); g.addColorStop(1, c2 || c1);
+      ctx.fillStyle = g; ctx.fillRect(20, 16, W - 40, 190);
+      ctx.fillStyle = "rgba(255,255,255,.18)";
+      ctx.beginPath(); ctx.ellipse(W * .3, 206, 260, 60, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.28)";
+      ctx.beginPath(); ctx.ellipse(W * .78, 210, 220, 52, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.textAlign = "center";
+      ctx.font = "84px sans-serif";
+      ctx.fillStyle = "#fff";
+      ctx.fillText(s.icon || '✨', W / 2, 130);
+      // صورة الطفل في إطار دائري يمين اللوحة
+      if (photoImg && photoImg.complete && photoImg.naturalWidth) {
+        ctx.save(); ctx.beginPath(); ctx.arc(W - 80, 160, 34, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+        ctx.drawImage(photoImg, W - 114, 126, 68, 68); ctx.restore();
+        ctx.strokeStyle = "#FFC93C"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(W - 80, 160, 34, 0, Math.PI * 2); ctx.stroke();
+      }
+      // شريط الفصل
+      const label = ribbonLabel(story, i);
+      ctx.font = "800 15px Baloo Bhaijaan 2, sans-serif";
+      const lw = ctx.measureText(label).width + 28;
+      ctx.fillStyle = "#FFC93C"; ctx.fillRect(W - 20 - lw, 28, lw, 28);
+      ctx.fillStyle = "#241645"; ctx.fillText(label, W - 20 - lw / 2, 47);
+      // النص
+      ctx.fillStyle = "#241645";
+      if (s.title) { ctx.font = "800 22px Baloo Bhaijaan 2, sans-serif"; ctx.fillText(s.title, W / 2, 238); }
+      ctx.font = "600 17px Cairo, sans-serif";
+      const lines = wrapLines(ctx, s.caption, W - 90).slice(0, 4);
+      lines.forEach((l, k) => ctx.fillText(l, W / 2, 266 + k * 24));
+      if (s.quote) {
+        ctx.fillStyle = "#6C63FF"; ctx.font = "700 14px Cairo, sans-serif";
+        ctx.fillText(`${s.speaker ? s.speaker + ': ' : ''}«${s.quote}»`, W / 2, H - 14);
+      }
+      ctx.fillStyle = "#8b7aa8"; ctx.font = "800 12px Baloo Bhaijaan 2, sans-serif";
+      ctx.textAlign = "left"; ctx.fillText(`${i + 1} / ${story.scenes.length}`, 24, H - 14);
+      ctx.textAlign = "right"; ctx.fillText("Kidora ✨", W - 24, H - 14);
+    }
+
     recorder.onstop = () => {
       const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+      if (typeof xopts.onBlob === 'function') xopts.onBlob(blob);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = `${(story.title || 'kidaura-story').replace(/\s+/g,'_')}.${outExt}`;
@@ -171,7 +388,8 @@ const StoryPlayer = (function () {
     let i = 0;
     (function next() {
       if (i >= story.scenes.length) { recorder.stop(); return; }
-      drawScene(story.scenes[i]); i++;
+      if (xopts.book) drawBookScene(story.scenes[i], i); else drawScene(story.scenes[i]);
+      i++;
       setTimeout(next, perScene);
     })();
   }

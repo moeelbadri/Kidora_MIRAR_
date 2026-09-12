@@ -2,16 +2,24 @@
    GamesEngine — 6 آليات لعب مختلفة فعلياً، يُعاد استخدامها في
    مكتبة الألعاب (games.php) وفي اللعبة الصغيرة بعد كل مهمة (tasks.php)
 
-   الآليات: catch | match | quiz | reaction | memory | adventure
+   الآليات: catch | match | quiz | puzzle | hide | adventure
+     catch     التقط الصحيح — عنصر مطلوب يتساقط بين عناصر أخرى
+     match     مطابقة الأزواج — بطاقات تنقلب ثلاثي الأبعاد
+     quiz      طريق البطل — الرفيق يتقدّم خطوة مع كل سؤال
+     puzzle    البازل — صورة الموضوع مقطّعة، بدّل قطعتين حتى تكتمل
+     hide      أين اختبأ صاحبي؟ — الرفيق تحت كوب من أكواب تتحرّك
+     adventure مغامرة بالاختيارات
 
    المحتوى (الأيقونات، بنك صح/خطأ، سيناريوهات المغامرة) لم يبقَ ثوابت
    هنا — يأتي من api/game-content.php حسب تصنيف المهمة أو اللعبة، فيُحرَّر
    من لوحة التحكم ويتوسّع بلا نشر جديد.
 
    العمر يقرّر شكل اللعب، والخادم هو من يحسمه (لا الرابط):
-     10 سنوات وأكثر → مؤقّتات وسرعة بديهة كما هي.
-     أقل من 10       → بلا أي مؤقّت، والنص يُقرأ صوتياً، وسرعة البديهة
-                        تُستبدل بمطابقة الأزواج (آلية بلا ضغط وقت).
+     10 سنوات وأكثر → مؤقّت في طريق البطل، شبكات أكبر، حركة أسرع.
+     أقل من 10       → بلا أي مؤقّت، النص يُقرأ صوتياً، شبكات أصغر وأبطأ.
+
+   لا توجد خسارة في أي لعبة: الطفل يكمل دائماً، والتغذية الراجعة تشجيع فقط
+   (لا «خطأ» ولا «غلط»). هذا قرار تربوي لا تفصيل واجهة.
 
    الاستدعاء: GamesEngine.run(type, host, title, color, onDone, { category })
    ============================================================ */
@@ -33,6 +41,10 @@ const GamesEngine = (function () {
             { l: "أكمل طريقي بسرعة", g: false, r: "وصلت أولاً لكن بقلب ثقيل 🥲" }] },
     ],
   };
+
+  const PRAISE = ['ممتاز! 🌟', 'رائع! 👏', 'أحسنت! 🎉', 'يا سلام! ✨', 'بطل! 🏅', 'هذا هو! 💪'];
+  const ENCOURAGE = ['فكرة جيدة! 💙', 'قريب جداً! 🌈', 'جرّب مرة أخرى 🤗', 'أنت على الطريق الصحيح 🐣'];
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
   // المحتوى ثابت داخل الجلسة لكل تصنيف، فلا نُعيد الجلب بين لعبة وأخرى
   const cache = new Map();
@@ -65,14 +77,30 @@ const GamesEngine = (function () {
   function say(topic, text) {
     if (!topic || !topic.calm || !text) return;
     if (typeof SoundEngine === 'undefined') return;
-    SoundEngine.speak(String(text).replace(/[🌟💭🏆🎒👀👆🎉⏱️⚡🧩🗺️🧠]/g, ''), window.KIDAURA_ACTIVE_CHARACTER);
+    SoundEngine.speak(String(text).replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, ''), window.KIDAURA_ACTIVE_CHARACTER);
+  }
+
+  /** مؤثّر صوتي قصير عبر SoundEngine.sfx (tap→flip، good→match، win→win) */
+  function ding(kind) {
+    if (typeof SoundEngine === 'undefined' || typeof SoundEngine.sfx !== 'function') return;
+    const map = { tap: 'flip', good: 'match', win: 'win', pop: 'pop' };
+    try { SoundEngine.sfx(map[kind] || kind); } catch (e) { /* الصوت تحسين لا شرط */ }
+  }
+
+  /** الرفيق النشط كأيقونة أو صورة — يُستخدم في «طريق البطل» و«أين اختبأ صاحبي؟» */
+  function companionHtml(size) {
+    const c = window.KIDAURA_ACTIVE_CHARACTER || {};
+    const base = window.KIDAURA_BASE || '';
+    if (c.image) return `<img src="${base}/${c.image}" alt="" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%;">`;
+    const icon = (c.icons && c.icons[0]) || '✨';
+    return `<span style="font-size:${Math.round(size * .8)}px;line-height:1;">${icon}</span>`;
   }
 
   function shell(host, title, subtitle, body, topic) {
     host.innerHTML = `
-      <div class="mini-game-wrap card" style="padding:20px;">
+      <div class="mini-game-wrap card ge-wrap">
         <h3>${title}</h3>
-        <p style="color:var(--ink-soft);">${subtitle}</p>
+        <p class="ge-sub">${subtitle}</p>
         ${body}
       </div>`;
     host.scrollIntoView({ behavior: 'smooth' });
@@ -88,51 +116,115 @@ const GamesEngine = (function () {
     host.scrollIntoView({ behavior: 'smooth' });
   }
 
+  /** انفجار قصاصات ملوّنة داخل اللعبة عند الإنجاز */
+  function confetti(container) {
+    if (!container) return;
+    const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8A5C', '#6C5CE7', '#FD79A8'];
+    const layer = document.createElement('div');
+    layer.className = 'ge-confetti';
+    for (let i = 0; i < 40; i++) {
+      const p = document.createElement('i');
+      p.style.left = Math.random() * 100 + '%';
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = (Math.random() * .6) + 's';
+      p.style.animationDuration = (1.4 + Math.random()) + 's';
+      layer.appendChild(p);
+    }
+    container.appendChild(layer);
+    setTimeout(() => layer.remove(), 2600);
+  }
+
+  /** شاشة الختام الموحّدة: أيقونة كبيرة + جملة تشجيع + قصاصات */
+  function celebrate(host, area, icon, line, topic, onDone) {
+    if (area) area.innerHTML = `<div class="ge-end"><div class="ge-end-icon">${icon}</div><p>${line}</p></div>`;
+    confetti(host.querySelector('.ge-wrap'));
+    ding('win');
+    say(topic, line);
+    finish(host, onDone);
+  }
+
   function run(type, host, title, color, onDone, opts) {
     loading(host);
     fetchContent(opts && opts.category).then(topic => {
-      // سرعة البديهة تقيس زمن رد الفعل بالمللي ثانية — لا يوجد فيها مؤقّت
-      // نُزيله، فالآلية نفسها هي الضغط. للصغار تُستبدل بمطابقة الأزواج،
-      // ويُستبدل معها العنوان: «سرعة القفز» يَعِد بلعبة سرعة لن يلعبها.
-      let mech = type, name = title;
-      if (mech === 'reaction' && topic.calm) { mech = 'match'; name = 'لعبة المطابقة'; }
-
-      switch (mech) {
-        case 'match':     return runMatch(host, name, color, onDone, topic);
-        case 'quiz':      return runQuiz(host, name, color, onDone, topic);
-        case 'reaction':  return runReaction(host, name, color, onDone, topic);
-        case 'memory':    return runMemory(host, name, color, onDone, topic);
-        case 'adventure': return runAdventure(host, name, color, onDone, topic);
-        default:          return runCatch(host, name, color, onDone, topic);
+      switch (type) {
+        case 'match':     return runMatch(host, title, color, onDone, topic);
+        case 'quiz':      return runQuiz(host, title, color, onDone, topic);
+        case 'puzzle':    return runPuzzle(host, title, color, onDone, topic);
+        case 'hide':      return runHide(host, title, color, onDone, topic);
+        case 'adventure': return runAdventure(host, title, color, onDone, topic);
+        default:          return runCatch(host, title, color, onDone, topic);
       }
     });
   }
 
-  /* ---------------- 1) التقاط ---------------- */
+  /* ---------------- 1) التقط الصحيح ---------------- */
   function runCatch(host, title, color, onDone, topic) {
-    let caught = 0, total = 6, spawned = 0;
-    const items = topic.icons;
-    shell(host, title, 'اضغط على العناصر المتساقطة', `
-      <div class="mini-game-area" id="ge_miniArea" style="border-color:${color};"></div>
-      <p>التقطت: <b id="ge_catchCount">0</b> / ${total}</p>`, topic);
-    const miniArea = document.getElementById('ge_miniArea');
+    const TOTAL = topic.calm ? 5 : 6;
+    let caught = 0, done = false;
+    const icons = topic.icons.slice();
+    let target = pick(icons);
+    const others = icons.filter(i => i !== target);
+    shell(host, title + ' 🎯', `التقط <b class="ge-target" id="ge_target">${target}</b> فقط — ودَع الباقي يمرّ`, `
+      <div class="mini-game-area ge-catch-area" id="ge_miniArea" style="border-color:${color};">
+        <div class="ge-target-badge" style="border-color:${color};">المطلوب: <span id="ge_targetBadge">${target}</span></div>
+      </div>
+      <div class="ge-progress" id="ge_catchDots">${'<i></i>'.repeat(TOTAL)}</div>
+      <div class="ge-msg" id="ge_catchMsg"></div>`, topic);
+    const area = document.getElementById('ge_miniArea');
+    const msg = document.getElementById('ge_catchMsg');
+    const dots = area.parentElement.querySelectorAll('#ge_catchDots i');
     // للصغار تتساقط العناصر أبطأ وتبقى أطول على الشاشة
-    const spawnEvery = topic.calm ? 900 : 550;
-    const fallSecs = topic.calm ? 3.4 : 2;
+    const spawnEvery = topic.calm ? 1000 : 650;
+    const fallSecs = topic.calm ? 4 : 2.4;
+    say(topic, 'التقط ' + target + ' فقط');
+
+    function retarget() {
+      // كل ثلاث التقاطات يتغيّر المطلوب حتى تبقى اللعبة منتبهة لا آلية
+      const next = pick(icons.filter(i => i !== target));
+      if (!next) return;
+      target = next;
+      document.getElementById('ge_target').textContent = target;
+      document.getElementById('ge_targetBadge').textContent = target;
+      msg.textContent = 'المطلوب الآن: ' + target;
+      say(topic, 'الآن التقط ' + target);
+    }
+
     const spawner = setInterval(() => {
-      if (spawned >= total) { clearInterval(spawner); return; }
-      spawned++;
+      if (done) { clearInterval(spawner); return; }
+      const isTarget = Math.random() < .5;
       const el = document.createElement('div');
-      el.className = 'mini-game-item';
-      el.textContent = items[Math.floor(Math.random()*items.length)];
-      el.style.right = (Math.random()*80) + '%';
+      el.className = 'mini-game-item ge-fall';
+      el.textContent = isTarget ? target : (pick(others.filter(i => i !== target)) || '🌙');
+      el.dataset.target = isTarget ? '1' : '0';
+      el.dataset.icon = el.textContent;
+      el.style.right = (5 + Math.random() * 80) + '%';
       el.style.animationDuration = (fallSecs + Math.random()) + 's';
       el.addEventListener('animationend', () => el.remove());
       el.addEventListener('click', () => {
-        caught++; document.getElementById('ge_catchCount').textContent = caught; el.remove();
-        if (caught >= total) { clearInterval(spawner); finish(host, onDone); }
+        if (done) return;
+        // الحكم بالأيقونة لحظة الضغط: عنصر سقط قبل تغيير المطلوب يظل عادلاً
+        if (el.textContent === target) {
+          caught++;
+          el.classList.add('ge-pop');
+          setTimeout(() => el.remove(), 350);
+          dots[Math.min(caught, TOTAL) - 1].classList.add('on');
+          msg.textContent = pick(PRAISE);
+          ding('good');
+          if (caught >= TOTAL) {
+            done = true; clearInterval(spawner);
+            celebrate(host, null, '🏆', `التقطت كل المطلوب! عين صقر وانتباه بطل 🎯`, topic, onDone);
+            area.querySelectorAll('.mini-game-item').forEach(x => x.remove());
+            msg.textContent = 'التقطت كل المطلوب! 🏆';
+          } else if (caught % 3 === 0) {
+            retarget();
+          }
+        } else {
+          el.classList.add('ge-sparkle');
+          setTimeout(() => el.remove(), 500);
+          msg.textContent = `نحن نبحث عن ${target} — ${pick(ENCOURAGE)}`;
+        }
       });
-      miniArea.appendChild(el);
+      area.appendChild(el);
     }, spawnEvery);
   }
 
@@ -141,200 +233,298 @@ const GamesEngine = (function () {
     // أزواج أقل للصغار حتى تبقى اللعبة قابلة للإنجاز
     const icons = topic.icons.slice(0, topic.calm ? 4 : 6);
     const deck = shuffled(icons.concat(icons));
-    let opened = [], matched = [], locked = false;
+    let opened = [], matched = 0, locked = false;
     shell(host, title + ' 🧠', 'اقلب بطاقتين واعثر على المتطابقتين', `
-      <div id="ge_matchGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:360px;margin:14px auto;"></div>
-      <p>أزواج مكتملة: <b id="ge_matchScore">0</b> / ${icons.length}</p>`, topic);
+      <div class="ge-match-grid" id="ge_matchGrid" style="--ge-color:${color};"></div>
+      <div class="ge-progress" id="ge_matchDots">${'<i></i>'.repeat(icons.length)}</div>
+      <div class="ge-msg" id="ge_matchMsg"></div>`, topic);
     const grid = document.getElementById('ge_matchGrid');
+    const msg = document.getElementById('ge_matchMsg');
+    const dots = grid.parentElement.querySelectorAll('#ge_matchDots i');
     deck.forEach((icon, i) => {
       const card = document.createElement('button');
-      card.className = 'btn btn-ghost';
-      card.style.cssText = `height:64px;font-size:26px;border-color:${color};`;
+      card.type = 'button';
+      card.className = 'ge-card';
       card.dataset.icon = icon; card.dataset.idx = i;
-      card.textContent = '❓';
+      card.setAttribute('aria-label', 'بطاقة ' + (i + 1));
+      card.innerHTML = `<span class="ge-card-inner"><span class="ge-card-back">❓</span><span class="ge-card-face">${icon}</span></span>`;
       card.onclick = () => flipCard(card);
       grid.appendChild(card);
     });
     function flipCard(card){
       if (locked || card.classList.contains('done') || opened.includes(card)) return;
-      card.textContent = card.dataset.icon;
+      card.classList.add('open');
+      ding('tap');
       opened.push(card);
       if (opened.length === 2){
         locked = true;
         setTimeout(() => {
           if (opened[0].dataset.icon === opened[1].dataset.icon){
-            opened.forEach(c => { c.classList.add('done'); c.style.opacity = .4; });
-            matched.push(opened[0].dataset.icon);
-            document.getElementById('ge_matchScore').textContent = matched.length;
-            if (matched.length === icons.length){ finish(host, onDone); }
+            opened.forEach(c => c.classList.add('done'));
+            matched++;
+            dots[matched - 1].classList.add('on');
+            msg.textContent = pick(PRAISE);
+            ding('good');
+            if (matched === icons.length){
+              celebrate(host, null, '🏆', 'وجدت كل الأزواج! ذاكرة رائعة 🧠', topic, onDone);
+              msg.textContent = 'وجدت كل الأزواج! ذاكرة رائعة 🧠🏆';
+            }
           } else {
-            opened.forEach(c => c.textContent = '❓');
+            opened.forEach(c => c.classList.remove('open'));
+            msg.textContent = pick(ENCOURAGE);
           }
           opened = []; locked = false;
-        }, topic.calm ? 1100 : 700);
+        }, topic.calm ? 1100 : 750);
       }
     }
   }
 
-  /* ---------------- 3) سباق الأسئلة ---------------- */
+  /* ---------------- 3) طريق البطل (أسئلة) ---------------- */
   function runQuiz(host, title, color, onDone, topic) {
     const TOTAL = 5;
     const questions = topic.quiz.slice(0, TOTAL);
     // الصغار: بلا مؤقّت إطلاقاً، والسؤال يُقرأ عليهم بصوت الشخصية
     const timed = !topic.calm;
-    let idx = 0, score = 0, timeLeft = 30;
+    let idx = 0, stars = 0, timeLeft = 12 * questions.length, timer = null, finished = false;
 
-    shell(host, title + (timed ? ' ⏱️' : ''), `أسئلة عن ${topic.label} — ${timed ? 'أجب بسرعة!' : 'خذ وقتك، لا يوجد مؤقّت'}`, `
-      <p>${timed ? `الوقت المتبقي: <b id="ge_quizTimer" style="color:${color};">${timeLeft}</b> ث | ` : ''}النقاط: <b id="ge_quizScore">0</b></p>
-      <div id="ge_quizBody"></div>`, topic);
+    const stations = questions.map((_, i) => `<span class="ge-station" data-i="${i}">${i + 1}</span>`).join('<span class="ge-road"></span>');
+    shell(host, title + ' 🛤️', `أسئلة عن ${topic.label} — ${timed ? 'اختر بسرعة وامشِ على الطريق!' : 'خذ وقتك، لا يوجد مؤقّت'}`, `
+      <div class="ge-path" style="--ge-color:${color};">
+        <div class="ge-walker" id="ge_walker">${companionHtml(44)}</div>
+        <div class="ge-stations" id="ge_stations">${stations}<span class="ge-road"></span><span class="ge-station ge-goal">🏁</span></div>
+      </div>
+      <p class="ge-meta">${timed ? `⏱️ <b id="ge_quizTimer" style="color:${color};">${timeLeft}</b> ث · ` : ''}⭐ <b id="ge_quizScore">0</b></p>
+      <div id="ge_quizBody" class="ge-quiz-body"></div>`, topic);
 
-    const timer = timed ? setInterval(() => {
-      timeLeft--;
-      const t = document.getElementById('ge_quizTimer');
-      if (t) t.textContent = timeLeft;
-      if (timeLeft <= 0) end();
-    }, 1000) : null;
+    const walker = document.getElementById('ge_walker');
+    const stationEls = Array.from(document.querySelectorAll('#ge_stations .ge-station'));
+    function moveWalker(i) {
+      const st = stationEls[Math.min(i, stationEls.length - 1)];
+      const path = st.closest('.ge-path');
+      if (!st || !path) return;
+      const r = st.getBoundingClientRect(), pr = path.getBoundingClientRect();
+      // RTL: نحسب من الحافة اليمنى حتى يمشي الرفيق من اليمين إلى اليسار
+      walker.style.right = (pr.right - r.right + r.width / 2 - 22) + 'px';
+      stationEls.forEach((s, k) => s.classList.toggle('done', k < i));
+    }
+    setTimeout(() => moveWalker(0), 50);
+
+    if (timed) {
+      timer = setInterval(() => {
+        timeLeft--;
+        const t = document.getElementById('ge_quizTimer');
+        if (t) t.textContent = timeLeft;
+        if (timeLeft <= 0) end();
+      }, 1000);
+    }
 
     function render(){
       if (idx >= questions.length) { end(); return; }
       const q = questions[idx];
       document.getElementById('ge_quizBody').innerHTML = `
-        <h4 style="margin:14px 0;">${q.q}</h4>
-        <div style="display:flex;gap:12px;justify-content:center;">
-          <button class="btn btn-primary" data-v="true">✅ صح</button>
-          <button class="btn btn-ghost" data-v="false">❌ خطأ</button>
+        <h4 class="ge-question">${q.q}</h4>
+        <div class="ge-choices">
+          <button type="button" class="btn btn-primary" data-v="true">✅ نعم</button>
+          <button type="button" class="btn btn-ghost" data-v="false">🙅 لا</button>
         </div>`;
       say(topic, q.q);
       document.querySelectorAll('#ge_quizBody [data-v]').forEach(btn => {
         btn.onclick = () => {
-          if ((btn.dataset.v === 'true') === q.a) { score++; document.getElementById('ge_quizScore').textContent = score; }
-          idx++; render();
+          if (finished) return;
+          const right = (btn.dataset.v === 'true') === !!q.a;
+          const answerWord = q.a ? 'نعم ✅' : 'لا 🙅';
+          if (right) { stars++; document.getElementById('ge_quizScore').textContent = stars; ding('good'); }
+          const line = right
+            ? `${pick(PRAISE)} الجواب: ${answerWord}`
+            : `${pick(ENCOURAGE)} الجواب هنا: ${answerWord}`;
+          document.getElementById('ge_quizBody').innerHTML = `
+            <div class="ge-feedback ${right ? 'good' : 'soft'}"><div class="ge-feedback-icon">${right ? '🌟' : '💙'}</div><p>${line}</p></div>`;
+          say(topic, line);
+          idx++;
+          moveWalker(idx);
+          setTimeout(render, topic.calm ? 2600 : 1300);
         };
       });
     }
     function end(){
+      if (finished) return;
+      finished = true;
       if (timer) clearInterval(timer);
+      moveWalker(stationEls.length - 1);
       const body = document.getElementById('ge_quizBody');
-      const msg = `سجّلت ${score} من ${questions.length}!`;
-      if (body) body.innerHTML = `<div style="font-size:44px;">🏆</div><p>${msg}</p>`;
-      say(topic, msg);
-      finish(host, onDone);
+      const line = stars === questions.length
+        ? 'وصلت لنهاية الطريق وجمعت كل النجوم! بطل حقيقي 🌟'
+        : `وصلت لنهاية الطريق ومعك ${stars} ${stars === 1 ? 'نجمة' : 'نجوم'} — وكل سؤال علّمنا شيئاً جديداً 💪`;
+      celebrate(host, body, '🏆', line, topic, onDone);
     }
     render();
   }
 
-  /* ---------------- 4) سرعة البديهة (10 سنوات وأكثر فقط) ---------------- */
-  function runReaction(host, title, color, onDone, topic) {
-    const ROUNDS = 5;
-    let round = 0, times = [], waiting = false, startedAt = 0, timeoutId = null;
-    shell(host, title + ' ⚡', 'انتظر حتى تتحوّل الدائرة للأخضر ثم اضغط بأسرع ما يمكن', `
-      <button id="ge_reactPad" class="btn" style="width:180px;height:180px;border-radius:50%;font-size:20px;font-weight:800;color:#fff;background:#E5484D;border:none;margin:14px auto;display:flex;align-items:center;justify-content:center;">استعد...</button>
-      <p>الجولة: <b id="ge_reactRound">0</b> / ${ROUNDS} | أفضل زمن: <b id="ge_reactBest" style="color:${color};">—</b></p>
-      <div id="ge_reactMsg" style="min-height:24px;font-weight:700;"></div>`, topic);
-    const pad = document.getElementById('ge_reactPad');
-    const msg = document.getElementById('ge_reactMsg');
+  /* ---------------- 4) البازل ---------------- */
+  function runPuzzle(host, title, color, onDone, topic) {
+    const N = topic.calm ? 2 : 3;               // 2×2 للصغار، 3×3 لمن فوق
+    const icon = pick(topic.icons);
+    const SIZE = 300;
+    // نرسم صورة الموضوع مرة واحدة على canvas ثم نقصّها بخلفيات متحرّكة
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = SIZE;
+    const ctx = cv.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, SIZE, SIZE);
+    g.addColorStop(0, '#FFF3B0'); g.addColorStop(.5, '#FFD6E8'); g.addColorStop(1, '#C9F2FF');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, SIZE, SIZE);
+    for (let i = 0; i < 14; i++) {
+      ctx.beginPath();
+      ctx.arc(Math.random() * SIZE, Math.random() * SIZE, 6 + Math.random() * 18, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${.25 + Math.random() * .4})`; ctx.fill();
+    }
+    ctx.font = Math.round(SIZE * .6) + 'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#241645';
+    ctx.fillText(icon, SIZE / 2, SIZE / 2 + SIZE * .04);
+    let dataUrl = '';
+    try { dataUrl = cv.toDataURL('image/png'); } catch (e) { dataUrl = ''; }
 
-    function nextRound(){
-      if (round >= ROUNDS) return end();
-      waiting = false;
-      pad.style.background = '#E5484D';
-      pad.textContent = 'استعد...';
-      timeoutId = setTimeout(() => {
-        waiting = true; startedAt = Date.now();
-        pad.style.background = '#4CAF6D';
-        pad.textContent = 'اضغط الآن!';
-      }, 900 + Math.random()*2200);
+    // ترتيب مخلوط غير محلول
+    const total = N * N;
+    let order;
+    do { order = shuffled([...Array(total).keys()]); } while (order.every((v, i) => v === i));
+    let first = null, locked = false, solved = false;
+
+    shell(host, title + ' 🧩', 'اضغط قطعتين لتبديل مكانهما حتى تكتمل الصورة', `
+      <div class="ge-puzzle-row">
+        <div class="ge-puzzle" id="ge_puzzle" style="--n:${N};--ge-color:${color};"></div>
+        <div class="ge-puzzle-preview" title="الصورة الكاملة"><span>الصورة</span><div style="background-image:url('${dataUrl}');">${dataUrl ? '' : icon}</div></div>
+      </div>
+      <div class="ge-msg" id="ge_puzzleMsg">قطع في مكانها: <b id="ge_puzzleOk">0</b> / ${total}</div>`, topic);
+    const board = document.getElementById('ge_puzzle');
+    const msg = document.getElementById('ge_puzzleMsg');
+
+    function draw() {
+      board.innerHTML = '';
+      let ok = 0;
+      order.forEach((piece, pos) => {
+        const t = document.createElement('button');
+        t.type = 'button';
+        t.className = 'ge-piece' + (piece === pos ? ' ok' : '');
+        t.dataset.pos = pos; t.dataset.piece = piece;
+        t.setAttribute('aria-label', 'قطعة ' + (pos + 1));
+        const x = piece % N, y = Math.floor(piece / N);
+        t.style.backgroundImage = dataUrl ? `url('${dataUrl}')` : 'none';
+        t.style.backgroundSize = `${N * 100}% ${N * 100}%`;
+        t.style.backgroundPosition = `${N === 1 ? 0 : (x / (N - 1)) * 100}% ${N === 1 ? 0 : (y / (N - 1)) * 100}%`;
+        if (!dataUrl) t.textContent = String(piece + 1);
+        if (piece === pos) ok++;
+        t.onclick = () => tap(pos, t);
+        board.appendChild(t);
+      });
+      const okEl = document.getElementById('ge_puzzleOk');
+      if (okEl) okEl.textContent = ok;
+      return ok;
     }
-    pad.onclick = () => {
-      if (!waiting) {
-        clearTimeout(timeoutId);
-        msg.textContent = 'بكّرت شوي! استنى الأخضر ⏳';
-        msg.style.color = '#E5484D';
-        return nextRound();
+    function tap(pos, el) {
+      if (locked || solved) return;
+      ding('tap');
+      if (first === null) { first = pos; el.classList.add('sel'); return; }
+      if (first === pos) { first = null; el.classList.remove('sel'); return; }
+      const a = first; first = null;
+      [order[a], order[pos]] = [order[pos], order[a]];
+      const ok = draw();
+      if (ok === total) {
+        solved = true; locked = true;
+        board.classList.add('solved');
+        celebrate(host, null, '🏆', 'اكتملت الصورة! صبر وتركيز بطل 🧩', topic, onDone);
+        msg.textContent = 'اكتملت الصورة! صبر وتركيز بطل 🧩🏆';
+      } else {
+        msg.innerHTML = `${order[pos] === pos || order[a] === a ? pick(PRAISE) : pick(ENCOURAGE)} · قطع في مكانها: <b id="ge_puzzleOk">${ok}</b> / ${total}`;
       }
-      const ms = Date.now() - startedAt;
-      waiting = false;
-      times.push(ms);
-      round++;
-      document.getElementById('ge_reactRound').textContent = round;
-      document.getElementById('ge_reactBest').textContent = Math.min.apply(null, times) + ' ms';
-      msg.textContent = ms + ' ms — ' + (ms < 350 ? 'سرعة بطل! ⚡' : ms < 600 ? 'ممتاز 👏' : 'كمل، رح تتحسّن 💪');
-      msg.style.color = 'var(--ink-soft)';
-      setTimeout(nextRound, 700);
-    };
-    function end(){
-      const best = Math.min.apply(null, times);
-      const avg = Math.round(times.reduce((a,b)=>a+b,0) / times.length);
-      pad.style.background = color; pad.textContent = '🏁';
-      pad.onclick = null;
-      msg.innerHTML = `<div style="font-size:40px;">⚡</div><p>أفضل زمن: <b>${best} ms</b> — المعدل: <b>${avg} ms</b></p>`;
-      finish(host, onDone);
     }
-    nextRound();
+    draw();
   }
 
-  /* ---------------- 5) ذاكرة التسلسل ---------------- */
-  function runMemory(host, title, color, onDone, topic) {
-    const pads = topic.icons.slice(0, 4);
-    // مستويات أقل وعرض أبطأ للصغار
-    const MAX_LEVEL = topic.calm ? 3 : 5;
-    const STEP = topic.calm ? 850 : 600;
-    let sequence = [], input = [], level = 0, locked = true;
-    shell(host, title + ' 🧩', 'شاهد التسلسل جيداً ثم أعِد ترتيبه بنفس الترتيب', `
-      <div id="ge_memGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:260px;margin:16px auto;"></div>
-      <p>المستوى: <b id="ge_memLevel">0</b> / ${MAX_LEVEL}</p>
-      <div id="ge_memMsg" style="min-height:24px;font-weight:700;color:var(--ink-soft);"></div>`, topic);
-    const grid = document.getElementById('ge_memGrid');
-    const msg = document.getElementById('ge_memMsg');
-    const buttons = pads.map((icon, i) => {
-      const b = document.createElement('button');
-      b.className = 'btn btn-ghost';
-      b.style.cssText = `height:76px;font-size:32px;border-color:${color};transition:transform .15s,background .15s;`;
-      b.textContent = icon;
-      b.onclick = () => press(i);
-      grid.appendChild(b);
-      return b;
-    });
+  /* ---------------- 5) أين اختبأ صاحبي؟ ---------------- */
+  function runHide(host, title, color, onDone, topic) {
+    const CUPS = topic.calm ? 3 : 4;
+    const ROUNDS = 3;
+    const SWAPS = topic.calm ? 3 : 5;
+    const SWAP_MS = topic.calm ? 900 : 550;
+    let round = 0, friendAt = 0, busy = true, finished = false;
+    // positions[i] = خانة العرض الحالية للكوب i
+    const positions = [...Array(CUPS).keys()];
+    shell(host, title + ' 🫣', 'راقب الكوب الذي اختبأ تحته صاحبك، ثم اضغط عليه بعد أن تتوقّف الأكواب', `
+      <div class="ge-hide" id="ge_hide" style="--cups:${CUPS};--ge-color:${color};"></div>
+      <div class="ge-progress" id="ge_hideDots">${'<i></i>'.repeat(ROUNDS)}</div>
+      <div class="ge-msg" id="ge_hideMsg"></div>`, topic);
+    const stage = document.getElementById('ge_hide');
+    const msg = document.getElementById('ge_hideMsg');
+    const dots = stage.parentElement.querySelectorAll('#ge_hideDots i');
+    const cups = [];
+    for (let i = 0; i < CUPS; i++) {
+      const c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'ge-cup';
+      c.dataset.cup = i;
+      c.setAttribute('aria-label', 'كوب ' + (i + 1));
+      c.innerHTML = `<span class="ge-cup-friend">${companionHtml(40)}</span><span class="ge-cup-body">🥤</span>`;
+      c.onclick = () => guess(i);
+      stage.appendChild(c);
+      cups.push(c);
+    }
+    function place() { cups.forEach((c, i) => c.style.setProperty('--slot', positions[i])); }
+    place();
 
-    function flash(i){
-      const b = buttons[i];
-      b.style.background = color; b.style.transform = 'scale(1.08)';
-      setTimeout(() => { b.style.background = ''; b.style.transform = ''; }, 320);
+    function startRound() {
+      busy = true;
+      friendAt = Math.floor(Math.random() * CUPS);
+      cups.forEach((c, i) => { c.classList.remove('lift', 'empty', 'found'); c.dataset.has = i === friendAt ? '1' : '0'; });
+      msg.textContent = 'انظر… صاحبك يختبئ هنا 👀';
+      say(topic, 'انظر أين يختبئ صاحبك');
+      cups[friendAt].classList.add('lift');
+      setTimeout(() => {
+        cups[friendAt].classList.remove('lift');
+        let k = 0;
+        msg.textContent = 'الأكواب تتحرّك… تابعها بعينيك 👀';
+        const iv = setInterval(() => {
+          const a = Math.floor(Math.random() * CUPS);
+          let b = Math.floor(Math.random() * CUPS);
+          if (b === a) b = (a + 1) % CUPS;
+          [positions[a], positions[b]] = [positions[b], positions[a]];
+          place();
+          if (++k >= SWAPS) {
+            clearInterval(iv);
+            setTimeout(() => { busy = false; msg.textContent = 'أين اختبأ صاحبك؟ اضغط على الكوب 👆'; say(topic, 'أين اختبأ صاحبك؟ اضغط على الكوب'); }, SWAP_MS);
+          }
+        }, SWAP_MS);
+      }, topic.calm ? 1600 : 1100);
     }
-    function playSequence(){
-      locked = true;
-      msg.textContent = 'انتبه للتسلسل... 👀';
-      sequence.forEach((s, k) => setTimeout(() => flash(s), STEP * (k + 1)));
-      setTimeout(() => { locked = false; msg.textContent = 'دورك! أعِد التسلسل 👆'; }, STEP * (sequence.length + 1));
-    }
-    function nextLevel(){
-      level++;
-      if (level > MAX_LEVEL) return end(true);
-      document.getElementById('ge_memLevel').textContent = level;
-      input = [];
-      sequence.push(Math.floor(Math.random() * pads.length));
-      playSequence();
-    }
-    function press(i){
-      if (locked) return;
-      flash(i);
-      input.push(i);
-      const step = input.length - 1;
-      if (input[step] !== sequence[step]) return end(false);
-      if (input.length === sequence.length) {
-        locked = true;
-        msg.textContent = 'أحسنت! 🎉';
-        setTimeout(nextLevel, 800);
+
+    function guess(i) {
+      if (busy || finished) return;
+      if (i === friendAt) {
+        busy = true;
+        cups[i].classList.add('lift', 'found');
+        round++;
+        dots[round - 1].classList.add('on');
+        ding('good');
+        msg.textContent = pick(PRAISE) + ' وجدت صاحبك!';
+        say(topic, 'وجدت صاحبك');
+        if (round >= ROUNDS) {
+          finished = true;
+          setTimeout(() => {
+            celebrate(host, null, '🏆', 'وجدت صاحبك في كل مرة! عين لا يفوتها شيء 👀', topic, onDone);
+            msg.textContent = 'وجدت صاحبك في كل مرة! 👀🏆';
+          }, 700);
+        } else {
+          setTimeout(startRound, topic.calm ? 1800 : 1200);
+        }
+      } else {
+        // لا خسارة: الكوب يُرفع ليُظهر أنه فارغ، والطفل يجرّب كوباً آخر
+        cups[i].classList.add('lift', 'empty');
+        msg.textContent = 'ليس هنا… ' + pick(ENCOURAGE);
+        say(topic, 'ليس هنا، جرّب كوباً آخر');
+        setTimeout(() => cups[i].classList.remove('lift', 'empty'), 700);
       }
     }
-    function end(won){
-      locked = true;
-      msg.innerHTML = won
-        ? `<div style="font-size:40px;">🏆</div><p>أكملت كل المستويات! ذاكرتك قوية جداً</p>`
-        : `<div style="font-size:40px;">🧩</div><p>وصلت للمستوى ${level}! ذاكرتك بتقوى كل مرة</p>`;
-      finish(host, onDone);
-    }
-    nextLevel();
+    setTimeout(startRound, 400);
   }
 
   /* ---------------- 6) المغامرة بالاختيارات ---------------- */
@@ -343,44 +533,45 @@ const GamesEngine = (function () {
     const scenes = topic.adventure.slice(0, 4);
     let idx = 0, good = 0;
     shell(host, title + ' 🗺️', `مغامرة عن ${topic.label} — كل قرار يغيّر النهاية`, `
-      <div class="mini-game-area" id="ge_advArea" style="height:auto;min-height:200px;display:flex;flex-direction:column;justify-content:center;padding:20px;border-color:${color};"></div>
-      <p>المشهد: <b id="ge_advStep">1</b> / ${scenes.length} | قرارات موفّقة: <b id="ge_advGood">0</b></p>`, topic);
+      <div class="ge-adv" id="ge_advArea" style="--ge-color:${color};"></div>
+      <div class="ge-progress" id="ge_advDots">${'<i></i>'.repeat(scenes.length)}</div>
+      <p class="ge-meta">⭐ <b id="ge_advGood">0</b></p>`, topic);
     const area = document.getElementById('ge_advArea');
+    const dots = area.parentElement.querySelectorAll('#ge_advDots i');
 
     function render(){
       if (idx >= scenes.length) return end();
-      document.getElementById('ge_advStep').textContent = idx + 1;
       const s = scenes[idx];
       area.innerHTML = `
-        <h4 style="margin:0 0 16px;line-height:1.9;">${s.t}</h4>
-        <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
-          ${s.c.map((c, i) => `<button class="btn btn-ghost" data-i="${i}" style="max-width:340px;border-color:${color};">${c.l}</button>`).join('')}
+        <div class="ge-adv-scene">${category_emoji(topic)}</div>
+        <h4 class="ge-question">${s.t}</h4>
+        <div class="ge-choices ge-choices-col">
+          ${s.c.map((c, i) => `<button type="button" class="btn btn-ghost" data-i="${i}">${c.l}</button>`).join('')}
         </div>`;
       // الصغار يسمعون الموقف والخيارات، فاللعبة تعمل قبل إتقان القراءة
       say(topic, s.t + '. ' + s.c.map(c => c.l).join('، أو '));
       area.querySelectorAll('[data-i]').forEach(btn => {
         btn.onclick = () => {
           const choice = s.c[+btn.dataset.i];
-          if (choice.g) { good++; document.getElementById('ge_advGood').textContent = good; }
+          if (choice.g) { good++; document.getElementById('ge_advGood').textContent = good; ding('good'); }
+          dots[idx].classList.add('on');
           area.innerHTML = `
-            <div style="font-size:40px;">${choice.g ? '🌟' : '💭'}</div>
-            <p style="line-height:1.9;font-weight:700;">${choice.r}</p>`;
+            <div class="ge-feedback ${choice.g ? 'good' : 'soft'}"><div class="ge-feedback-icon">${choice.g ? '🌟' : '💭'}</div><p>${choice.r}</p></div>`;
           say(topic, choice.r);
           idx++;
-          setTimeout(render, topic.calm ? 3200 : 1500);
+          setTimeout(render, topic.calm ? 3200 : 1600);
         };
       });
+    }
+    function category_emoji(t) {
+      return (t.icons && t.icons[idx % t.icons.length]) || '🗺️';
     }
     function end(){
       const perfect = good === scenes.length;
       const line = perfect
         ? 'أنهيت المغامرة بقرارات موفّقة كلها! بطل حقيقي 🌟'
-        : `أنهيت المغامرة بـ ${good} من ${scenes.length} قرارات موفّقة — كل مغامرة تعلّمنا شيئاً جديداً 💪`;
-      area.innerHTML = `
-        <div style="font-size:46px;">${perfect ? '🏆' : '🎒'}</div>
-        <p style="line-height:1.9;font-weight:700;">${line}</p>`;
-      say(topic, line);
-      finish(host, onDone);
+        : `أنهيت المغامرة ومعك ${good} ${good === 1 ? 'نجمة' : 'نجوم'} — وكل مغامرة تعلّمنا شيئاً جديداً 💪`;
+      celebrate(host, area, perfect ? '🏆' : '🎒', line, topic, onDone);
     }
     render();
   }

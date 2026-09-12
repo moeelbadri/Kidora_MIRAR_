@@ -218,11 +218,11 @@ function assessment_axis_summary(PDO $pdo, int $childId): array {
  */
 function game_types(): array {
     return [
-        'catch'     => 'لعبة التقاط',
+        'catch'     => 'التقط الصحيح',
         'match'     => 'مطابقة الأزواج',
-        'quiz'      => 'سباق أسئلة',
-        'reaction'  => 'سرعة البديهة',
-        'memory'    => 'ذاكرة التسلسل',
+        'quiz'      => 'طريق البطل (أسئلة)',
+        'puzzle'    => 'البازل',
+        'hide'      => 'أين اختبأ صاحبي؟',
         'adventure' => 'مغامرة بالاختيارات',
     ];
 }
@@ -615,13 +615,9 @@ function kidora_try_auto_login(PDO $pdo): ?array {
     }
     
     // ابحث في الداتابيس
-    $stmt = $pdo->prepare("
-        SELECT * FROM children 
-        WHERE remember_token = ? 
-          AND remember_expires > NOW() 
-        LIMIT 1
-    ");
-    $stmt->execute([$token]);
+    // NOW() غير موجودة في SQLite — الوقت يُمرَّر من PHP (توقيت التطبيق) ليعمل على المحرّكين
+    $stmt = $pdo->prepare("SELECT * FROM children WHERE remember_token = ? AND remember_expires > ? LIMIT 1");
+    $stmt->execute([$token, date('Y-m-d H:i:s')]);
     $child = $stmt->fetch();
     
     if (!$child) {
@@ -646,6 +642,152 @@ function kidora_try_auto_login(PDO $pdo): ?array {
 
 // 
 
+
+/**
+ * القصة اليومية كحكاية حقيقية لا كقائمة مهام.
+ *
+ * تُبنى من مهام اليوم المنجزة فعلاً (story_line لكل مهمة) داخل هيكل سردي
+ * ثابت: غلاف ← افتتاحية بحوار الرفيق ← فصل لكل مهمة بجملة انتقال وردّة فعل
+ * حسب التصنيف ← عقبة صغيرة في منتصف اليوم ← «شخصية من تراثنا» عبر
+ * figure_for_task() ← ذروة النجوم ← حكمة اليوم ← خاتمة.
+ *
+ * العشوائية مثبَّتة باليوم والطفل: إعادة تحميل الصفحة لا تغيّر القصة، لكن
+ * كل يوم يأتي بافتتاحية وعقبة مختلفتين.
+ *
+ * الجمل اسمية حول اسم الطفل عمداً — لا حقل جنس في children، والفعل المُسنَد
+ * («أنجز/أنجزت») يُخطئ نصف الوقت. الحوار يُنسب للرفيق بصيغة «الاسم: "…"».
+ *
+ * كل مشهد: caption + grad + icon + title + kind (cover|opening|chapter|
+ * obstacle|figure|climax|moral|end) واختيارياً speaker + quote.
+ */
+function daily_story_scenes(PDO $pdo, array $child, array $doneTasks, array $companions, int $dayIndex): array {
+    $name = $child['name'];
+    $doneTasks = array_values(array_filter($doneTasks));
+    $compNames = array_map(fn($c) => $c['name'], $companions);
+    $comp1 = $compNames[0] ?? 'الرفيق';
+    $comp2 = $compNames[1] ?? $comp1;
+    $names = implode(' و', $compNames) ?: 'الرفيق';
+
+    // مثبَّت باليوم والطفل حتى لا تتبدّل القصة بين تحميل وآخر
+    mt_srand(crc32($child['id'] . '|' . today_key()));
+    $pickOne = fn(array $arr) => $arr[mt_rand(0, count($arr) - 1)];
+
+    $grads = ['#6C63FF,#FF6FA5', '#2EC4B6,#6C63FF', '#FF7A50,#FFC93C', '#FF6FA5,#FFC93C', '#2EC4B6,#241645', '#3A2A75,#FF7A50', '#1B1035,#6C63FF'];
+    $gi = 0;
+    $scenes = [];
+    $add = function (string $kind, string $icon, string $title, string $caption, ?string $speaker = null, ?string $quote = null) use (&$scenes, &$gi, $grads) {
+        $scene = ['kind' => $kind, 'icon' => $icon, 'title' => $title, 'caption' => $caption, 'grad' => $grads[$gi++ % count($grads)]];
+        if ($speaker !== null && $quote !== null) { $scene['speaker'] = $speaker; $scene['quote'] = $quote; }
+        $scenes[] = $scene;
+    };
+
+    // ---- الغلاف
+    $add('cover', '📖', "مغامرة {$name}", "اليوم {$dayIndex} — قصة من يومٍ حقيقي، بطلها {$name}، مع الرفيقين {$names}.");
+
+    // ---- الافتتاحية
+    $openings = [
+        "في صباحٍ هادئ، نافذة مفتوحة ونسمة تحمل رائحة الخبز الطازج. {$name} على أول خطوة في يوم جديد، و{$comp1} ينتظر عند الباب بعينين تلمعان.",
+        "الشمس تطلّ من خلف الغيوم، والعصافير تتسابق على الشرفة. الحواس كلّها مستيقظة عند {$name}، و{$comp1} يلوّح: اليوم مختلف!",
+        "قطرات مطر خفيفة على الزجاج، ورائحة الأرض تملأ البيت. في الداخل دفء، وفي قلب {$name} حماس، و{$comp1} يقفز فوق الوسادة.",
+        "صباح مشمس وسماء زرقاء بلا حدود. حقيبة صغيرة، وابتسامة أكبر منها، و{$comp1} يهمس: الطريق ينتظرنا.",
+    ];
+    $openingQuotes = [
+        "يومٌ جديد يعني مغامرة جديدة! هيا بنا يا {$name}",
+        "أشعر أن اليوم سيكون مليئاً بالنجوم ✨",
+        "معك حتى آخر خطوة… وربما خطوة زيادة!",
+    ];
+    $add('opening', '🌅', 'بداية اليوم', $pickOne($openings), $comp1, $pickOne($openingQuotes));
+
+    // ---- فصل لكل مهمة
+    $transitions = [
+        ['المحطة الأولى في الطريق.', 'البداية دائماً أصعب خطوة… وأجملها.'],
+        ['بعدها، خطوة ثانية أثبت من الأولى.', 'الحماس ما زال في أوّله.'],
+        ['وفي منتصف اليوم، تحدٍّ جديد.', 'الطريق يطول، والهمّة لا تقصر.'],
+        ['وقبل الغروب، آخر محطة.', 'اليوم يقترب من نهايته… والقلب ممتلئ.'],
+        ['ومحطة إضافية لم تكن في الحسبان.', 'المغامرون الحقيقيون لا يتوقفون.'],
+    ];
+    $reactions = [
+        'مهارات حياتية' => ['البيت كلّه يبتسم لهذا الترتيب 🏡', 'الأشياء الصغيرة تصنع الأبطال الكبار.'],
+        'تعلّم'         => ['العقل يكبر مع كل كلمة جديدة 📚', 'من يتعلّم اليوم يقود الغد.'],
+        'صحة'           => ['الجسد يقول: شكراً! 🏃', 'قوة اليوم تُبنى خطوة خطوة.'],
+        'إبداع'         => ['الألوان تصفّق 🎨', 'خيال بلا حدود، ويدان تصنعان الجمال.'],
+        'قيم'           => ['القلب الطيب يترك أثراً لا يُمحى 💛', 'هذه هي القوة الحقيقية.'],
+        'صحة نفسية'     => ['نفس عميق… والعالم أهدأ 🧘', 'الهدوء قوة لا يعرفها إلا الشجعان.'],
+        'حماية'         => ['البطل يحمي نفسه أولاً 🛡️', 'الحذر ذكاء لا خوف.'],
+        'مسؤولية'       => ['من يُعتمد عليه اليوم يقود غداً 🌱', 'الثقة تُبنى بالأفعال.'],
+        'اجتماعي'       => ['الأصدقاء كنز، والكلمة الطيبة مفتاحه 🤝', 'العالم أجمل حين نتشاركه.'],
+        'ثقافي'         => ['جذورنا تشدّنا للأعلى لا للأسفل 🕌', 'حكاية قديمة بقلب جديد.'],
+    ];
+    $chapterNo = 0;
+    foreach ($doneTasks as $i => $t) {
+        $chapterNo++;
+        $tr = $transitions[min($i, count($transitions) - 1)];
+        $react = $reactions[$t['category']] ?? ['نجمة جديدة تُضاف إلى السماء ✨', 'خطوة أخرى نحو القمة.'];
+        $caption = $tr[0] . ' ' . rtrim(str_replace("\n", ' ', (string)$t['story_line'])) . ' ' . $pickOne($react);
+        $quote = $i % 2 === 0 ? null : $pickOne(["هذا ما أسمّيه شجاعة!", "لم أشكّ لحظة في قدرتك.", "تلك النجمة هناك… إنها لك!", "أسرع مني وأنا أطير!"]);
+        $add('chapter', category_icon($t['category']), $t['title'], $caption, $quote ? $comp2 : null, $quote);
+
+        // عقبة صغيرة بعد الفصل الثاني — القصة بلا صراع ليست قصة
+        if ($i === 1 && count($doneTasks) > 2) {
+            $obstacles = [
+                ["فجأة… غيمة كسل كبيرة تقف في منتصف الطريق، رمادية وثقيلة، تهمس: «خلّيها لبكرة».", "الغيوم تمرّ يا {$name}. نفس عميق… وخطوة."],
+                ["صوت صغير في الرأس: «هذا صعب، اتركه». والحقيبة تبدو أثقل من قبل.", "الصعب يعني أنك تكبر. أنا أحمل الحقيبة، والخطوة لك!"],
+                ["ريح تعب تهبّ من بعيد، والعينان تريدان أن تغمضا قليلاً.", "استراحة قصيرة… ثم نكمل معاً. الأبطال يرتاحون ولا يستسلمون."],
+                ["باب مغلق في الطريق، ومفتاح ضائع. هل انتهت المغامرة هنا؟", "المفاتيح لا تضيع… إنها تنتظر من يبحث بصبر."],
+            ];
+            $ob = $pickOne($obstacles);
+            $add('obstacle', '🌩️', 'عقبة في الطريق', $ob[0] . ' لكن نفس عميق، وابتسامة صغيرة… والخطوة التالية أسهل مما بدت.', $comp1, $ob[1]);
+        }
+    }
+
+    // ---- شخصية من تراثنا: مرتبطة بمهمة اليوم لا عشوائية
+    $figure = null;
+    foreach ($doneTasks as $t) {
+        $figure = figure_for_task($pdo, $t);
+        if ($figure) break;
+    }
+    if ($figure) {
+        $line = trim((string)($figure['story_line'] ?: $figure['description']));
+        $add('figure', '🕌', 'شخصية من تراثنا',
+            "وعلى جانب الطريق، حكاية قديمة تهمس من بين الصفحات: {$figure['name']}، {$figure['title']}. {$line} … وفي قلب {$name} اليوم شيء من تلك الروح.");
+    }
+
+    // ---- الذروة: النجوم
+    $totalPts = (int)array_sum(array_column($doneTasks, 'points'));
+    $add('climax', '⭐', 'نجوم اليوم',
+        "وعند الغروب، {$totalPts} نجمة تلمع في جيب {$name} ✨ وليست النجوم وحدها ما جُمع اليوم: يوم كامل من الشجاعة والصبر والمحاولة.",
+        $comp1, "السماء مليئة بالنجوم الليلة… وكل نجمة تعرف اسمك!");
+
+    // ---- حكمة اليوم حسب أكثر تصنيف حضر
+    $cats = array_count_values(array_map(fn($t) => (string)$t['category'], $doneTasks));
+    arsort($cats);
+    $topCat = array_key_first($cats) ?: '';
+    $morals = [
+        'مهارات حياتية' => 'من يرتّب الأشياء الصغيرة، يستطيع ترتيب الأحلام الكبيرة.',
+        'تعلّم'         => 'كل كلمة نتعلّمها نافذة جديدة نطلّ منها على العالم.',
+        'صحة'           => 'الجسد القوي بيت للقلب الشجاع.',
+        'إبداع'         => 'الخيال جناحان… ومن يستخدمهما يطير.',
+        'قيم'           => 'القلب الطيب أقوى من أي قوة في العالم.',
+        'صحة نفسية'     => 'الهدوء ليس ضعفاً؛ إنه أن تختار أنت متى تتحرّك.',
+        'حماية'         => 'الشجاعة أن تقول «لا» حين يجب، وأن تخبر من تثق به.',
+        'مسؤولية'       => 'الوعد الصغير الذي نفي به يصنع إنساناً كبيراً.',
+        'اجتماعي'       => 'الفرح الذي نتقاسمه يكبر، والحزن الذي نتقاسمه يصغر.',
+        'ثقافي'         => 'من عرف جذوره، لم تُسقطه أي ريح.',
+    ];
+    $add('moral', '💡', 'حكمة اليوم', $morals[$topCat] ?? 'كل يوم نحاول فيه هو يوم ننتصر فيه.');
+
+    // ---- الخاتمة
+    $endings = [
+        "وهكذا انتهى اليوم {$dayIndex}… رأس على الوسادة، ونجوم في الجيب، وابتسامة لا تريد أن تنام. والغد يحمل فصلاً جديداً 🌙",
+        "الليل يسدل ستاره، و{$names} ينامان عند طرف السرير. أما {$name}، فحلم الليلة مليء بمغامرات الغد 🌙",
+        "أُغلق كتاب اليوم بهدوء، لكن الحكاية لم تنتهِ… ففي الصباح صفحة بيضاء جديدة باسم {$name} 🌙",
+    ];
+    $add('end', '🌙', 'تصبحون على مغامرة', $pickOne($endings), $comp1, $pickOne(["أحسنت اليوم! نلتقي غداً على أول الطريق.", "نومٌ هانئ يا نجم الحكاية… الغد ينتظرنا.", "هذه كانت أجمل مغامرة… حتى الآن!"]));
+
+    mt_srand(); // إعادة البذرة العشوائية للحالة الطبيعية لبقية الطلب
+    return $scenes;
+}
+
 /** يبني مجلد صورة/صوت مخصّص لكل شخصية assets/images/characters/{slug}/ أو assets/audio/characters/{slug}/ */
 function character_media_dir(string $kind, string $slug): string {
     $base = $kind === 'audio' ? __DIR__ . '/../assets/audio/characters' : __DIR__ . '/../assets/images/characters';
@@ -663,8 +805,8 @@ function kidora_peek_remember(PDO $pdo): ?array {
     $token = $_COOKIE['kidora_remember'] ?? '';
     if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) return null;
 
-    $stmt = $pdo->prepare("SELECT * FROM children WHERE remember_token = ? AND remember_expires > NOW() LIMIT 1");
-    $stmt->execute([$token]);
+    $stmt = $pdo->prepare("SELECT * FROM children WHERE remember_token = ? AND remember_expires > ? LIMIT 1");
+    $stmt->execute([$token, date('Y-m-d H:i:s')]);
     $child = $stmt->fetch();
     if (!$child) return null;
 

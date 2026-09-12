@@ -26,4 +26,3 @@
 <script src="<?php echo BASE_PATH; ?>/assets/js/app.js"></script>
 </body>
 </html>
- الشخصية اللي بتتحرك و بتحكي بدي اياها اكبر و بدون اطار دائري و تحرك ايديها و تمها لما تتكلم::

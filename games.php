@@ -51,6 +51,12 @@ require_once __DIR__ . '/includes/navbar.php';
 
   <p style="text-align:center;font-weight:800;color:var(--gold);">ألعاب اليوم: <span id="gamesPlayedLabel"><?php echo (int)$progress['games_played']; ?></span> 🎮</p>
 
+  <a href="<?php echo BASE_PATH; ?>/draw.php" class="card" style="display:flex;align-items:center;gap:16px;padding:16px 20px;margin:0 auto 6px;max-width:620px;border-right:6px solid var(--pink);text-decoration:none;color:var(--ink);">
+    <span style="font-size:40px;">🎨</span>
+    <span style="flex:1;"><b style="font-size:17px;">لوحتي — ارسم ما تشعر به</b><br><small style="color:var(--ink-soft);">مساحة حرّة بلا قواعد. أول لوحة تحفظها اليوم تُحسب من ألعاب اليوم</small></span>
+    <span class="btn btn-sm btn-primary">ارسم الآن 🖌️</span>
+  </a>
+
   <?php foreach ($categories as $catName => $catGames): $meta = $CATEGORY_META[$catName] ?? ['icon'=>'🎮','color'=>'#6C63FF']; ?>
     <div class="section" style="padding:20px 0;">
       <h3 style="color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);"><?php echo $meta['icon']; ?> <?php echo h($catName); ?></h3>

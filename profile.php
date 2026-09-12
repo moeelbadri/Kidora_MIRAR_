@@ -43,8 +43,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_analysis'])) {
     }
     header('Location: profile.php'); exit;
 }
+// ---------------- حذف رسمة من معرضي (الطفل يحذف رسوماته هو فقط) ----------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_drawing'])) {
+    $d = $pdo->prepare("SELECT * FROM drawings WHERE id = ? AND child_id = ?");
+    $d->execute([(int)$_POST['delete_drawing'], $child['id']]);
+    if ($row = $d->fetch()) {
+        $file = __DIR__ . '/' . $row['image_path'];
+        if (str_starts_with($row['image_path'], 'uploads/drawings/') && is_file($file)) @unlink($file);
+        $pdo->prepare("DELETE FROM drawings WHERE id = ?")->execute([$row['id']]);
+    }
+    header('Location: profile.php#drawings'); exit;
+}
 $flashWaLink = $_SESSION['flash_wa_link'] ?? null;
 unset($_SESSION['flash_wa_link']);
+
+$myDrawings = $pdo->prepare("SELECT * FROM drawings WHERE child_id = ? ORDER BY id DESC LIMIT 12");
+$myDrawings->execute([$child['id']]);
+$myDrawings = $myDrawings->fetchAll();
+$waShareBase = whatsapp_link($pdo, '', $child['parent_phone'] ?? '');
 
 $premiumUnlocked = is_premium_active($pdo, $child['id']);
 $allChars = selectable_characters($pdo, $premiumUnlocked);
@@ -63,6 +79,16 @@ $__pageLine = "هاد ملفك... شايف كل اللي حققناه سوا؟ �
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
+<style>
+  .profile-drawings{ display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px; margin-bottom:30px; }
+  .profile-drawing{ overflow:hidden; }
+  .profile-drawing img{ width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#fff; }
+  .profile-drawing-body{ padding:10px 12px 12px; }
+  .profile-drawing-body b{ display:block; color:var(--ink); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .profile-drawing-body small{ color:var(--ink-soft); font-weight:700; font-size:11px; }
+  .profile-drawing-actions{ display:flex; gap:6px; margin-top:8px; }
+  .profile-drawing-actions .btn{ padding:6px 10px; min-width:0; }
+</style>
 <div class="page-body">
 <main class="container" style="padding-top:26px;">
   <div class="section-head">
@@ -159,6 +185,28 @@ require_once __DIR__ . '/includes/navbar.php';
     <?php endforeach; ?>
   </div>
   <div id="profileStoryBox" style="margin-top:18px;"></div>
+
+  <h3 id="drawings" style="margin-top:34px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">🖼️ رسوماتي <a href="<?php echo BASE_PATH; ?>/draw.php" class="btn btn-sm btn-gold" style="margin-right:10px;">🎨 ارسم لوحة جديدة</a></h3>
+  <?php if (!$myDrawings): ?>
+    <p style="color:#d9d0ff;">لا توجد لوحات بعد — <a href="<?php echo BASE_PATH; ?>/draw.php" style="color:var(--gold);font-weight:900;">افتح لوحتك</a> وارسم ما تشعر به اليوم.</p>
+  <?php else: ?>
+    <div class="profile-drawings">
+      <?php foreach ($myDrawings as $d): $url = BASE_PATH . '/' . $d['image_path']; ?>
+        <div class="profile-drawing card">
+          <a href="<?php echo h($url); ?>" target="_blank" rel="noopener"><img src="<?php echo h($url); ?>" alt="<?php echo h($d['title']); ?>" loading="lazy"></a>
+          <div class="profile-drawing-body">
+            <b><?php echo h($d['title']); ?></b>
+            <small><?php echo h(date('Y/m/d', strtotime($d['created_at']))); ?></small>
+            <div class="profile-drawing-actions">
+              <a class="btn btn-sm btn-ghost" href="<?php echo h($url); ?>" download>⬇️</a>
+              <a class="btn btn-sm btn-mint" target="_blank" rel="noopener" href="<?php echo h($waShareBase . rawurlencode("🎨 لوحة «{$d['title']}» من ريشة {$child['name']} على Kidora:\n") . rawurlencode((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $url)); ?>">📲</a>
+              <form method="POST" onsubmit="return confirm('حذف هذه اللوحة نهائياً؟');" style="display:inline;"><button type="submit" name="delete_drawing" value="<?php echo (int)$d['id']; ?>" class="btn btn-sm btn-ghost" title="حذف">🗑️</button></form>
+            </div>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
 </main>
 </div>
 <footer class="site-footer">Kidora © 2026</footer>

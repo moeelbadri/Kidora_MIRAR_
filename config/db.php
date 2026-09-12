@@ -47,12 +47,21 @@ function kidora_create_table_from_schema(PDO $pdo, string $table): void {
 function kidora_migrate(PDO $pdo): void {
     $isMysql = DB_DRIVER === 'mysql';
     $columns = [
-        // صورة الطفل الاختيارية من الواجهة العامة
-        'children' => ['photo_path' => $isMysql ? "VARCHAR(255) DEFAULT NULL" : 'TEXT DEFAULT NULL'],
         // ربط كل مهمة بشخصية تاريخية ذات صلة بدل الاختيار العشوائي
         'tasks' => ['figure_id' => $isMysql ? 'INT DEFAULT NULL' : 'INTEGER DEFAULT NULL'],
         // تصنيف الشخصية التاريخية — يتيح مطابقة المهمة بالشخصية عند غياب الربط المباشر
         'history_figures' => ['category' => $isMysql ? "VARCHAR(80) DEFAULT ''" : "TEXT DEFAULT ''"],
+        // «تذكّرني»: توكن دخول تلقائي (index.php / kidora_remember_login)
+        'children' => [
+            'photo_path'       => $isMysql ? "VARCHAR(255) DEFAULT NULL" : 'TEXT DEFAULT NULL',
+            'remember_token'   => $isMysql ? "VARCHAR(64) DEFAULT NULL" : 'TEXT DEFAULT NULL',
+            'remember_expires' => $isMysql ? "DATETIME DEFAULT NULL" : 'DATETIME DEFAULT NULL',
+        ],
+        // قسم الحماية اليومي: كل درس يحمل لعبته الخاصة وقد يكون مدفوعاً
+        'safety_content' => [
+            'game_type'  => $isMysql ? "VARCHAR(30) DEFAULT 'body'" : "TEXT DEFAULT 'body'",
+            'is_premium' => $isMysql ? 'TINYINT(1) DEFAULT 0' : 'INTEGER DEFAULT 0',
+        ],
     ];
 
     foreach ($columns as $table => $defs) {
@@ -63,6 +72,22 @@ function kidora_migrate(PDO $pdo): void {
             }
         }
     }
+
+    // دروس الحماية المزروعة قبل عمود game_type كلها على القيمة الافتراضية 'body'؛
+    // نوزّع عليها ألعابها المقصودة بحسب العنوان (نفس خريطة seed.php) مرة واحدة.
+    $sfSeed = [
+        'سرّي الخاص'            => 'body',
+        'الغريب الآمن'          => 'distance',
+        'صح أم خطأ: الإنترنت الآمن' => 'quiz',
+        'بطل الإنترنت الآمن'     => 'quiz',
+        'قول لا بثقة'           => 'scenario',
+    ];
+    $sfUpd = $pdo->prepare("UPDATE safety_content SET game_type = ? WHERE title = ? AND (game_type IS NULL OR game_type = 'body')");
+    foreach ($sfSeed as $title => $gt) {
+        if ($gt !== 'body') $sfUpd->execute([$gt, $title]);
+    }
+    // عنوان بنبرة حكم → عنوان تشجيعي (قسم الحماية لا يقول «خطأ»)
+    $pdo->prepare("UPDATE safety_content SET title = ? WHERE title = ?")->execute(['بطل الإنترنت الآمن', 'صح أم خطأ: الإنترنت الآمن']);
 
     // youtube_id كان VARCHAR(30) على MySQL؛ رابط Shorts ملصوق كاملاً أسقط الإدخال
     // بـ«Data too long». المدخل يُطبَّع الآن إلى المعرّف (11 حرفاً)، والعمود يُوسَّع
@@ -90,6 +115,30 @@ function kidora_migrate(PDO $pdo): void {
         }
         require_once __DIR__ . '/../database/seed.php';
         kidora_seed_game_content($pdo);
+    }
+
+    // استرجاع كلمة المرور ولوحة الرسم — جدولان مستقلان أُضيفا في سبتمبر 2026
+    foreach (['password_resets', 'drawings'] as $t) {
+        if (!kidora_table_exists($pdo, $t)) kidora_create_table_from_schema($pdo, $t);
+    }
+
+    // آليتان استُبدلتا في سبتمبر 2026: سرعة البديهة (reaction) صارت «أين اختبأ
+    // صاحبي؟» (hide)، وذاكرة التسلسل (memory) صارت بازل (puzzle). الصفوف القديمة
+    // تُرحَّل حتى لا تسقط إلى catch في المحرّك. آمن للتكرار: لا يطابق شيئاً بعد أول مرة.
+    $legacy = $pdo->query("SELECT COUNT(*) c FROM games WHERE type IN ('reaction','memory')")->fetch()['c']
+            + $pdo->query("SELECT COUNT(*) c FROM tasks WHERE game_type IN ('reaction','memory')")->fetch()['c'];
+    if ((int)$legacy > 0) {
+        // عناوين البذر القديمة تتبع الآلية الجديدة؛ ما عدّله الأدمن لا يُطابَق فيبقى
+        $renameGame = $pdo->prepare("UPDATE games SET title = ? WHERE title = ? AND type IN ('reaction','memory')");
+        $renameTask = $pdo->prepare("UPDATE tasks SET game_title = ? WHERE game_title = ? AND game_type IN ('reaction','memory')");
+        foreach (kidora_legacy_game_titles() as $old => $new) {
+            $renameGame->execute([$new, $old]);
+            $renameTask->execute([$new, $old]);
+        }
+        foreach (['reaction' => 'hide', 'memory' => 'puzzle'] as $old => $new) {
+            $pdo->prepare("UPDATE games SET type = ? WHERE type = ?")->execute([$new, $old]);
+            $pdo->prepare("UPDATE tasks SET game_type = ? WHERE game_type = ?")->execute([$new, $old]);
+        }
     }
 }
 

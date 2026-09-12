@@ -62,6 +62,9 @@ $plans = $pdo->query("SELECT * FROM subscription_plans ORDER BY sort_order ASC, 
 $publicStats = public_counts($pdo);
 $loginError = null;
 $registerError = null;
+// رسالة نجاح بعد تعيين كلمة مرور جديدة (reset-password.php)
+$loginFlash = $_SESSION['flash_login'] ?? null;
+unset($_SESSION['flash_login']);
 
 $prefillName = trim((string)($_GET['name'] ?? ''));
 $prefillChar = (int)($_GET['char'] ?? 0);
@@ -569,10 +572,13 @@ require_once __DIR__ . '/includes/public-nav.php';
 
         <div class="public-auth-form" id="loginPanel" <?php echo $shouldOpenRegister ? 'hidden' : ''; ?>>
           <?php if ($loginError): ?><div class="public-error">❌ <?php echo h($loginError); ?></div><?php endif; ?>
+          <?php if ($loginFlash): ?><div class="public-error" style="background:rgba(46,196,182,.18);border-color:rgba(46,196,182,.5);color:#d9fff9;"><?php echo h($loginFlash); ?></div><?php endif; ?>
           <form method="POST">
             <div class="public-form-grid">
               <div class="public-field full"><label for="loginEmail">البريد الإلكتروني لولي الأمر</label><input id="loginEmail" type="email" name="email" autocomplete="email" required></div>
-              <div class="public-field full"><label for="loginPassword">كلمة المرور</label><input id="loginPassword" type="password" name="password" autocomplete="current-password" required></div>
+              <div class="public-field full"><label for="loginPassword">كلمة المرور</label><input id="loginPassword" type="password" name="password" autocomplete="current-password" required>
+                <p style="margin:8px 0 0;text-align:left;font-size:13px;"><a href="<?php echo h(BASE_PATH . '/forgot-password.php'); ?>" style="color:#ffe99a;font-weight:800;">نسيت كلمة المرور؟</a></p>
+              </div>
             </div>
             <button type="submit" name="login" class="k-btn k-btn-gold">🚀 تسجيل الدخول</button>
           </form>

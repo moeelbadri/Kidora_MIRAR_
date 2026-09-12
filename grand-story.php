@@ -90,8 +90,9 @@ require_once __DIR__ . '/includes/navbar.php';
       StoryPlayer.render({
         title: <?php echo json_encode($latest['title'], JSON_UNESCAPED_UNICODE); ?>,
         scenes: <?php echo $latest['scenes_json']; ?>,
-        photo: <?php echo json_encode($latestPhoto ? BASE_PATH.'/'.$latestPhoto : null); ?>
-      }, 'grandStoryBox', { badge: '🏆 مغامرة شهر كامل — مبنية من إنجازك الحقيقي' });
+        photo: <?php echo json_encode($latestPhoto ? BASE_PATH.'/'.$latestPhoto : null); ?>,
+        childName: <?php echo json_encode($child['name'], JSON_UNESCAPED_UNICODE); ?>
+      }, 'grandStoryBox', { badge: '🏆 مغامرة شهر كامل — مبنية من إنجازك الحقيقي', book: true });
     </script>
 
     <?php if (count($myGrand) > 1): ?>
