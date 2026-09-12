@@ -86,8 +86,9 @@ function kidora_migrate(PDO $pdo): void {
     foreach ($sfSeed as $title => $gt) {
         if ($gt !== 'body') $sfUpd->execute([$gt, $title]);
     }
-    // عنوان بنبرة حكم → عنوان تشجيعي (قسم الحماية لا يقول «خطأ»)
+    // عناوين بنبرة حكم → عناوين تشجيعية (المنصة لا تقول للطفل «خطأ»)
     $pdo->prepare("UPDATE safety_content SET title = ? WHERE title = ?")->execute(['بطل الإنترنت الآمن', 'صح أم خطأ: الإنترنت الآمن']);
+    $pdo->prepare("UPDATE games SET title = ? WHERE title = ?")->execute(['قرارات البطل', 'قرارات صح وخطأ']);
 
     // youtube_id كان VARCHAR(30) على MySQL؛ رابط Shorts ملصوق كاملاً أسقط الإدخال
     // بـ«Data too long». المدخل يُطبَّع الآن إلى المعرّف (11 حرفاً)، والعمود يُوسَّع
