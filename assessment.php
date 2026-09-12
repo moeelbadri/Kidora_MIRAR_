@@ -136,21 +136,7 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
   <?php endif; ?>
 
-  <div class="section">
-    <h3 style="text-align:center;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">مخطط تقدّمك عبر الزمن</h3>
-    <div class="card" style="padding:26px;max-width:560px;margin:16px auto;">
-      <div class="chart-wrap">
-        <?php if (!$axisRows): ?>
-          <p style="color:var(--ink-soft);text-align:center;">أجب عن التحليل ليظهر لك أول رسمة لمخططك 📊</p>
-        <?php else: foreach ($axisRows as $row): $pct = ((float)$row['avg_v'] / 3) * 100; ?>
-          <div class="chart-row">
-            <div><?php echo h($row['axis']); ?></div>
-            <div class="chart-bar-bg"><div class="chart-bar-fg" style="width:<?php echo $pct; ?>%;"></div></div>
-            <div style="font-weight:800;color:var(--violet);"><?php echo number_format($row['avg_v'],1); ?></div>
-          </div>
-        <?php endforeach; endif; ?>
-      </div>
-    </div>
+<!--  -->
   </div>
 </main>
 </div>
