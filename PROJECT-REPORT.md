@@ -133,15 +133,24 @@ assessment-due greeting.
   Note the README's section 4 claims it redirects to the games library — the code
   redirects to safety.
 
-### `safety.php` — child-protection module
-Body autonomy, safe strangers, saying no, digital safety — presented as narrated
-animated scenes plus a yes/no game («✅ نعم» / «🙅 لا»), sourced from `safety_content`.
-**The safety game never says «خطأ» and shows no score** (Sep 2026 decision: this is a
-protection module, the child must leave confident, not graded). Every question carries
-a `tip` (its golden rule); a right answer is praised, any other answer gets an
-encouraging line followed by «الأأمن دائماً: <tip>». The end screen («أنت الآن بطل
-الحماية!») lists all the rules so the child hears them twice. Items are age-ranged:
-the game row is 7–12, so younger children get the three narrated videos only.
+### `safety.php` — child-protection module (rewritten Sep 11 2026 by a collaborator, gentled Sep 12)
+One **lesson per day**: `LESSONS` = age-filtered `safety_content` rows; the day index
+lives in `localStorage` (`kidora_safety_v5`, advances only after the child presses
+«أنهيت المهمة، أراك غداً»). Each lesson has a story part (YouTube embed if
+`youtube_id`, else read aloud) **and** a mini-game chosen by
+`safety_content.game_type`: `body` (tap the private zone), `distance` (drag yourself
+away from the stranger), `hotspot` (tap the dangers in a kitchen/pool/home scene),
+`scenario` (3-choice situations), `match` (emergency numbers), `quiz` (yes/no
+internet safety), `password` (build a strong password), `street` (cross on green).
+Finishing both unlocks the gold button → celebration → goodbye. The four seeded
+lessons map to `body / distance / quiz / scenario` (seed + `kidora_migrate()` for
+DBs seeded earlier).
+
+**The safety module never says «خطأ», shows no X and no score** (the user's explicit
+rule: «م بينفع يحكيله اجابة خاطئة … تيجي بتحفيز بس»). Every engine routes a miss
+through `gentle(rule)` — an `SF_ENCOURAGE` line plus «الأأمن دائماً: <rule>» — in
+warm gold, never red; the quiz carries a `tip` per question and ends with «أنت الآن
+بطل الحماية!» listing all the golden rules. Keep any new engine on that path.
 
 ### `games.php` — games library
 36 seeded rows grouped into 6 categories (تربوي / علمي / اجتماعي / سلوكي / ثقافي / صحي)
@@ -250,6 +259,13 @@ third-party mail API is used.
   client-side, not in the `games` table, not admin-manageable.
 - `profile.php` — editable profile, companion switcher, behaviour chart,
   story archive, drawings gallery, WhatsApp report button.
+- **Remember-me (Sep 11 2026, collaborator):** `kidora_remember_login()` stores a
+  90-day token in `children.remember_token/remember_expires` + `kidora_remember`
+  cookie; `index.php` shows «متابعة كـ <name>» when the cookie is present and logs in
+  on `?continue=1` (token rotated). Expiry compare is passed from PHP (`date()`),
+  not `NOW()`, so it works on SQLite too. `dashboard.php` shows a goodbye modal once
+  tasks + game + safety are all flagged done for the day (`localStorage`
+  `kidora_done_*` keys). `test-cookie.php` is a leftover debug page.
 - `forgot-password.php` / `reset-password.php` — public password-reset pair (Sep
   2026). Request: always the same neutral message (no account enumeration), max
   `PASSWORD_RESET_MAX_PER_HOUR = 3` tokens per child, token = 64 hex chars stored as
@@ -450,7 +466,7 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 | Table | Purpose |
 |---|---|
 | `characters` | slug, name, title, trait, `color`, `move_type`, `image_path`, `audio_path`, `icons_json`, `is_premium`, `sort_order` |
-| `children` | the user account: credentials, age, parent name/phone, optional `photo_path`, `character_1/2`, `active_character`, `points`, `ring_days`, `last_assessment_at` |
+| `children` | the user account: credentials, age, parent name/phone, optional `photo_path`, `character_1/2`, `active_character`, `points`, `ring_days`, `last_assessment_at`, `remember_token` / `remember_expires` |
 | `tasks` | title, description, category, age range, `story_line`, `youtube_id`, `game_type`, `points`, `active` |
 | `games` | title, `type`, category, age range, description, `is_active` |
 | `game_topics` | `topic_key`, `label`, `icons_json`, `categories_json` (which Arabic task/game categories map to this topic), `active`, `sort_order` |
@@ -461,7 +477,7 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 | `quiz_history` | append-only `(child_id, axis, value)` — the real behaviour data |
 | `daily_progress` | one row per `(child_id, day_key)`: `task_pool_ids`, `completed_task_ids`, `games_played`, `quiz_*`, `story_generated` |
 | `daily_stories` / `grand_stories` | generated story scenes as JSON |
-| `safety_content` | protection module items |
+| `safety_content` | protection lessons: type, title, description, `youtube_id`, `game_type` (engine slug, see §3), `is_premium`, age range |
 | `password_resets` | `child_id`, `token_hash` (sha256), `expires_at`, `used_at`, `created_at` — `created_at` is written from PHP (app timezone), never left to the DB default (UTC), otherwise the per-hour limit never triggers |
 | `drawings` | `child_id`, `title`, `image_path` (`uploads/drawings/{child}/d_*.png`), `created_at` (also PHP-written) |
 | `subscription_plans` / `subscriptions` | plans + one row per child (`pending`/`active`) |
