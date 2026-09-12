@@ -438,7 +438,7 @@ require_once __DIR__ . '/includes/public-nav.php';
         <span class="public-eyebrow">✨ منصة آمنة تصنع مغامرات حقيقية</span>
         <h1><span class="public-gradient-text">Kidora</span><br>حيث يتحول التعلم إلى مغامرة بطولية</h1>
         <p class="public-hero-lead">مهام يومية، رفقاء محبوبون، ألعاب ذكية وقصص تجعل كل إنجاز لحظة تستحق الاحتفال.</p>
-        <p class="public-hero-copy">رحلة عربية مصممة للأطفال من 4 إلى 12 عاماً، تساعدهم على النمو خطوة بخطوة وتمنح الوالدين صورة أوضح عن التقدّم.</p>
+        <p class="public-hero-copy">رحلة عربية مصممة للأطفال من 6 إلى 12 عاماً، تساعدهم على النمو خطوة بخطوة وتمنح الوالدين صورة أوضح عن التقدّم.</p>
         <div class="public-actions">
           <a class="k-btn k-btn-gold" href="<?php echo h(BASE_PATH . '/demo.php'); ?>">🎮 جرب الآن</a>
           <a class="k-btn k-btn-ghost" href="#auth">🚀 ابدأ المغامرة</a>
