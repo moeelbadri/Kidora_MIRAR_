@@ -7,7 +7,7 @@ $progress = ensure_daily_progress($pdo, $child['id']);
 $taskPool = json_decode_safe($progress['task_pool_ids'], []);
 $completedIds = json_decode_safe($progress['completed_task_ids'], []);
 $tasksDone = count($taskPool) > 0 && count($completedIds) >= count($taskPool);
-$gamesDone = (int)$progress['games_played'] >= FREE_LIBRARY_GAMES;
+$gamesDone = (int)$progress['games_played'] >= STORY_MIN_GAMES;
 // القصة اليومية ميزة اشتراك: غير المشترك لا يولّدها أصلاً (لا زر ولا POST)
 $isPremium = is_premium_active($pdo, (int)$child['id']);
 $ready = $tasksDone && $gamesDone;
@@ -70,9 +70,9 @@ require_once __DIR__ . '/includes/navbar.php';
     <h2 class="section-title">قصتي الخاصة اليوم</h2>
     <p class="section-sub">
       <?php if ($isPremium): ?>
-        بعد إنجاز مهامك اليومية ولعب الألعاب، يمكنك توليد قصتك المتحركة الخاصة ليوم واحد فقط.
+        بعد إنجاز مهامك اليومية ولعبة اليوم، تُبنى لوحة قصة واحدة عن مغامرة يومك الحقيقي — يقرأها رفيقك بصوته.
       <?php else: ?>
-        القصة اليومية المتحركة ميزة للمشتركين — تُبنى من مهام يومك وتتحرك مشهداً بعد مشهد.
+        القصة اليومية ميزة للمشتركين — لوحة واحدة تُبنى من مهام يومك ويقرأها رفيقك بصوته.
       <?php endif; ?>
     </p>
   </div>
@@ -104,8 +104,8 @@ require_once __DIR__ . '/includes/navbar.php';
       <div style="font-size:44px;">🎬</div>
       <h3 style="color:var(--ink);">قصتك اليومية المتحركة تنتظر الاشتراك</h3>
       <p style="color:var(--ink-soft);line-height:2;">
-        كل يوم تُبنى قصة من مهامك أنت: مشاهد متحركة بأيقونة كل مهمة، وصوت
-        صاحبك يحكيها، ويمكن تنزيلها كفيديو ومشاركتها مع أهلك.
+        كل يوم تُبنى لوحة قصة من مهامك أنت، وصوت رفيقك يحكيها،
+        ويمكن تنزيلها كفيديو ومشاركتها مع أهلك.
       </p>
       <p style="color:var(--ink-soft);">ومعها تُفتح مكتبة الألعاب كاملة بدل لعبتين.</p>
       <a class="btn btn-primary btn-block" href="<?php echo BASE_PATH; ?>/subscriptions.php">شوف الاشتراكات 💳</a>
@@ -118,7 +118,7 @@ require_once __DIR__ . '/includes/navbar.php';
       <h3 style="color:var(--ink);">لسّا ما وصلت لهون!</h3>
       <ul style="text-align:right;color:var(--ink-soft);line-height:2;list-style:none;padding:0;">
         <li><?php echo $tasksDone ? '✅' : '⬜'; ?> كل مهامك اليومية (باكج 4 مهام)</li>
-        <li><?php echo $gamesDone ? '✅' : '⬜'; ?> لعبتان من مكتبة الألعاب على الأقل</li>
+        <li><?php echo $gamesDone ? '✅' : '⬜'; ?> لعبة اليوم من قسم الألعاب</li>
       </ul>
       <a class="btn btn-primary" href="<?php echo $tasksDone ? 'games.php' : 'tasks.php'; ?>">اذهب <?php echo $tasksDone ? 'للألعاب' : 'لمهامي'; ?></a>
     </div>
@@ -139,6 +139,9 @@ require_once __DIR__ . '/includes/navbar.php';
 <footer class="site-footer">Kidora © 2026</footer>
 <script>
   window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;
+  <?php if ($todayStory): ?>
+  try { localStorage.setItem('kidora_done_story_' + new Date().toISOString().slice(0,10), '1'); } catch(e){}
+  <?php endif; ?>
   <?php if ($flashToast): ?>
   document.addEventListener('DOMContentLoaded', function(){
     const wrap = document.getElementById('toastWrap');

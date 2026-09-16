@@ -244,16 +244,13 @@
     if (isRegister) window.setTimeout(() => $("#childName")?.focus(), 80);
   }
 
+  // رفيق واحد فقط عند التسجيل — الرفيق المجاني الثاني يُضاف على الخادم
   let picked = [];
   function selectPicked(id) {
-    if (picked.includes(id)) picked = picked.filter(value => value !== id);
-    else if (picked.length < 2) picked.push(id);
-    else return;
+    picked = picked.includes(id) ? [] : [id];
     $$(".public-pick").forEach(card => card.classList.toggle("selected", picked.includes(Number(card.dataset.pickId))));
     const first = $("#character_1");
-    const second = $("#character_2");
     if (first) first.value = picked[0] || "";
-    if (second) second.value = picked[1] || "";
     const char = data.characters.find(item => Number(item.id) === id);
     if (char && window.ThemeEngine) ThemeEngine.previewCharacter(char);
   }
@@ -275,8 +272,7 @@
 
   function setupAuth() {
     const first = Number($("#character_1")?.value || 0);
-    const second = Number($("#character_2")?.value || 0);
-    picked = [first, second].filter(Boolean);
+    picked = [first].filter(Boolean);
     $$(".public-pick").forEach(card => card.classList.toggle("selected", picked.includes(Number(card.dataset.pickId))));
     $$(".public-auth-tab").forEach(button => button.addEventListener("click", () => activateAuth(button.dataset.authTab)));
     document.addEventListener("click", event => {
@@ -294,9 +290,9 @@
     }));
     const form = $("#registerForm");
     form?.addEventListener("submit", event => {
-      if (picked.length !== 2) {
+      if (picked.length !== 1) {
         event.preventDefault();
-        toast("اختر شخصيتين مختلفتين قبل إنشاء الحساب.");
+        toast("اختر رفيق المغامرة قبل إنشاء الحساب.");
       }
     });
     const photo = $("#childPhoto");

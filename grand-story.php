@@ -70,7 +70,7 @@ require_once __DIR__ . '/includes/navbar.php';
   <div class="section-head">
     <div class="eyebrow">كل <?php echo GRAND_STORY_DAYS; ?> يوم</div>
     <h2 class="section-title">مغامرتي الكبرى</h2>
-    <p class="section-sub">بعد إتمام <?php echo GRAND_STORY_DAYS; ?> قصة يومية، تُبنى مغامرة واحدة فخمة من إنجازك الحقيقي خلال الشهر: مهامك، مجالاتك الأقوى، أبطال التاريخ الذين قابلتهم، وتقدّم تحليلك.</p>
+    <p class="section-sub">بعد إتمام <?php echo GRAND_STORY_DAYS; ?> قصة يومية، تُبنى مغامرة واحدة من ثمانية فصول تحكي شهرك الحقيقي كرحلة واحدة: البداية، الطريق، الكنز، رفاق التاريخ، العقبة، دفتر الرحلة، القمة، والخاتمة.</p>
   </div>
 
   <div class="card" style="max-width:520px;margin:0 auto 10px;padding:18px;">

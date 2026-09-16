@@ -18,7 +18,7 @@ $weakAxis = $axisStmt->fetch();
 $RECO_MAP = [
     'الثقة بالنفس' => ['icon'=>'🦸','title'=>'بطل يواجه خوفه','desc'=>'قصة عن بطل يتعلّم كيف يثق بصوته وقراراته.'],
     'المهارات الاجتماعية' => ['icon'=>'🤝','title'=>'صديق للجميع','desc'=>'قصة عن أهمية مشاركة المشاعر ومساعدة الأصدقاء.'],
-    'الذكاء العاطفي' => ['icon'=>'🌈','title'=>'رحلة تهدئة القلب','desc'=>'قصة تعلّم كيف نتعرّف على مشاعرنا ونتعامل معها بهدوء.'],
+    'الذكاء العاطفي' => ['icon'=>'💙','title'=>'رحلة تهدئة القلب','desc'=>'قصة تعلّم كيف نتعرّف على مشاعرنا ونتعامل معها بهدوء.'],
     'الإبداع' => ['icon'=>'🎨','title'=>'عالم الألوان السحري','desc'=>'قصة تشجّع الخيال والابتكار في كل يوم.'],
     'التركيز' => ['icon'=>'🧩','title'=>'سرّ التركيز الخارق','desc'=>'قصة عن بطل يكتشف قوة التركيز خطوة بخطوة.'],
     'الأمان الشخصي' => ['icon'=>'🛡️','title'=>'درع الأمان','desc'=>'قصة تُرسّخ قواعد الحماية بأسلوب مغامرة شيّقة.'],
@@ -538,11 +538,12 @@ require_once __DIR__ . '/includes/navbar.php';
   /* ما نعرضها مرتين بنفس اليوم */
   if (localStorage.getItem(K.shown)) return;
 
-  /* فحص الشروط الثلاثة */
+  /* الحلقة اليومية: المهام + لعبة اليوم + (بطل الأمان أو القصة اليومية) */
+  K.story = 'kidora_done_story_' + TODAY;
   const allDone =
     localStorage.getItem(K.tasks)  === '1' &&
     localStorage.getItem(K.game)   === '1' &&
-    localStorage.getItem(K.safety) === '1';
+    (localStorage.getItem(K.safety) === '1' || localStorage.getItem(K.story) === '1');
 
   if (!allDone) return;
 
@@ -580,17 +581,10 @@ require_once __DIR__ . '/includes/navbar.php';
 
   /* صوت الوداع */
   function speakGoodbye(){
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-
     const name = <?php echo json_encode($child['name'] ?? 'بطل', JSON_UNESCAPED_UNICODE); ?>;
-    const text = `خلص وقتك في المنصة يا ${name}! بنشوفك بكرا بمهام ومغامرات جديدة. باي باي يا بطل!`;
-
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ar-SA'; u.rate = 1; u.pitch = 1.15;
-    const v = speechSynthesis.getVoices().find(x => x.lang.startsWith('ar'));
-    if (v) u.voice = v;
-    speechSynthesis.speak(u);
+    const text = `انتهى وقتك في المنصة لليوم يا ${name}! أراك غداً بمهام ومغامرات جديدة. إلى اللقاء!`;
+    if (window.Companion) Companion.say(text, { mood: 'wave', hold: 4000 });
+    else if (window.SoundEngine) SoundEngine.speak(text, window.KIDAURA_ACTIVE_CHARACTER);
   }
 
   /* ============================================================
@@ -598,7 +592,7 @@ require_once __DIR__ . '/includes/navbar.php';
      استخدمها من tasks.php / games.php / safety.php
      ============================================================ */
   window.kidoraMarkDone = function(type){
-    if (!['tasks','game','safety'].includes(type)) return;
+    if (!['tasks','game','safety','story'].includes(type)) return;
     const today = new Date().toISOString().slice(0,10);
     localStorage.setItem('kidora_done_' + type + '_' + today, '1');
   };

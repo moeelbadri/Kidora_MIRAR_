@@ -3,7 +3,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_game'])) {
     $title = trim($_POST['title']);
     $type = array_key_exists($_POST['type'] ?? '', game_types()) ? $_POST['type'] : 'catch';
     $cat = trim($_POST['category']) ?: 'تربوي';
-    $ageMin = (int)$_POST['age_min'] ?: 4; $ageMax = (int)$_POST['age_max'] ?: 12;
+    $ageMin = (int)$_POST['age_min'] ?: 6; $ageMax = (int)$_POST['age_max'] ?: 12;
     if ($title) {
         $pdo->prepare("INSERT INTO games (title,type,category,age_min,age_max) VALUES (?,?,?,?,?)")->execute([$title,$type,$cat,$ageMin,$ageMax]);
         $_SESSION['admin_flash'] = 'تمت إضافة اللعبة ✅';
@@ -33,8 +33,8 @@ $games = $pdo->query("SELECT * FROM games ORDER BY category, id DESC")->fetchAll
       </select>
     </div>
     <div class="row">
-      <input name="age_min" type="number" placeholder="أصغر عمر" min="4" max="12">
-      <input name="age_max" type="number" placeholder="أكبر عمر" min="4" max="12">
+      <input name="age_min" type="number" placeholder="أصغر عمر" min="6" max="12">
+      <input name="age_max" type="number" placeholder="أكبر عمر" min="6" max="12">
     </div>
     <button type="submit" name="add_game" class="btn btn-primary">إضافة اللعبة</button>
   </form>

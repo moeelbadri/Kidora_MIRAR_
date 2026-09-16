@@ -120,12 +120,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm_password'] ?? '';
     $char1 = (int)($_POST['character_1'] ?? 0);
-    $char2 = (int)($_POST['character_2'] ?? 0);
+    // الطفل يختار رفيقاً واحداً؛ الرفيق المجاني الآخر يُضاف تلقائياً ويبدّل بينهما من البروفايل
+    $freeChars = array_values(array_filter($characters, fn($c) => empty($c['is_premium'])));
+    $char2 = 0;
+    foreach ($freeChars as $fc) { if ((int)$fc['id'] !== $char1) { $char2 = (int)$fc['id']; break; } }
 
-    if (!$char1 || !$char2 || $char1 === $char2) {
-        $registerError = 'الرجاء اختيار شخصيتين مختلفتين أولاً.';
-    } elseif ($name === '' || $age < 4 || $age > 12 || $parentName === '' || $parentPhone === '' || $email === '' || $password === '' || $confirm === '') {
-        $registerError = 'الرجاء ملء جميع الحقول المطلوبة.';
+    if (!$char1) {
+        $registerError = 'الرجاء اختيار رفيق المغامرة أولاً.';
+    } elseif ($name === '' || $age < 6 || $age > 12 || $parentName === '' || $parentPhone === '' || $email === '' || $password === '' || $confirm === '') {
+        $registerError = 'الرجاء ملء جميع الحقول المطلوبة (العمر من 6 إلى 12 سنة).';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $registerError = 'الرجاء إدخال بريد إلكتروني صحيح.';
     } elseif ($password !== $confirm) {
@@ -133,10 +136,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     } elseif (strlen($password) < 6) {
         $registerError = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.';
     } else {
-        $chk = $pdo->prepare("SELECT COUNT(*) c FROM characters WHERE id IN (?,?) AND is_premium = 1");
-        $chk->execute([$char1, $char2]);
-        if ((int)$chk->fetch()['c'] > 0) {
-            $registerError = 'إحدى الشخصيتين المختارتين مدفوعة ولا يمكن اختيارها قبل تفعيل الاشتراك.';
+        $chk = $pdo->prepare("SELECT COUNT(*) c FROM characters WHERE id = ? AND is_premium = 0");
+        $chk->execute([$char1]);
+        if ((int)$chk->fetch()['c'] === 0) {
+            $registerError = 'هذه الشخصية مدفوعة ولا يمكن اختيارها قبل تفعيل الاشتراك.';
         } else {
             $stmt = $pdo->prepare("SELECT id FROM children WHERE email = ?");
             $stmt->execute([$email]);
@@ -156,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     $hashed = password_hash($password, PASSWORD_DEFAULT);
                     $ins = $pdo->prepare("INSERT INTO children (name, email, password, age, parent_name, parent_phone, photo_path, character_1, character_2, active_character)
                                            VALUES (?,?,?,?,?,?,?,?,?,?)");
-                    $ins->execute([$name, $email, $hashed, $age, $parentName, $parentPhone, $photoPath, $char1, $char2, $char1]);
+                    $ins->execute([$name, $email, $hashed, $age, $parentName, $parentPhone, $photoPath, $char1, $char2 ?: $char1, $char1]);
                     $childId = (int)$pdo->lastInsertId();
 
                     $freePlan = $pdo->query("SELECT id FROM subscription_plans ORDER BY sort_order ASC, id ASC LIMIT 1")->fetch();
@@ -172,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     /* ✅ سجّل "تذكرني" للدخول التلقائي مستقبلاً */
                     kidora_remember_login($pdo, $childId);
 
-                    header('Location: subscriptions.php?welcome=1');
+                    header('Location: welcome.php');
                     exit;
                 }
             }
@@ -286,7 +289,7 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-auth-card{max-width:760px;margin:0 auto;padding:30px;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:rgba(255,255,255,.08);backdrop-filter:blur(18px);box-shadow:0 26px 70px rgba(0,0,0,.25)}
   .public-auth-tabs{display:flex;gap:8px;padding:5px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(0,0,0,.18);margin-bottom:25px}.public-auth-tab{flex:1;padding:12px;border-radius:999px;color:#b9abd4;font:inherit;font-weight:900}.public-auth-tab.active{color:var(--k-ink);background:linear-gradient(135deg,#ffe99a,#ffc93c)}
   .public-auth-form[hidden]{display:none}.public-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 15px}.public-field{margin-bottom:15px}.public-field.full{grid-column:1/-1}.public-field label{display:block;margin-bottom:6px;color:#f1f5f9;font-size:13px;font-weight:800}.public-field input,.public-field select{width:100%;min-height:47px;border:1px solid rgba(255,255,255,.15);border-radius:13px;padding:10px 13px;color:#fff;background:rgba(0,0,0,.24);font:inherit}.public-field input:focus,.public-field select:focus{outline:2px solid #ffc93c;outline-offset:1px}.public-field select option{color:#241645;background:#fff}.public-auth-card .k-btn{width:100%}
-  .public-pick-note{margin:0 0 13px;color:#d9d0ff;font-size:13px;line-height:1.7}.public-pick-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:20px}.public-pick{position:relative;padding:7px;border:2px solid transparent;border-radius:15px;color:#fff;background:rgba(255,255,255,.06);text-align:center}.public-pick:not(.locked):hover,.public-pick.selected{border-color:#ffc93c;background:rgba(255,201,60,.14)}.public-pick.locked{opacity:.45;filter:grayscale(.7);cursor:not-allowed}.public-pick-media{display:grid;place-items:center;aspect-ratio:1;border-radius:10px;background:linear-gradient(145deg,var(--char-color),rgba(10,6,26,.8));font-size:32px;overflow:hidden}.public-pick-media img{width:100%;height:100%;object-fit:cover}.public-pick strong{display:block;margin-top:5px;font-size:12px}.public-pick small{display:block;margin-top:2px;color:#ffe99a;font-size:9px}
+  .public-pick-note{margin:0 0 13px;color:#d9d0ff;font-size:13px;line-height:1.7}.public-pick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}.public-pick{position:relative;padding:7px;border:2px solid transparent;border-radius:15px;color:#fff;background:rgba(255,255,255,.06);text-align:center}.public-pick:not(.locked):hover,.public-pick.selected{border-color:#ffc93c;background:rgba(255,201,60,.14)}.public-pick.locked{opacity:.45;filter:grayscale(.7);cursor:not-allowed}.public-pick-media{display:grid;place-items:center;aspect-ratio:1;border-radius:10px;background:linear-gradient(145deg,var(--char-color),rgba(10,6,26,.8));font-size:32px;overflow:hidden}.public-pick-media img{width:100%;height:100%;object-fit:cover}.public-pick strong{display:block;margin-top:5px;font-size:12px}.public-pick small{display:block;margin-top:2px;color:#ffe99a;font-size:9px}
   .public-photo-row{display:flex;align-items:center;gap:14px}.public-photo-preview{display:grid;place-items:center;width:64px;height:64px;flex:0 0 64px;border:2px solid rgba(255,201,60,.5);border-radius:50%;overflow:hidden;color:#ffe99a;background:rgba(0,0,0,.22);font-size:24px}.public-photo-preview img{width:100%;height:100%;object-fit:cover}
   .public-error{margin:0 0 18px;padding:11px 14px;border:1px solid rgba(248,113,113,.4);border-radius:13px;color:#fecaca;background:rgba(127,29,29,.28);font-weight:700}
   .public-footer{padding:26px 0 32px;border-top:1px solid rgba(255,255,255,.1);color:#b9abd4;text-align:center;font-size:13px}
@@ -465,7 +468,7 @@ require_once __DIR__ . '/includes/public-nav.php';
       <div class="public-section-head">
         <span class="public-section-kicker">رفقاء الرحلة</span>
         <h2>اختر الشخصية التي تشبه خيالك</h2>
-        <p>جرّب أي شخصية في الديمو، ثم اختر رفيقين مجانيين ليبدآ الرحلة معك.</p>
+        <p>جرّب أي شخصية في الديمو، ثم اختر رفيقك المجاني ليبدأ الرحلة معك.</p>
       </div>
       <div class="public-carousel-shell">
         <button type="button" class="public-carousel-arrow prev" id="charPrev" aria-label="الشخصيات السابقة">›</button>
@@ -587,7 +590,7 @@ require_once __DIR__ . '/includes/public-nav.php';
 
         <div class="public-auth-form" id="registerPanel" <?php echo $shouldOpenRegister ? '' : 'hidden'; ?>>
           <?php if ($registerError): ?><div class="public-error">❌ <?php echo h($registerError); ?></div><?php endif; ?>
-          <p class="public-pick-note">اختر شخصيتين مجانيتين ليرافقا الطفل. الشخصيات المدفوعة متاحة للتجربة في الديمو وتُفتح بعد الترقية.</p>
+          <p class="public-pick-note">اختر رفيق المغامرة (شخصية واحدة). الرفيق المجاني الآخر يُضاف تلقائياً ويمكن التبديل بينهما من البروفايل. الشخصيات المدفوعة تُفتح بعد الترقية.</p>
           <div class="public-pick-grid" id="registerCharacterGrid">
             <?php foreach ($charDataForJS as $c): ?>
               <button type="button" class="public-pick <?php echo $c['is_premium'] ? 'locked' : ''; ?>" data-pick-id="<?php echo (int)$c['id']; ?>" data-locked="<?php echo $c['is_premium'] ? '1' : '0'; ?>" style="--char-color:<?php echo h($c['color']); ?>">
@@ -600,10 +603,9 @@ require_once __DIR__ . '/includes/public-nav.php';
           <div class="public-auth-form" id="registerErrorHint" hidden></div>
           <form method="POST" enctype="multipart/form-data" id="registerForm">
             <input type="hidden" name="character_1" id="character_1" value="<?php echo (int)($prefillChar ?: ($_POST['character_1'] ?? 0)); ?>">
-            <input type="hidden" name="character_2" id="character_2" value="<?php echo (int)($_POST['character_2'] ?? 0); ?>">
             <div class="public-form-grid">
               <div class="public-field"><label for="childName">اسم الطفل</label><input id="childName" type="text" name="child_name" maxlength="100" value="<?php echo h($_POST['child_name'] ?? $prefillName); ?>" autocomplete="name" required></div>
-              <div class="public-field"><label for="childAge">عمر الطفل</label><select id="childAge" name="child_age" required><option value="">اختر العمر</option><?php for ($a = 4; $a <= 12; $a++): ?><option value="<?php echo $a; ?>" <?php echo (($_POST['child_age'] ?? '') == $a) ? 'selected' : ''; ?>><?php echo $a; ?> سنوات</option><?php endfor; ?></select></div>
+              <div class="public-field"><label for="childAge">عمر الطفل</label><select id="childAge" name="child_age" required><option value="">اختر العمر</option><?php for ($a = 6; $a <= 12; $a++): ?><option value="<?php echo $a; ?>" <?php echo (($_POST['child_age'] ?? '') == $a) ? 'selected' : ''; ?>><?php echo $a; ?> سنوات</option><?php endfor; ?></select></div>
               <div class="public-field"><label for="parentName">اسم ولي الأمر</label><input id="parentName" type="text" name="parent_name" maxlength="100" value="<?php echo h($_POST['parent_name'] ?? ''); ?>" required></div>
               <div class="public-field"><label for="parentPhone">رقم واتساب ولي الأمر</label><input id="parentPhone" type="tel" name="parent_phone" maxlength="30" placeholder="مثال: 0599123456" value="<?php echo h($_POST['parent_phone'] ?? ''); ?>" required></div>
               <div class="public-field"><label for="registerEmail">البريد الإلكتروني</label><input id="registerEmail" type="email" name="email" maxlength="150" value="<?php echo h($_POST['email'] ?? ''); ?>" autocomplete="email" required></div>

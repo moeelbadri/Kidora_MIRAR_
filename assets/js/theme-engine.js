@@ -97,10 +97,59 @@ const ThemeEngine = (function () {
     }
   }
 
+  // زخرفة عالم الشخصية: طبقة إضافية فوق الأيقونات العائمة تُحدَّد بـ theme.motif.
+  // كلها شفافة ومعتمة جزئياً وتحت طبقة #animated-bg::after، فلا تمسّ التباين.
+  const MOTIFS = {
+    bubbles:  { glyphs: ["○", "○", "◌"], anim: "motifRise",  dur: [14, 26], size: [10, 42], opacity: .35 },
+    leaves:   { glyphs: ["🍃", "🌿", "🍀"], anim: "motifFall",  dur: [16, 28], size: [16, 30], opacity: .45 },
+    confetti: { glyphs: ["▮", "●", "▲", "■"], anim: "motifFall", dur: [9, 18], size: [8, 16], opacity: .55, colorful: true },
+    stars:    { glyphs: ["✦", "✧", "·"], anim: "motifTwinkle", dur: [3, 7], size: [8, 22], opacity: .6 },
+    webs:     { glyphs: ["🕸️"], anim: "motifTwinkle", dur: [6, 10], size: [40, 90], opacity: .18, corners: true },
+    bats:     { glyphs: ["🦇"], anim: "motifFly",   dur: [18, 30], size: [16, 30], opacity: .5 },
+    clues:    { glyphs: ["🔍", "❔", "👣"], anim: "motifTwinkle", dur: [5, 9], size: [14, 26], opacity: .35 },
+  };
+  const CONFETTI_COLORS = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#A8E6CF", "#FF8A5C", "#6C5CE7", "#FD79A8"];
+
+  function updateMotif(motif, color) {
+    const bg = document.getElementById("animated-bg");
+    if (!bg) return;
+    let layer = document.getElementById("theme-motif");
+    if (!layer) {
+      layer = document.createElement("div");
+      layer.id = "theme-motif"; layer.className = "theme-motif-layer";
+      const icons = document.getElementById("floating-icons");
+      if (icons && icons.parentNode === bg) bg.insertBefore(layer, icons.nextSibling); else bg.appendChild(layer);
+    }
+    layer.innerHTML = "";
+    const m = MOTIFS[motif] || MOTIFS.stars;
+    const count = m.corners ? 4 : 14 + Math.floor(Math.random() * 8);
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement("span");
+      s.textContent = m.glyphs[i % m.glyphs.length];
+      const dur = m.dur[0] + Math.random() * (m.dur[1] - m.dur[0]);
+      if (m.corners) {
+        s.style.left = (i % 2 ? 88 : 2) + "%"; s.style.top = (i < 2 ? 8 : 78) + "%";
+        s.style.transform = `rotate(${(i * 90) % 360}deg)`;
+      } else {
+        s.style.left = Math.random() * 96 + "%";
+        s.style.top = m.anim === "motifTwinkle" ? (Math.random() * 90 + "%") : "";
+      }
+      s.style.fontSize = (m.size[0] + Math.random() * (m.size[1] - m.size[0])) + "px";
+      s.style.opacity = m.opacity;
+      s.style.color = m.colorful ? CONFETTI_COLORS[i % CONFETTI_COLORS.length] : shadeColor(color, 45);
+      s.style.setProperty("--drift", (Math.random() * 160 - 80) + "px");
+      s.style.animation = `${m.anim} ${dur}s ${m.anim === "motifTwinkle" ? "ease-in-out" : "linear"} infinite`;
+      s.style.animationDelay = (-Math.random() * dur) + "s";
+      layer.appendChild(s);
+    }
+    document.documentElement.setAttribute("data-motif", motif || "stars");
+  }
+
   function applyBackground(charData) {
     if (!charData) return;
     updateBackgroundColor(charData.color || "#6C63FF");
     updateFloatingIcons(charData.icons || [], charData.move || "wiggle");
+    updateMotif((charData.theme && charData.theme.motif) || "stars", charData.color || "#6C63FF");
   }
 
   /** معاينة فورية عند الـ hover/الاختيار في صفحة تسجيل الدخول (بدون حفظ سيرفر) */
@@ -115,5 +164,5 @@ const ThemeEngine = (function () {
     }
   }
 
-  return { applyBackground, previewCharacter, updateBackgroundColor, updateFloatingIcons, shadeColor };
+  return { applyBackground, previewCharacter, updateBackgroundColor, updateFloatingIcons, updateMotif, shadeColor };
 })();

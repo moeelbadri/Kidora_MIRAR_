@@ -33,18 +33,33 @@ function admin_user_analysis(PDO $pdo, int $childId): ?array {
       <td><?php echo h($u['parent_phone']); ?></td>
       <td><?php echo h($u['email']); ?></td>
       <td><?php echo (int)$u['points']; ?></td>
-      <td><?php echo (int)$u['ring_days']; ?>/10</td>
+      <td><?php echo (int)$u['ring_days']; ?>/30</td>
       <td><?php echo $rec ? h($rec['name']) : '-'; ?><?php echo $statusBadge; ?></td>
       <td>
-        <?php if ($analysis):
-          $lines = [];
-          foreach ($analysis as $r) { $lines[] = $r['axis'] . ': ' . number_format($r['avg_v'],1) . ' / 3'; }
-          $summary = implode("\n", $lines);
-        ?>
-          <button class="btn btn-sm btn-ghost" onclick="alert(<?php echo json_encode($summary, JSON_UNESCAPED_UNICODE); ?>)">📊 عرض</button>
+        <?php if ($analysis): ?>
+          <button class="btn btn-sm btn-ghost" type="button" onclick="document.getElementById('an-<?php echo (int)$u['id']; ?>').classList.toggle('hidden')">📊 عرض</button>
         <?php else: ?><span style="color:var(--ink-soft);font-size:12px;">لا يوجد بعد</span><?php endif; ?>
       </td>
     </tr>
+    <?php if ($analysis): $total = array_sum(array_column($analysis, 'c')); ?>
+    <tr id="an-<?php echo (int)$u['id']; ?>" class="hidden">
+      <td colspan="9" style="background:#F6F2FF;padding:14px 18px;">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <b>تحليل سلوك <?php echo h($u['name']); ?></b>
+          <span style="color:var(--ink-soft);font-size:12px;"><?php echo (int)$total; ?> إجابة · آخر تحليل: <?php echo $u['last_assessment_at'] ? h(date('Y-m-d', strtotime($u['last_assessment_at']))) : '—'; ?></span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 18px;">
+          <?php foreach ($analysis as $r): $pct = round(((float)$r['avg_v'] / 3) * 100); ?>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:13px;">
+              <span><?php echo h($r['axis']); ?> <small style="color:var(--ink-soft);">(<?php echo (int)$r['c']; ?>)</small></span>
+              <b style="color:<?php echo $pct >= 75 ? '#2E7D4F' : ($pct >= 50 ? '#B7791F' : '#C0392B'); ?>;"><?php echo number_format($r['avg_v'], 1); ?> / 3</b>
+              <div style="grid-column:1/-1;height:8px;border-radius:999px;background:#E6E0F5;overflow:hidden;"><div style="width:<?php echo $pct; ?>%;height:100%;background:linear-gradient(90deg,#6C63FF,#2EC4B6);"></div></div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      </td>
+    </tr>
+    <?php endif; ?>
     <?php endforeach; ?>
   </tbody>
 </table>

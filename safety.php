@@ -29,7 +29,9 @@ if (!$lessons) {
   ]];
 }
 
-$__pageTitle = 'قسم الحماية — Kidora';
+$progress = ensure_daily_progress($pdo, $child['id']);
+$__pageTitle = 'بطل الأمان — Kidora';
+$__pageLine  = 'مهمة الأمان اليوم من ثلاث خطوات: قاعدة، ولعبة، ووسام. أنا معك في كل خطوة.';
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
@@ -42,29 +44,50 @@ require_once __DIR__ . '/includes/navbar.php';
 
     @media(min-width:900px){
   .sf-card{max-width:900px;margin-left:auto;margin-right:auto}
-  .sf-guide{max-width:900px;margin-left:auto;margin-right:auto}
 }
-/* المرشدة */
-.sf-guide{
-  display:flex;align-items:center;gap:1rem;
-  background:var(--k-card,rgba(255,255,255,.07));
-  border:1px solid var(--k-line,rgba(255,255,255,.14));
-  border-radius:24px;padding:1rem 1.4rem;margin-bottom:1.5rem;
-  backdrop-filter:blur(10px);
-}
-.sf-guide-av{
-  width:70px;height:70px;border-radius:50%;
-  background:linear-gradient(145deg,#f5a623,#ffc93c);
-  display:grid;place-items:center;font-size:40px;flex-shrink:0;
-  box-shadow:0 8px 24px rgba(255,201,60,.3);
-  animation:sfFloat 3s ease-in-out infinite;
-}
+/* شريط الخطوات الثلاث — أهداف لمس كبيرة */
+.sf-steps{display:flex;justify-content:center;gap:.6rem;margin:0 0 1.4rem;flex-wrap:wrap}
+.sf-step{display:flex;align-items:center;gap:.5rem;padding:.7rem 1.2rem;border-radius:50px;
+  background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.12);
+  color:#d9d0ff;font-weight:900;font-size:1rem;min-height:52px;transition:.3s}
+.sf-step .n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.12);font-size:.95rem}
+.sf-step.is-on{background:linear-gradient(135deg,#ffe99a,#ffc93c);color:#241645;border-color:#ffc93c;
+  box-shadow:0 8px 24px rgba(255,201,60,.35);transform:scale(1.05)}
+.sf-step.is-on .n{background:#241645;color:#ffc93c}
+.sf-step.is-done{background:rgba(46,196,182,.18);border-color:#2ec4b6;color:#c8fff6}
+.sf-step.is-done .n{background:#2ec4b6;color:#0b3b36}
+
+/* الرؤية: بطاقة واحدة في كل مرة تدخل وتخرج */
+.sf-view{transition:opacity .3s,transform .3s}
+.sf-view.is-out{opacity:0;transform:translateY(14px)}
+
+/* شارة الخطوة الحالية داخل البطاقة */
+.sf-badge{display:inline-flex;align-items:center;gap:.5rem;font-size:1.05rem;font-weight:900;
+  color:#241645;background:linear-gradient(135deg,#ffe99a,#ffc93c);padding:.5rem 1.1rem;border-radius:50px;margin-bottom:.8rem}
+.sf-hero-emoji{font-size:3.4rem;line-height:1;margin:.2rem 0 .4rem;animation:sfFloat 3s ease-in-out infinite;display:inline-block}
 @keyframes sfFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-.sf-guide-name{color:#ffc93c;font-weight:900;display:block;margin-bottom:.2rem;font-size:.95rem}
-.sf-guide-msg{line-height:1.7;font-size:1rem}
+.sf-rule{background:rgba(0,0,0,.22);border-right:6px solid #ffc93c;border-radius:18px;padding:1rem 1.2rem;
+  font-size:1.25rem;line-height:1.9;color:#fff;text-align:right;margin:0 0 1.2rem}
+.sf-ratio{position:relative;padding-top:56.25%;border-radius:18px;overflow:hidden;background:#000;margin-bottom:1rem}
+.sf-ratio .yt-host,.sf-ratio iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.sf-actions{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;margin-top:1rem}
+.sf-btn-lg{min-height:60px;font-size:1.15rem!important;padding:.9rem 2.2rem!important}
+.sf-btn-ghost{background:rgba(255,255,255,.1)!important;color:#fff!important;box-shadow:none!important;border:2px solid rgba(255,255,255,.2)!important}
+.sf-medal{width:150px;height:150px;border-radius:50%;margin:0 auto 1rem;display:grid;place-items:center;font-size:4.2rem;
+  background:radial-gradient(circle at 35% 30%,#fff3b0,#ffc93c 55%,#f5a623);box-shadow:0 0 0 10px rgba(255,201,60,.18),0 20px 50px rgba(255,201,60,.4);
+  animation:sfMedal 1s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes sfMedal{from{transform:scale(.2) rotate(-30deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.sf-choice{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1.2rem}
+.sf-choice a{display:block;padding:1.3rem 1rem;border-radius:22px;text-decoration:none;color:#fff;font-weight:900;font-size:1.1rem;
+  background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.14);transition:.2s;min-height:120px}
+.sf-choice a span{display:block;font-size:2.4rem;margin-bottom:.4rem}
+.sf-choice a:hover{transform:translateY(-4px);border-color:#ffc93c;background:rgba(255,201,60,.14)}
+.sf-choice a.is-lock{opacity:.6}
 
 /* الكارت الرئيسي */
 .sf-card{
+  text-align:center;
   background:var(--k-card,rgba(255,255,255,.06));
   border:1px solid var(--k-line,rgba(255,255,255,.12));
   border-radius:26px;padding:1.5rem;margin-bottom:1.2rem;
@@ -81,17 +104,6 @@ require_once __DIR__ . '/includes/navbar.php';
   font-size:1.5rem;margin:.2rem 0 .5rem;color:#fff;
 }
 .sf-desc{color:#d9d0ff;line-height:1.8;margin:0 0 1rem}
-
-/* بطاقة الفيديو */
-.sf-video{
-  background:rgba(0,0,0,.22);border-radius:18px;padding:1rem;
-  border-right:4px solid #ffc93c;display:flex;align-items:center;
-  gap:1rem;flex-wrap:wrap;margin-bottom:1rem;
-}
-.sf-video-icon{font-size:2.2rem}
-.sf-video-info{flex:1;min-width:180px}
-.sf-video-info h4{color:#ffc93c;margin:0 0 .2rem;font-size:1rem}
-.sf-video-info p{color:#e0d8f0;line-height:1.6;margin:0;font-size:.9rem}
 
 /* أزرار */
 .sf-btn{
@@ -255,68 +267,6 @@ require_once __DIR__ . '/includes/navbar.php';
   font-weight:900;cursor:pointer;font-family:inherit;font-size:.9rem}
 
 /* ========== MODAL الفيديو ========== */
-.sf-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);
-  backdrop-filter:blur(10px);z-index:999;justify-content:center;
-  align-items:center;padding:1rem}
-.sf-modal.open{display:flex}
-.sf-modal-box{background:#1a1040;border-radius:26px;max-width:760px;width:100%;
-  padding:1.5rem;position:relative;border:1px solid rgba(255,255,255,.1)}
-.sf-modal-close{position:absolute;top:10px;left:10px;background:rgba(255,255,255,.1);
-  color:#fff;border:none;width:36px;height:36px;border-radius:50%;
-  cursor:pointer;font-size:1.2rem}
-.sf-player{width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;
-  overflow:hidden;display:grid;place-items:center;color:#b9abd4}
-.sf-player iframe{width:100%;height:100%;border:0}
-
-/* ========== شاشة الاحتفال ========== */
-.sf-celebrate{position:fixed;inset:0;z-index:9999;display:flex;
-  align-items:center;justify-content:center;padding:1rem;
-  background:rgba(10,6,26,.94);backdrop-filter:blur(14px);
-  animation:sfFadeIn .4s ease}
-@keyframes sfFadeIn{from{opacity:0}to{opacity:1}}
-.sf-celebrate-box{background:linear-gradient(160deg,#2a1b4a,#1a1040);
-  border:2px solid rgba(255,201,60,.4);border-radius:30px;
-  padding:2.2rem 1.8rem;max-width:480px;width:100%;text-align:center;
-  box-shadow:0 30px 80px rgba(255,201,60,.25),0 0 60px rgba(255,201,60,.15) inset;
-  animation:sfPopIn .6s cubic-bezier(.34,1.56,.64,1)}
-@keyframes sfPopIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
-.sf-celebrate-emoji{font-size:5rem;line-height:1;
-  animation:sfBounce 1s ease infinite;
-  filter:drop-shadow(0 8px 20px rgba(255,201,60,.6))}
-@keyframes sfBounce{0%,100%{transform:translateY(0) scale(1)}
-  50%{transform:translateY(-12px) scale(1.08)}}
-.sf-celebrate-title{font-family:var(--font-display,inherit);font-size:2rem;
-  margin:.6rem 0 .2rem;
-  background:linear-gradient(135deg,#fff,#ffe99a,#ffc93c);
-  -webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent}
-.sf-celebrate-name{color:#d9d0ff;font-size:1.1rem;margin:.3rem 0 1rem;font-weight:700}
-.sf-celebrate-stars{display:flex;justify-content:center;gap:.6rem;
-  margin:.6rem 0 1rem;font-size:2.2rem}
-.sf-celebrate-stars span{animation:sfStar 1.4s ease infinite}
-.sf-celebrate-stars span:nth-child(2){animation-delay:.2s;font-size:2.8rem}
-.sf-celebrate-stars span:nth-child(3){animation-delay:.4s}
-@keyframes sfStar{0%,100%{transform:scale(1) rotate(0);
-  filter:drop-shadow(0 0 8px rgba(255,201,60,.5))}
-  50%{transform:scale(1.3) rotate(15deg);
-    filter:drop-shadow(0 0 20px rgba(255,201,60,.9))}}
-.sf-celebrate-msg{color:#e0d8f0;line-height:1.9;margin:0 0 1.5rem;font-size:1rem}
-.sf-celebrate-msg strong{color:#ffc93c}
-.sf-celebrate-actions{display:flex;flex-direction:column;gap:.7rem;margin-bottom:1rem}
-.sf-celebrate-btn{padding:1rem 1.4rem;border-radius:50px;font-weight:900;
-  font-size:1rem;text-decoration:none;text-align:center;transition:.25s;
-  border:none;cursor:pointer;font-family:inherit;display:block}
-.sf-btn-play{background:linear-gradient(135deg,#ffe99a,#ffc93c);color:#241645;
-  box-shadow:0 10px 30px rgba(255,201,60,.4)}
-.sf-btn-play:hover{transform:translateY(-3px);
-  box-shadow:0 16px 40px rgba(255,201,60,.55)}
-.sf-btn-finish{background:rgba(255,255,255,.08);color:#d9d0ff;
-  border:1px solid rgba(255,255,255,.15)}
-.sf-btn-finish:hover{background:rgba(255,255,255,.15);
-  border-color:rgba(255,201,60,.5);color:#fff}
-.sf-celebrate-note{color:#b9abd4;font-size:.85rem;margin:.6rem 0 0;line-height:1.6}
-
-/* Confetti */
 .sf-confetti{position:fixed;inset:0;z-index:9998;pointer-events:none;overflow:hidden}
 .sf-confetti span{position:absolute;top:-60px;
   animation:sfFall 3s linear forwards}
@@ -330,7 +280,6 @@ require_once __DIR__ . '/includes/navbar.php';
   75%{transform:rotate(-20deg)}}
 
 @media(max-width:600px){
-  .sf-guide{flex-direction:column;text-align:center}
   .body{transform:scale(.85);transform-origin:top center}
   .body-wrap{height:260px}
   .hs-scene{grid-template-columns:repeat(2,1fr)}
@@ -338,28 +287,13 @@ require_once __DIR__ . '/includes/navbar.php';
 </style>
 
 <div class="sf-wrap">
-
-  <!-- المرشدة -->
-  <div class="sf-guide">
-    <div class="sf-guide-av">🦉</div>
-    <div>
-      <span class="sf-guide-name">رفيقتك الحكيمة</span>
-      <span class="sf-guide-msg" id="sfMsg">مرحباً بطل! 🌟 درس اليوم جاهز.</span>
-    </div>
+  <div class="sf-steps" aria-hidden="true">
+    <div class="sf-step" data-step="1"><span class="n">1</span> القاعدة</div>
+    <div class="sf-step" data-step="2"><span class="n">2</span> اللعبة</div>
+    <div class="sf-step" data-step="3"><span class="n">3</span> الوسام</div>
   </div>
-
-  <!-- الدرس -->
-  <div class="sf-card" id="sfLesson">
-    <div style="text-align:center;padding:2rem;color:#d9d0ff;">جاري التحميل...</div>
-  </div>
-
-</div>
-
-<!-- مودال الفيديو -->
-<div class="sf-modal" id="sfVideoModal">
-  <div class="sf-modal-box">
-    <button class="sf-modal-close" onclick="sfCloseVideo()">✕</button>
-    <div class="sf-player" id="sfPlayer"></div>
+  <div class="sf-card sf-view" id="sfLesson">
+    <div style="padding:2rem;color:#d9d0ff;">جاري التحميل...</div>
   </div>
 </div>
 
@@ -371,10 +305,9 @@ const LESSONS = <?= safe_json($lessons) ?>;
 const CHILD   = <?= safe_json(['name'=>$child['name']??'بطل','age'=>(int)($child['age']??6)]) ?>;
 
 /* ============================================================
-   تتبّع حالة اليوم
+   تتبّع حالة اليوم — درس مختلف كل يوم يُنجز فيه القسم
    ============================================================ */
 function todayKey(){ return new Date().toISOString().slice(0,10); }
-
 function getProgress(){
   let p = {day:0,last:null,done:false};
   try{ p = JSON.parse(localStorage.getItem('kidora_safety_v5')) || p; }catch(e){}
@@ -388,99 +321,113 @@ function getProgress(){
 }
 let PROG = getProgress();
 const todayLesson = LESSONS[PROG.day % LESSONS.length];
+const STORY_OK = <?= is_premium_active($pdo, (int)$child['id']) ? 'true' : 'false' ?>;
 
-/* تتبّع المهمتين */
-let videoWatched = false;
+/* المهمة من ثلاث خطوات: 1 القاعدة (+فيديو) → 2 اللعبة → 3 الوسام */
+let step = 0;
 let gameCompleted = false;
+function checkBothDone(){ if (gameCompleted && step === 2) setTimeout(goStep3, 1400); }
 
-function checkBothDone(){
-  const btn = document.getElementById('sfFinish');
-  if (btn && videoWatched && gameCompleted){
-    btn.disabled = false;
-    btn.style.opacity = 1;
-    btn.classList.add('ready');
-    updateFb('🎉 رائع! أنهيت القصة واللعبة. اضغط الزر الذهبي 👇', '#2ec4b6');
-    speak('رائع! أنهيت القصة واللعبة. اضغط على زر أنهيت المهمة.');
+const view = document.getElementById('sfLesson');
+function setStep(n){
+  step = n;
+  document.querySelectorAll('.sf-step').forEach(el => {
+    const k = +el.dataset.step;
+    el.classList.toggle('is-on', k === n);
+    el.classList.toggle('is-done', k < n);
+  });
+}
+function swapView(html){
+  return new Promise(res => {
+    view.classList.add('is-out');
+    setTimeout(() => { if (window.KidoraYT) KidoraYT.destroy(); view.innerHTML = html; view.classList.remove('is-out'); res(); }, 300);
+  });
+}
+function say(t, mood){
+  if (window.Companion) return Companion.say(t, { mood: mood || 'talk' });
+  speak(t); return Promise.resolve();
+}
+
+/* ---------- الخطوة 1: القاعدة ---------- */
+async function goStep1(){
+  const L = todayLesson;
+  setStep(1);
+  const hasYT = L.youtube_id && String(L.youtube_id).trim() !== '';
+  await swapView(`
+    <span class="sf-badge">📖 الخطوة 1 — قاعدة اليوم</span>
+    <div class="sf-hero-emoji">🛡️</div>
+    <h2 class="sf-title">${esc(L.title)}</h2>
+    <p class="sf-rule">${esc(L.description)}</p>
+    ${hasYT ? `<div class="sf-ratio"><div class="yt-host" id="sfVideo"></div></div>` : ''}
+    <div class="sf-actions">
+      <button type="button" class="sf-btn sf-btn-lg" id="sfNext1">${hasYT ? '⏭ فهمت، إلى اللعبة' : '🎮 فهمت، إلى اللعبة'}</button>
+    </div>
+  `);
+  document.getElementById('sfNext1').onclick = goStep2;
+  await say(`${CHILD.name}، قاعدة اليوم: ${cleanEmoji(L.title)}. ${cleanEmoji(L.description)}`, 'talk');
+  if (hasYT && window.KidoraYT){
+    await say('شاهد معي هذه القصة القصيرة.', 'cheer');
+    await KidoraYT.play('sfVideo', L.youtube_id, { autoplay: true, skipId: 'sfNext1' });
+    if (step === 1) goStep2();
+  } else if (step === 1) {
+    await say('هل أنت مستعد للعبة؟ اضغط الزر الكبير.', 'cheer');
   }
 }
 
-/* ============================================================
-   رسم الدرس
-   ============================================================ */
-function renderLesson(){
-  const wrap = document.getElementById('sfLesson');
+/* ---------- الخطوة 2: اللعبة ---------- */
+async function goStep2(){
+  if (step >= 2) return;
   const L = todayLesson;
-  if (!L){ wrap.innerHTML = '<p>لا يوجد محتوى</p>'; return; }
-
-  const hasYT = L.youtube_id && String(L.youtube_id).trim() !== '';
-
-  let html = `
-    <span class="sf-kicker">📖 قصة اليوم</span>
-    <h2 class="sf-title">${esc(L.title)}</h2>
-    <p class="sf-desc">${esc(L.description)}</p>
-  `;
-
-  if (hasYT){
-    html += `
-      <div class="sf-video">
-        <div class="sf-video-icon">🎬</div>
-        <div class="sf-video-info">
-          <h4>شاهد القصة</h4>
-          <p>فيديو قصير يعلّمك درس اليوم.</p>
-        </div>
-        <button class="sf-btn" id="sfWatch">▶ شاهد</button>
-      </div>
-    `;
-  } else {
-    html += `
-      <div class="sf-video">
-        <div class="sf-video-icon">🔊</div>
-        <div class="sf-video-info">
-          <h4>استمع للقصة</h4>
-          <p>اضغط لسماع القصة قبل اللعبة.</p>
-        </div>
-        <button class="sf-btn" id="sfListen">🔊 استمع</button>
-      </div>
-    `;
-  }
-
-  html += `
-    <span class="sf-kicker">🎮 لعبة اليوم</span>
-    <h3 class="sf-title" style="font-size:1.2rem">${gameTitle(L.game_type)}</h3>
-    <p class="sf-desc" style="margin-bottom:.6rem">${gameDesc(L.game_type)}</p>
+  gameCompleted = false;
+  setStep(2);
+  await swapView(`
+    <span class="sf-badge">🎮 الخطوة 2 — اللعبة</span>
+    <h2 class="sf-title" style="font-size:1.35rem">${gameTitle(L.game_type)}</h2>
+    <p class="sf-desc">${gameDesc(L.game_type)}</p>
     <div class="sf-game" id="sfGameBox"></div>
     <div class="sf-fb" id="sfFb">جرّب اللعبة 👇</div>
-    <div class="sf-finish">
-      <button class="sf-btn" id="sfFinish" disabled>🎯 أنهيت المهمة</button>
-    </div>
-  `;
-  wrap.innerHTML = html;
-
-  /* ربط زر الفيديو */
-  const wBtn = document.getElementById('sfWatch');
-  if (wBtn) wBtn.addEventListener('click', () => {
-    openVideo(`https://www.youtube.com/embed/${encodeURIComponent(L.youtube_id)}?autoplay=1&rel=0`);
-    setTimeout(() => {
-      videoWatched = true;
-      checkBothDone();
-    }, 1500);
-  });
-  const lBtn = document.getElementById('sfListen');
-  if (lBtn) lBtn.addEventListener('click', () => {
-    speak(L.title + '. ' + L.description);
-    setTimeout(() => {
-      videoWatched = true;
-      checkBothDone();
-    }, 1200);
-  });
-
-  /* تشغيل اللعبة */
-  const box = document.getElementById('sfGameBox');
+  `);
   const gt = (L.game_type || 'body').toLowerCase();
-  const Engine = GAMES[gt] || GAMES.body;
-  Engine(box, L);
+  (GAMES[gt] || GAMES.body)(document.getElementById('sfGameBox'), L);
+}
 
-  document.getElementById('sfMsg').textContent = `اليوم: "${L.title}". أنهِ اللعبة لفتح درس الغد.`;
+/* ---------- الخطوة 3: الوسام ---------- */
+async function goStep3(){
+  if (step >= 3) return;
+  setStep(3);
+  PROG.day += 1; PROG.last = todayKey(); PROG.done = true;
+  localStorage.setItem('kidora_safety_v5', JSON.stringify(PROG));
+  if (window.kidoraMarkDone) kidoraMarkDone('safety'); else localStorage.setItem('kidora_done_safety_' + todayKey(), '1');
+  confettiBurst();
+  await swapView(`
+    <span class="sf-badge">🏅 الخطوة 3 — الوسام</span>
+    <div class="sf-medal">🏅</div>
+    <h2 class="sf-title">أنت بطل الأمان يا ${esc(CHILD.name)}!</h2>
+    <p class="sf-rule" style="text-align:center">تعلّمت اليوم: <strong>${esc(todayLesson.title)}</strong></p>
+    <div class="sf-choice">
+      <a href="<?= BASE_PATH ?>/story.php" class="${STORY_OK ? '' : 'is-lock'}"><span>📖</span>${STORY_OK ? 'قصتي اليومية' : 'قصتي اليومية 🔒'}</a>
+      <a href="<?= BASE_PATH ?>/games.php"><span>🎮</span>لعبة إضافية</a>
+      <a href="<?= BASE_PATH ?>/dashboard.php"><span>🏠</span>الرئيسية</a>
+    </div>
+  `);
+  if (window.Companion) await Companion.celebrate(`مبروك يا ${CHILD.name}! حصلت على وسام بطل الأمان. حفظت قاعدة اليوم وأنهيت اللعبة.`);
+  else speak(`مبروك يا ${CHILD.name}! حصلت على وسام بطل الأمان.`);
+  await say(STORY_OK ? 'الآن اختر: قصتك اليومية، أو لعبة إضافية، أو الرجوع للرئيسية.' : 'الآن اختر: لعبة إضافية أو الرجوع للرئيسية.', 'cheer');
+}
+
+function confettiBurst(){
+  const confetti = document.createElement('div');
+  confetti.className = 'sf-confetti';
+  for (let i=0; i<60; i++){
+    const c = document.createElement('span');
+    c.textContent = ['🎉','🎊','⭐','🌟','✨','🏆','💫'][Math.floor(Math.random()*7)];
+    c.style.left = Math.random()*100 + '%';
+    c.style.animationDelay = (Math.random()*2) + 's';
+    c.style.fontSize = (Math.random()*20 + 20) + 'px';
+    confetti.appendChild(c);
+  }
+  document.body.appendChild(confetti);
+  setTimeout(()=>confetti.remove(), 4000);
 }
 
 /* ============================================================
@@ -490,7 +437,7 @@ function renderLesson(){
    القاعدة الآمنة نفسها — فالهدف طفل واثق يحفظ القاعدة، لا طفل خائف
    من العلامة. أي محرك جديد يلتزم بـ gentle() أدناه.
    ============================================================ */
-const SF_ENCOURAGE = ['فكرة جيدة! 💙', 'شكراً لأنك فكّرت 🤗', 'قريب جداً! 🌈', 'تفكيرك جميل ✨'];
+const SF_ENCOURAGE = ['فكرة جيدة! 💙', 'شكراً لأنك فكّرت 🤗', 'قريب جداً! 🌟', 'تفكيرك جميل ✨'];
 function gentle(rule){ return SF_ENCOURAGE[Math.floor(Math.random()*SF_ENCOURAGE.length)] + (rule ? ' الأأمن دائماً: ' + rule : ''); }
 function gameTitle(t){
   return ({
@@ -980,22 +927,6 @@ const GAMES = {
 };
 
 /* ============================================================
-   الفيديو
-   ============================================================ */
-function openVideo(url){
-  document.getElementById('sfPlayer').innerHTML =
-    `<iframe src="${url}" allow="autoplay;encrypted-media" allowfullscreen></iframe>`;
-  document.getElementById('sfVideoModal').classList.add('open');
-}
-function sfCloseVideo(){
-  document.getElementById('sfVideoModal').classList.remove('open');
-  document.getElementById('sfPlayer').innerHTML = '';
-}
-document.getElementById('sfVideoModal').addEventListener('click', e=>{
-  if (e.target.id === 'sfVideoModal') sfCloseVideo();
-});
-
-/* ============================================================
    مساعدات
    ============================================================ */
 function updateFb(txt, color){
@@ -1011,127 +942,26 @@ function cleanEmoji(s){
 }
 
 /* ============================================================
-   الصوت
+   الصوت — محرّكات الألعاب تنادي speak()؛ نمرّرها للرفيق حتى يقرأ هو
+   (يوقف الموسيقى ويزيل الرموز). عند غياب الرفيق نعود إلى SpeechSynthesis.
    ============================================================ */
-let currentUtterance = null;
 function speak(t){
+  const txt = cleanEmoji(t);
+  if (!txt) return;
+  if (window.Companion){ Companion.say(txt, { mood: 'talk' }); return; }
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(String(t||''));
-  u.lang = 'ar-SA'; u.rate = 1; u.pitch = 1.15;
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang = 'ar-SA'; u.rate = 1; u.pitch = 1.1;
   const v = speechSynthesis.getVoices().find(x=>x.lang.startsWith('ar'));
   if (v) u.voice = v;
-  currentUtterance = u;
   speechSynthesis.speak(u);
-}
-if ('speechSynthesis' in window){
-  speechSynthesis.getVoices();
-  speechSynthesis.onvoiceschanged = ()=>speechSynthesis.getVoices();
-}
-
-/* ============================================================
-   زر الإنهاء → شاشة الاحتفال
-   ============================================================ */
-document.addEventListener('click', e=>{
-  if (e.target && e.target.id === 'sfFinish' && !e.target.disabled){
-    showCelebration();
-  }
-});
-
-/* ============================================================
-   شاشة الاحتفال
-   ============================================================ */
-function showCelebration(){
-  speak(`مبروك يا ${CHILD.name}! أنهيت مهمة اليوم بنجاح. أنت رائع!`);
-
-  /* Confetti */
-  const confetti = document.createElement('div');
-  confetti.className = 'sf-confetti';
-  for (let i=0; i<60; i++){
-    const c = document.createElement('span');
-    c.textContent = ['🎉','🎊','⭐','🌟','✨','🏆','💫'][Math.floor(Math.random()*7)];
-    c.style.left = Math.random()*100 + '%';
-    c.style.animationDelay = (Math.random()*2) + 's';
-    c.style.fontSize = (Math.random()*20 + 20) + 'px';
-    confetti.appendChild(c);
-  }
-  document.body.appendChild(confetti);
-  setTimeout(()=>confetti.remove(), 4000);
-
-  const modal = document.createElement('div');
-  modal.className = 'sf-celebrate';
-  modal.innerHTML = `
-    <div class="sf-celebrate-box">
-      <div class="sf-celebrate-emoji">🏆</div>
-      <h2 class="sf-celebrate-title">مبروك يا بطل!</h2>
-      <p class="sf-celebrate-name">${esc(CHILD.name)} 🌟</p>
-      <div class="sf-celebrate-stars">
-        <span>⭐</span><span>⭐</span><span>⭐</span>
-      </div>
-      <p class="sf-celebrate-msg">
-        أنهيت قصة اليوم <strong>"${esc(todayLesson.title)}"</strong><br>
-        وأكملت اللعبة بنجاح! 🎯
-      </p>
-      <div class="sf-celebrate-actions">
-        <a href="<?= BASE_PATH ?>/games.php" class="sf-celebrate-btn sf-btn-play">
-          🎮 العب لعبة إضافية
-        </a>
-        <button class="sf-celebrate-btn sf-btn-finish" id="sfFinishDay">
-          🏁 أنهيت المهمة، أراك غداً
-        </button>
-      </div>
-      <p class="sf-celebrate-note">
-        💡 لا تنسَ أن تكمل أنشطتك اليومية الأخرى!
-      </p>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  /* زر الإنهاء النهائي → شاشة الختام */
-  document.getElementById('sfFinishDay').addEventListener('click', ()=>{
-    PROG.day += 1;
-    PROG.last = todayKey();
-    PROG.done = true;
-    localStorage.setItem('kidora_safety_v5', JSON.stringify(PROG));
-
-    showGoodbye(modal);
-  });
-}
-
-/* ============================================================
-   شاشة الختام — انتهى وقتك اليوم
-   ============================================================ */
-function showGoodbye(modal){
-  speak(`خلص وقتك اليوم في المنصة يا ${CHILD.name}! بنشوفك بكرا بألعاب وقصص جديدة. إلى اللقاء!`);
-
-  modal.querySelector('.sf-celebrate-box').innerHTML = `
-    <div class="sf-goodbye-emoji">👋</div>
-    <h2 class="sf-celebrate-title">خلص وقتك في المنصة!</h2>
-    <p class="sf-celebrate-name">${esc(CHILD.name)} 🌟</p>
-    <div class="sf-celebrate-stars">
-      <span>🎮</span><span>📚</span><span>✨</span>
-    </div>
-    <p class="sf-celebrate-msg" style="font-size:1.05rem">
-      <strong>بنشوفك بكرا</strong><br>
-      بألعاب وقصص جديدة ومغامرات أحلى! 🚀
-    </p>
-    <div class="sf-celebrate-actions">
-      <a href="<?= BASE_PATH ?>/dashboard.php" class="sf-celebrate-btn sf-btn-play">
-        🏠 رجوع للرئيسية
-      </a>
-    </div>
-    <p class="sf-celebrate-note">
-      💚 اذهب الآن وأكمل أنشطتك اليومية.<br>
-      نحن فخورون بك يا بطل!
-    </p>
-  `;
 }
 
 /* ============================================================
    التشغيل
    ============================================================ */
-renderLesson();
-setTimeout(()=>speak(`مرحباً ${CHILD.name}! درس اليوم جاهز.`), 800);
+goStep1();
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

@@ -62,7 +62,8 @@ Never use the `background` shorthand on gradient-clipped text (`background-clip:
 
 `php -S localhost:8000` — SQLite is created and seeded on first request.
 Admin at `/admin/login.php` (`admin@kidora.com` / `admin123`). Reset by deleting
-`storage/kidora.sqlite`.
+`storage/kidora.sqlite`. There is no headless browser on this host: verify flows over
+HTTP with `curl` + the JSON endpoints and `node --check` the inline scripts.
 
 ## Known-defect awareness
 
@@ -94,5 +95,26 @@ never with a random query.
 
 The free plan gets the whole daily loop — missions, mission mini-games, figures, safety
 — plus two library games (`FREE_LIBRARY_GAMES`). The **daily story** is the paid
-feature, so `story.php` must check `is_premium_active()` on the POST, not just hide the
-button.
+feature, so `story.php` must check `is_premium_active($pdo, $childId)` on the POST, not
+just hide the button. `STORY_MIN_GAMES = 1` (the game of the day unlocks it).
+
+## Companion-led flow (Sep 2026)
+
+- **The companion narrates everything.** Use `Companion.say/sequence/celebrate/guideTo`
+ (promises; handle moods, bubble, music pause). No raw `SpeechSynthesisUtterance` or
+ `SoundEngine.speak` in pages except as a fallback when `window.Companion` is absent.
+- **Chained flows are client-side state machines** fed by JSON endpoints
+ (`api/assess-answer.php`, `api/complete-task.php`, `api/play-game.php`) — no
+ «متابعة» buttons, no mid-chain POST-redirect. Video plays through `KidoraYT.play()`
+ so its end advances the flow. tasks → `games.php?from=tasks` → choice modal
+ (safety | story). Goodbye lives in `dashboard.php` only (`kidora_done_*` keys).
+- **Assessment is silent for the child** — no progress, no comments, no chart. Results
+ are admin/parent-only.
+- **Daily story = one scene** (`kind:'single'`), **grand story = 8 chapters**.
+- **Characters v2** (spongebob, dora free; gumball, ladybug, spiderman, batman, ben10,
+ conan premium) carry `theme_json` (world, sidekick, motif). The names are third-party
+ IP: keep the placeholder SVGs generic; real art comes through the admin upload.
+ Registration picks **one** character; the server fills `character_2`.
+- **Age is 6–12** everywhere (registration, seed `age_min`, admin forms).
+- **No `mb_*`** (no mbstring on the runtime) — `preg_*` with `/u`; never `rtrim()` with a
+ multibyte delimiter. **No 🌈** anywhere in the product.

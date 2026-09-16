@@ -9,24 +9,26 @@ $__offset = $__circumference - ($__circumference * $__ringDays / 30);
 $__currentPage = basename($_SERVER['PHP_SELF']);
 
 // ===== تقسيم الروابط إلى (أساسية) و (ثانوية) =====
+// أربعة أزرار كبيرة فقط للطفل (6–12): الحلقة اليومية بترتيبها. الباقي تحت «المزيد».
 $__primaryItems = [
     'dashboard.php' => ['label' => 'الرئيسية', 'icon' => '🏠'],
     'tasks.php' => ['label' => 'مهامي', 'icon' => '📋'],
-    'story.php' => ['label' => 'قصتي اليومية', 'icon' => '📖'],
-    'friends.php' => ['label' => 'قصص أصدقائي', 'icon' => '👫'],
     'games.php' => ['label' => 'ألعابي', 'icon' => '🎮'],
+    'story.php' => ['label' => 'قصتي', 'icon' => '📖'],
 ];
 
 $__secondaryItems = [
-    'assessment.php' => ['label' => 'أسئلة التحليل', 'icon' => '📊'],
+    'safety.php' => ['label' => 'بطل الأمان', 'icon' => '🛡️'],
+    'friends.php' => ['label' => 'قصص أصدقائي', 'icon' => '👫'],
     'culture.php' => ['label' => 'قصص ثقافية', 'icon' => '🌍'],
     'grand-story.php' => ['label' => 'مغامرتي الكبرى', 'icon' => '🏰'],
-    'safety.php' => ['label' => 'الحماية', 'icon' => '🛡️'],
+    'games2.php' => ['label' => 'ألعاب الذكاء', 'icon' => '🧠'],
     'draw.php' => ['label' => 'لوحتي', 'icon' => '🎨'],
+    'assessment.php' => ['label' => 'أسئلة التحليل', 'icon' => '📊'],
     'subscriptions.php' => ['label' => 'الاشتراك', 'icon' => '💎'],
-    'games2.php' => ['label' => 'معرض الألعاب', 'icon' => '🎯'],
     'profile.php' => ['label' => 'ملفي الشخصي', 'icon' => '👤'],
 ];
+$__navPhoto = !empty($__navChild['photo_path']) ? BASE_PATH . '/' . ltrim($__navChild['photo_path'], '/') : null;
 
 // جميع العناصر (للسايد بار في الجوال)
 $__allItems = array_merge($__primaryItems, $__secondaryItems);
@@ -117,11 +119,17 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
         <span class="free-badge">🔓 مجاني</span>
       <?php endif; ?>
       <div class="header-voice">
-        <button class="voice-btn on" id="voiceToggle">🗣️</button>
-        <button class="music-btn" id="musicToggle">🔇</button>
+        <button class="voice-btn on" id="voiceToggle" title="صوت الرفيق">🗣️</button>
+        <button class="music-btn" id="musicToggle" title="الموسيقى">🔇</button>
       </div>
+      <a href="<?php echo BASE_PATH; ?>/profile.php" class="header-avatar" title="ملفي الشخصي">
+        <?php if ($__navPhoto): ?><img src="<?php echo h($__navPhoto); ?>" alt="<?php echo h($__navChild['name']); ?>"><?php else: ?><span>👤</span><?php endif; ?>
+      </a>
     </div>
 
+    <a href="<?php echo BASE_PATH; ?>/profile.php" class="header-avatar header-avatar-mobile" title="ملفي الشخصي">
+      <?php if ($__navPhoto): ?><img src="<?php echo h($__navPhoto); ?>" alt=""><?php else: ?><span>👤</span><?php endif; ?>
+    </a>
     <!-- ===== زر فتح القائمة (للجوال فقط) ===== -->
     <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="تبديل القائمة">
       <span class="toggle-icon">
@@ -135,10 +143,10 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
 <!-- ===== السايد بار المنزلق (للجوال فقط - يحتوي على جميع الروابط) ===== -->
 <aside class="app-sidebar" id="appSidebar">
   <div class="sidebar-header">
-    <div class="sidebar-brand">
-      <span class="brand-dot"></span>
-      <span class="brand-name">Kidora</span>
-    </div>
+    <a class="sidebar-brand" href="<?php echo BASE_PATH; ?>/profile.php">
+      <span class="header-avatar" style="display:inline-grid;"><?php if ($__navPhoto): ?><img src="<?php echo h($__navPhoto); ?>" alt=""><?php else: ?><span>👤</span><?php endif; ?></span>
+      <span class="brand-name"><?php echo h($__navChild['name']); ?></span>
+    </a>
     <button class="sidebar-close-btn" id="sidebarCloseBtn">✕</button>
   </div>
 
@@ -233,28 +241,6 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
       e.stopPropagation();
     });
   }
-
-  // ===== مزامنة أزرار الصوت =====
-  const voiceBtns = document.querySelectorAll('.voice-btn');
-  const musicBtns = document.querySelectorAll('.music-btn');
-
-  voiceBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
-      this.classList.toggle('on');
-      voiceBtns.forEach(b => {
-        if (b !== this) b.classList.toggle('on');
-      });
-    });
-  });
-
-  musicBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
-      this.classList.toggle('on');
-      musicBtns.forEach(b => {
-        if (b !== this) b.classList.toggle('on');
-      });
-    });
-  });
 
   // ===== بيانات الطفل =====
   window.KIDAURA_CHILD = <?php echo json_encode([
@@ -430,12 +416,13 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: 10px 16px;
+    min-height: 44px;
     border-radius: 40px;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.72);
     text-decoration: none;
-    font-weight: 600;
-    font-size: 0.85rem;
+    font-weight: 800;
+    font-size: 1rem;
     transition: all 0.3s ease;
     white-space: nowrap;
     background: none;
@@ -458,8 +445,17 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
   }
 
   .nav-list .nav-icon {
-    font-size: 1.1rem;
+    font-size: 1.35rem;
   }
+  .header-avatar {
+    display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; overflow: hidden;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b); border: 2px solid rgba(255,255,255,.7); flex-shrink: 0;
+    font-size: 20px; text-decoration: none; box-shadow: 0 6px 16px rgba(0,0,0,.3); transition: transform .3s ease;
+  }
+  .header-avatar:hover { transform: scale(1.06); }
+  .header-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .header-avatar-mobile { width: 38px; height: 38px; font-size: 17px; }
+  @media (min-width: 1024px) { .header-avatar-mobile { display: none; } }
 
   .dropdown-arrow {
     font-size: 0.6rem;
@@ -591,10 +587,11 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.4);
-    padding: 4px 8px;
+    padding: 6px 12px;
+    min-width: 44px; min-height: 40px;
     border-radius: 30px;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 1.05rem;
     transition: all 0.3s ease;
   }
 
@@ -701,7 +698,8 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 1.4rem;
+    text-decoration: none;
+    font-size: 1.25rem;
     font-weight: 900;
     color: #fff;
     white-space: nowrap;
@@ -767,12 +765,13 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 12px 16px;
+    padding: 14px 16px;
+    min-height: 52px;
     border-radius: 16px;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.72);
     text-decoration: none;
-    font-weight: 600;
-    font-size: 0.95rem;
+    font-weight: 800;
+    font-size: 1.1rem;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -805,7 +804,7 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
   }
 
   .sidebar-nav .nav-icon {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     width: 28px;
     text-align: center;
     flex-shrink: 0;
@@ -851,7 +850,7 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.4);
-    padding: 6px 14px;
+    padding: 10px 18px; min-height: 46px;
     border-radius: 30px;
     cursor: pointer;
     font-size: 1rem;

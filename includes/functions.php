@@ -39,6 +39,23 @@ function ensure_daily_progress(PDO $pdo, int $childId): array {
     return $stmt->fetch();
 }
 
+/**
+ * باكج اليوم: 4 مهام حسب عمر الطفل، تُثبَّت في daily_progress.task_pool_ids أول مرة.
+ * يُستخدم من tasks.php و api/complete-task.php حتى يبقى المصدر واحداً.
+ */
+function daily_task_pool(PDO $pdo, array $child, array $progress): array {
+    $pool = json_decode_safe($progress['task_pool_ids'] ?? null, null);
+    if ($pool === null) {
+        $stmt = $pdo->prepare("SELECT id FROM tasks WHERE active = 1 AND age_min <= ? AND age_max >= ?");
+        $stmt->execute([$child['age'], $child['age']]);
+        $eligible = array_column($stmt->fetchAll(), 'id');
+        shuffle($eligible);
+        $pool = array_slice($eligible, 0, min(4, count($eligible)));
+        $pdo->prepare("UPDATE daily_progress SET task_pool_ids = ? WHERE id = ?")->execute([json_encode($pool), $progress['id']]);
+    }
+    return array_map('intval', $pool);
+}
+
 function get_character(PDO $pdo, ?int $id): ?array {
     if (!$id) return null;
     $stmt = $pdo->prepare("SELECT * FROM characters WHERE id = ?");
@@ -64,6 +81,47 @@ function public_counts(PDO $pdo): array {
 function character_icons(array $character): array {
     $icons = json_decode($character['icons_json'] ?? '[]', true);
     return is_array($icons) && count($icons) ? $icons : ['✨','⭐','🌟'];
+}
+
+/**
+ * ثيم عالم الشخصية: world (اسم العالم)، sidekick (name/icon)، motif (زخرفة الخلفية).
+ * القيم الافتراضية تجعل أي شخصية يضيفها الأدمن بلا theme_json تعمل بلا كسر.
+ */
+function character_theme(?array $character): array {
+    $t = json_decode($character['theme_json'] ?? '', true);
+    $t = is_array($t) ? $t : [];
+    $icons = $character ? character_icons($character) : ['✨'];
+    return [
+        'world'    => (string)($t['world'] ?? ('عالم ' . ($character['name'] ?? 'الرفيق'))),
+        'sidekick' => [
+            'name' => (string)($t['sidekick']['name'] ?? 'صديقه المقرّب'),
+            'icon' => (string)($t['sidekick']['icon'] ?? ($icons[1] ?? '⭐')),
+        ],
+        'motif'    => (string)($t['motif'] ?? 'stars'),
+    ];
+}
+
+/**
+ * جملة تربط مهمة الطفل بالشخصية ورفيقها («صداقة مثل سبونج بوب وبسيط»).
+ * جمل اسمية بلا فعل مسند إلى الطفل (لا جنس مسجّل) — انظر PROJECT-REPORT §8/36.
+ */
+function companion_pair_line(?array $character, string $category): string {
+    if (!$character) return '';
+    $theme = character_theme($character);
+    $c = $character['name']; $s = $theme['sidekick']['name']; $w = $theme['world'];
+    $lines = [
+        'اجتماعي'       => "صداقة مثل صداقة {$c} و{$s} في {$w}: يد بيد، والفرح مضاعف 🤝",
+        'قيم'           => "قلب طيب مثل قلب {$c} مع {$s}: الصدق والعطاء أجمل ما في {$w} 💛",
+        'مهارات حياتية' => "ترتيب ونظام في {$w}… حتى {$c} و{$s} يبدآن يومهما بذلك 🧹",
+        'تعلّم'         => "فضول مثل فضول {$c} و{$s}: كل يوم في {$w} اكتشاف جديد 📚",
+        'صحة'           => "طاقة وحركة مثل {$c} و{$s} في {$w}: جسم قوي لبطل قوي 🏃",
+        'إبداع'         => "خيال مثل خيال {$c} و{$s}: {$w} كلها ألوان وأفكار 🎨",
+        'صحة نفسية'     => "نفس عميق مثل ما يفعل {$c} حين يقلق {$s}: الهدوء قوة 🧘",
+        'حماية'         => "حذر وشجاعة مثل {$c} و{$s} في {$w}: البطل يحمي نفسه أولاً 🛡️",
+        'مسؤولية'       => "وعد يُوفى مثل وعود {$c} لـ{$s}: الثقة تُبنى بالأفعال 🌱",
+        'ثقافي'         => "حكاية قديمة تُروى في {$w} كما يرويها {$c} لـ{$s} 🕌",
+    ];
+    return $lines[$category] ?? "خطوة بطولية تفرح {$c} و{$s} في {$w} ⭐";
 }
 
 function active_character(PDO $pdo, array $child): ?array {
@@ -100,6 +158,17 @@ function is_premium_active(PDO $pdo, int $childId): bool {
  * اللعبة الصغيرة التي تلي كل مهمة ليست منها — هي جزء من باكج المهمة ومجانية دائماً.
  */
 const FREE_LIBRARY_GAMES = 2;
+/** ألعاب اليوم المطلوبة قبل القصة اليومية — لعبة اليوم المقترحة تكفي (سبتمبر 2026) */
+const STORY_MIN_GAMES = 1;
+
+/**
+ * لعبة اليوم: اختيار ثابت طول اليوم من الألعاب الظاهرة للطفل (يتغيّر يومياً).
+ */
+function game_of_the_day(array $visibleGames, int $childId): ?array {
+    if (!$visibleGames) return null;
+    $idx = crc32(today_key() . ':' . $childId) % count($visibleGames);
+    return $visibleGames[$idx];
+}
 
 /**
  * ألعاب المكتبة التي يراها الطفل فعلاً.
@@ -488,71 +557,94 @@ function child_achievement_summary(PDO $pdo, int $childId, string $fromDay, stri
 }
 
 /**
- * يبني مشاهد المغامرة الكبرى من إنجاز الطفل الحقيقي خلال الشهر،
- * لا من مجرد دمج القصص اليومية. كل مشهد: caption + grad + icon + title.
+ * المغامرة الكبرى: ثمانية فصول ثابتة تحكي شهر الطفل الحقيقي كرحلة واحدة
+ * متماسكة (بداية ← طريق ← كنز ← رفاق ← عقبة ← دفتر ← قمة ← خاتمة)، لا كقائمة
+ * إحصاءات. كل فصل موجود دائماً حتى لو غاب مصدره؛ عندئذ يُروى بصيغة عامة
+ * تحافظ على تسلسل الحكاية. كل مشهد: kind + icon + title + caption + grad
+ * (+ speaker/quote).
+ *
+ * الجمل اسمية حول اسم الطفل عمداً — لا حقل جنس في children.
  */
 function grand_story_scenes(array $child, array $stories, array $sum, string $companions): array {
     $name = $child['name'];
-    $grads = ['#1B1035,#6C63FF','#6C63FF,#FF6FA5','#2EC4B6,#6C63FF','#FF7A50,#FFC93C','#FF6FA5,#FFC93C','#2EC4B6,#241645','#3A2A75,#FF7A50'];
-    $i = 0;
+    $comp = trim(explode(' و', $companions)[0] ?? '') ?: 'الرفيق';
+    $grads = ['#1B1035,#6C63FF','#6C63FF,#FF6FA5','#2EC4B6,#6C63FF','#FF7A50,#FFC93C','#FF6FA5,#FFC93C','#2EC4B6,#241645','#3A2A75,#FF7A50','#FFC93C,#FF7A50'];
     $scenes = [];
-    $add = function (string $icon, string $title, string $caption) use (&$scenes, &$i, $grads) {
-        $scenes[] = ['caption' => $caption, 'grad' => $grads[$i++ % count($grads)], 'icon' => $icon, 'title' => $title];
+    $add = function (string $kind, string $icon, string $title, string $caption, ?string $speaker = null, ?string $quote = null) use (&$scenes, $grads) {
+        $sc = ['kind' => $kind, 'icon' => $icon, 'title' => $title, 'caption' => $caption, 'grad' => $grads[count($scenes) % count($grads)]];
+        if ($speaker !== null && $quote !== null) { $sc['speaker'] = $speaker; $sc['quote'] = $quote; }
+        $scenes[] = $sc;
     };
+    $days  = max(1, (int)($sum['days'] ?? count($stories)));
+    $tasks = (int)($sum['tasks_done'] ?? 0);
 
-    // لا يوجد حقل جنس للطفل، فالصياغة اسمية ومحايدة بدل أفعال تحتاج مطابقة
-    $add('🌟', 'المغامرة الكبرى', "ثلاثون يوماً... هذه رحلة {$name} من أول مهمة إلى آخر نجمة.");
-    $add('🌱', 'البداية', "قبل ثلاثين يوماً بدأت الرحلة مع {$companions}، ولم تكن النهاية معروفة بعد.");
-    $add('✅', 'المهام', $sum['tasks_done'] . " مهمة مُنجزة على مدى " . max(1, $sum['days']) . " يوماً — واحدة تلو الأخرى، بلا استسلام.");
+    // 1) البداية
+    $add('cover', '🌟', 'البداية', "قبل ثلاثين يوماً، حقيبة صغيرة وخريطة بيضاء… وخطوة أولى لـ{$name} مع {$companions}. لم يكن أحد يعرف إلى أين يقود الطريق، لكن الجميع كان مستعداً.", $comp, "كل رحلة كبيرة تبدأ بخطوة صغيرة… وهذه خطوتك يا {$name}!");
 
-    $top = array_slice($sum['categories'], 0, 2, true);
-    foreach ($top as $cat => $count) {
-        $add(category_icon($cat), "تألّق في {$cat}", "أكثر مجال تألّق فيه {$name}: «{$cat}» — {$count} مهمة فيه وحده.");
-    }
+    // 2) الطريق: المهام
+    $add('chapter', '✅', 'الطريق', $tasks > 0
+        ? "في كل صباح من {$days} يوماً، محطة جديدة على الخريطة: {$tasks} مهمة مُنجزة واحدة تلو الأخرى — بعضها سهل كنسمة، وبعضها احتاج نفساً عميقاً. ومع كل مهمة، خطّ جديد يُرسم على الخريطة."
+        : "في كل صباح من {$days} يوماً، محطة جديدة على الخريطة، وخطوة أثبت من التي قبلها. الخريطة البيضاء بدأت تمتلئ بالخطوط والألوان.");
 
-    if ($sum['figures']) {
-        $shown = array_slice($sum['figures'], 0, 4);
-        $more = count($sum['figures']) - count($shown);
+    // 3) الكنز: أقوى مجال
+    $cats = $sum['categories'] ?? [];
+    $topCat = array_key_first($cats);
+    $add('chapter', $topCat ? category_icon($topCat) : '💎', 'الكنز المخفي', $topCat
+        ? "وفي منتصف الرحلة، اكتشاف: هناك شيء يبرع فيه {$name} أكثر من غيره — «{$topCat}»، {$cats[$topCat]} مهمة في هذا المجال وحده. هذا هو الكنز الذي لا يُشترى: معرفة ما نُحسنه."
+        : "وفي منتصف الرحلة، اكتشاف صغير: كل يوم يكشف لـ{$name} شيئاً جديداً يُحسنه. هذا هو الكنز الذي لا يُشترى: معرفة ما نُحبّ وما نتقن.",
+        $comp, "كنت أعرف أن هناك كنزاً… لكن لم أتوقع أنه بداخلك!");
+
+    // 4) رفاق من التاريخ
+    $figs = $sum['figures'] ?? [];
+    if ($figs) {
+        $shown = array_slice($figs, 0, 3);
+        $more = count($figs) - count($shown);
         $list = implode('، ', $shown) . ($more > 0 ? " و{$more} آخرين" : '');
-        $add('🕌', 'أبطال التاريخ', count($sum['figures']) . " من أبطال تاريخنا رافقوا الرحلة: {$list}.");
+        $add('figure', '🕌', 'رفاق من التاريخ', "على جانب الطريق، حكايات قديمة انضمت إلى الرحلة: {$list}. كل واحد منهم مشى ذات يوم طريقاً شبيهاً، وترك إشارة لمن يأتي بعده… واليوم يمشي {$name} على الإشارات نفسها.");
+    } else {
+        $add('figure', '🕌', 'رفاق من التاريخ', "على جانب الطريق، حكايات قديمة تهمس من بين الصفحات: أبطال مشوا قبلنا وتركوا إشارات لمن يأتي بعدهم. واليوم يمشي {$name} على الإشارات نفسها.");
     }
 
-    if ($sum['games_played'] > 0) {
-        $add('🎮', 'الألعاب', $sum['games_played'] . " لعبة خلال الشهر، وكل واحدة درّبت العقل على شيء جديد.");
-    }
+    // 5) العقبة
+    $games = (int)($sum['games_played'] ?? 0);
+    $add('obstacle', '🌩️', 'العقبة', "ولا رحلة بلا عاصفة. جاءت أيام ثقيلة: صوت يقول «خلّيها لبكرة»، وحقيبة تبدو أثقل. لكن الأبطال لا يعودون من منتصف الطريق" . ($games > 0 ? " — بل يتدرّبون: {$games} لعبة درّبت العقل على التركيز والصبر والسرعة." : " — بل يأخذون نفساً عميقاً… ويكملون."),
+        $comp, "الغيوم تمرّ يا {$name}. نفس عميق… وخطوة.");
 
-    $add('⭐', 'النجوم', (int)$child['points'] . " نجمة في رصيد {$name} حتى الآن ✨");
-
-    if ($sum['growth']) {
-        $add('📈', 'التقدّم', "تحليل السلوك ارتفع من {$sum['growth']['from']} إلى {$sum['growth']['to']} من 3 — تقدّم حقيقي يُرى بالأرقام.");
-    }
-    if ($sum['best_axis']) {
-        $add('🏅', 'أقوى محور', "أقوى محور اليوم: «" . $sum['best_axis']['axis'] . "» — صار العلامة المميّزة لـ{$name}.");
-    }
-
-    // لقطات من القصص اليومية نفسها حتى تبقى الرحلة محسوسة لا أرقاماً فقط
+    // 6) دفتر الرحلة: لقطات من اليوميات
     $highlights = [];
-    foreach ($stories as $s) {
-        $sc = json_decode_safe($s['scenes_json'], []);
-        foreach ($sc as $one) {
-            if (!empty($one['caption'])) $highlights[] = $one['caption'];
+    foreach ($stories as $st) {
+        foreach (json_decode_safe($st['scenes_json'], []) as $one) {
+            if (!empty($one['caption']) && ($one['kind'] ?? '') !== 'cover') $highlights[] = (string)$one['caption'];
         }
     }
     if ($highlights) {
+        $pick = [];
         $step = max(1, (int)floor(count($highlights) / 3));
         for ($k = 0; $k < 3 && ($k * $step) < count($highlights); $k++) {
-            $add('📖', 'من يوميّاته', $highlights[$k * $step]);
+            $h = $highlights[$k * $step];
+            // بلا mbstring (غير مضمونة على كل الاستضافات): القصّ عبر preg بوحدة u
+            $pick[] = preg_replace('/^(.{108}).{3,}$/us', '$1…', $h);
         }
+        $add('chapter', '📖', 'من دفتر الرحلة', "أوراق من دفتر الأيام: " . implode(' ▪ ', $pick));
+    } else {
+        $add('chapter', '📖', 'من دفتر الرحلة', "دفتر الرحلة امتلأ بصفحات صغيرة: صباحات مشمسة، ومطر خفيف على النافذة، ونجوم صغيرة تُجمع كل مساء. كل صفحة باسم {$name}.");
     }
 
-    $add('🏆', 'النهاية... والبداية', "وهكذا انتهت ثلاثون يوماً من النمو والشجاعة والتعلّم. المغامرة القادمة تبدأ غداً!");
+    // 7) القمة: النجوم والتقدّم
+    $pts = (int)$child['points'];
+    $growth = $sum['growth'] ?? null;
+    $axis = $sum['best_axis']['axis'] ?? null;
+    $climax = "وعند قمة الجبل، السماء مليئة: {$pts} نجمة في رصيد {$name} ✨";
+    if ($growth) $climax .= " وتحليل السلوك ارتفع من {$growth['from']} إلى {$growth['to']} من 3 — تقدّم يُرى بالأرقام.";
+    if ($axis) $climax .= " وأقوى ما يميّز البطل اليوم: «{$axis}».";
+    if (!$growth && !$axis) $climax .= " وليست النجوم وحدها ما جُمع: شهر كامل من الشجاعة والصبر والمحاولة.";
+    $add('climax', '⭐', 'القمة', $climax, $comp, "كل نجمة هناك تعرف اسمك يا {$name}!");
+
+    // 8) الخاتمة… والبداية
+    $add('end', '🏆', 'النهاية… والبداية', "وهكذا انتهت ثلاثون يوماً من النمو والشجاعة والتعلّم. الخريطة البيضاء صارت ملوّنة، والحقيبة الصغيرة صارت مليئة بالحكايات. لكن الأبطال يعرفون السرّ: كل نهاية هي أول الطريق. المغامرة القادمة تبدأ غداً!", $comp, "أحسنت يا {$name}. أراك على أول الطريق… غداً!");
 
     return $scenes;
 }
-
-
-// 
-
 
 
 /* ============================================================
@@ -644,148 +736,94 @@ function kidora_try_auto_login(PDO $pdo): ?array {
 
 
 /**
- * القصة اليومية كحكاية حقيقية لا كقائمة مهام.
+ * القصة اليومية: مشهد واحد فقط — لوحة واحدة تحكي يوم الطفل الحقيقي
+ * (مهام اليوم المنجزة عبر story_line، الشخصية التراثية المرتبطة بالمهمة،
+ * النجوم، وحكمة قصيرة) في فقرة سردية واحدة يقرأها الرفيق دفعة واحدة.
  *
- * تُبنى من مهام اليوم المنجزة فعلاً (story_line لكل مهمة) داخل هيكل سردي
- * ثابت: غلاف ← افتتاحية بحوار الرفيق ← فصل لكل مهمة بجملة انتقال وردّة فعل
- * حسب التصنيف ← عقبة صغيرة في منتصف اليوم ← «شخصية من تراثنا» عبر
- * figure_for_task() ← ذروة النجوم ← حكمة اليوم ← خاتمة.
+ * العشوائية مثبَّتة باليوم والطفل: إعادة تحميل الصفحة لا تغيّر القصة.
+ * الجمل اسمية حول اسم الطفل عمداً — لا حقل جنس في children.
  *
- * العشوائية مثبَّتة باليوم والطفل: إعادة تحميل الصفحة لا تغيّر القصة، لكن
- * كل يوم يأتي بافتتاحية وعقبة مختلفتين.
- *
- * الجمل اسمية حول اسم الطفل عمداً — لا حقل جنس في children، والفعل المُسنَد
- * («أنجز/أنجزت») يُخطئ نصف الوقت. الحوار يُنسب للرفيق بصيغة «الاسم: "…"».
- *
- * كل مشهد: caption + grad + icon + title + kind (cover|opening|chapter|
- * obstacle|figure|climax|moral|end) واختيارياً speaker + quote.
+ * المشهد: kind='single' + icon + title + caption + grad + speaker + quote.
+ * StoryPlayer يعرض القصة ذات المشهد الواحد كلوحة واحدة (وضع single).
+ * القصص القديمة متعددة المشاهد ما زالت تُعرض بوضع الكتاب.
  */
 function daily_story_scenes(PDO $pdo, array $child, array $doneTasks, array $companions, int $dayIndex): array {
     $name = $child['name'];
     $doneTasks = array_values(array_filter($doneTasks));
-    $compNames = array_map(fn($c) => $c['name'], $companions);
+    $compNames = array_map(fn($c) => trim((string)$c['name']), $companions);
     $comp1 = $compNames[0] ?? 'الرفيق';
-    $comp2 = $compNames[1] ?? $comp1;
-    $names = implode(' و', $compNames) ?: 'الرفيق';
 
-    // مثبَّت باليوم والطفل حتى لا تتبدّل القصة بين تحميل وآخر
     mt_srand(crc32($child['id'] . '|' . today_key()));
     $pickOne = fn(array $arr) => $arr[mt_rand(0, count($arr) - 1)];
 
-    $grads = ['#6C63FF,#FF6FA5', '#2EC4B6,#6C63FF', '#FF7A50,#FFC93C', '#FF6FA5,#FFC93C', '#2EC4B6,#241645', '#3A2A75,#FF7A50', '#1B1035,#6C63FF'];
-    $gi = 0;
-    $scenes = [];
-    $add = function (string $kind, string $icon, string $title, string $caption, ?string $speaker = null, ?string $quote = null) use (&$scenes, &$gi, $grads) {
-        $scene = ['kind' => $kind, 'icon' => $icon, 'title' => $title, 'caption' => $caption, 'grad' => $grads[$gi++ % count($grads)]];
-        if ($speaker !== null && $quote !== null) { $scene['speaker'] = $speaker; $scene['quote'] = $quote; }
-        $scenes[] = $scene;
-    };
-
-    // ---- الغلاف
-    $add('cover', '📖', "مغامرة {$name}", "اليوم {$dayIndex} — قصة من يومٍ حقيقي، بطلها {$name}، مع الرفيقين {$names}.");
-
-    // ---- الافتتاحية
     $openings = [
-        "في صباحٍ هادئ، نافذة مفتوحة ونسمة تحمل رائحة الخبز الطازج. {$name} على أول خطوة في يوم جديد، و{$comp1} ينتظر عند الباب بعينين تلمعان.",
-        "الشمس تطلّ من خلف الغيوم، والعصافير تتسابق على الشرفة. الحواس كلّها مستيقظة عند {$name}، و{$comp1} يلوّح: اليوم مختلف!",
-        "قطرات مطر خفيفة على الزجاج، ورائحة الأرض تملأ البيت. في الداخل دفء، وفي قلب {$name} حماس، و{$comp1} يقفز فوق الوسادة.",
-        "صباح مشمس وسماء زرقاء بلا حدود. حقيبة صغيرة، وابتسامة أكبر منها، و{$comp1} يهمس: الطريق ينتظرنا.",
+        "في صباحٍ هادئ ونسمة تحمل رائحة الخبز الطازج، بدأ يوم {$name} و{$comp1} ينتظر عند الباب.",
+        "الشمس تطلّ من خلف الغيوم والعصافير تتسابق على الشرفة — يوم جديد لـ{$name} و{$comp1} يلوّح: اليوم مختلف!",
+        "قطرات مطر خفيفة على الزجاج ودفء في البيت، وفي قلب {$name} حماس، و{$comp1} يقفز فوق الوسادة.",
+        "صباح مشمس وسماء زرقاء بلا حدود، حقيبة صغيرة وابتسامة أكبر منها — هكذا بدأ يوم {$name}.",
     ];
-    $openingQuotes = [
-        "يومٌ جديد يعني مغامرة جديدة! هيا بنا يا {$name}",
-        "أشعر أن اليوم سيكون مليئاً بالنجوم ✨",
-        "معك حتى آخر خطوة… وربما خطوة زيادة!",
-    ];
-    $add('opening', '🌅', 'بداية اليوم', $pickOne($openings), $comp1, $pickOne($openingQuotes));
 
-    // ---- فصل لكل مهمة
-    $transitions = [
-        ['المحطة الأولى في الطريق.', 'البداية دائماً أصعب خطوة… وأجملها.'],
-        ['بعدها، خطوة ثانية أثبت من الأولى.', 'الحماس ما زال في أوّله.'],
-        ['وفي منتصف اليوم، تحدٍّ جديد.', 'الطريق يطول، والهمّة لا تقصر.'],
-        ['وقبل الغروب، آخر محطة.', 'اليوم يقترب من نهايته… والقلب ممتلئ.'],
-        ['ومحطة إضافية لم تكن في الحسبان.', 'المغامرون الحقيقيون لا يتوقفون.'],
-    ];
-    $reactions = [
-        'مهارات حياتية' => ['البيت كلّه يبتسم لهذا الترتيب 🏡', 'الأشياء الصغيرة تصنع الأبطال الكبار.'],
-        'تعلّم'         => ['العقل يكبر مع كل كلمة جديدة 📚', 'من يتعلّم اليوم يقود الغد.'],
-        'صحة'           => ['الجسد يقول: شكراً! 🏃', 'قوة اليوم تُبنى خطوة خطوة.'],
-        'إبداع'         => ['الألوان تصفّق 🎨', 'خيال بلا حدود، ويدان تصنعان الجمال.'],
-        'قيم'           => ['القلب الطيب يترك أثراً لا يُمحى 💛', 'هذه هي القوة الحقيقية.'],
-        'صحة نفسية'     => ['نفس عميق… والعالم أهدأ 🧘', 'الهدوء قوة لا يعرفها إلا الشجعان.'],
-        'حماية'         => ['البطل يحمي نفسه أولاً 🛡️', 'الحذر ذكاء لا خوف.'],
-        'مسؤولية'       => ['من يُعتمد عليه اليوم يقود غداً 🌱', 'الثقة تُبنى بالأفعال.'],
-        'اجتماعي'       => ['الأصدقاء كنز، والكلمة الطيبة مفتاحه 🤝', 'العالم أجمل حين نتشاركه.'],
-        'ثقافي'         => ['جذورنا تشدّنا للأعلى لا للأسفل 🕌', 'حكاية قديمة بقلب جديد.'],
-    ];
-    $chapterNo = 0;
-    foreach ($doneTasks as $i => $t) {
-        $chapterNo++;
-        $tr = $transitions[min($i, count($transitions) - 1)];
-        $react = $reactions[$t['category']] ?? ['نجمة جديدة تُضاف إلى السماء ✨', 'خطوة أخرى نحو القمة.'];
-        $caption = $tr[0] . ' ' . rtrim(str_replace("\n", ' ', (string)$t['story_line'])) . ' ' . $pickOne($react);
-        $quote = $i % 2 === 0 ? null : $pickOne(["هذا ما أسمّيه شجاعة!", "لم أشكّ لحظة في قدرتك.", "تلك النجمة هناك… إنها لك!", "أسرع مني وأنا أطير!"]);
-        $add('chapter', category_icon($t['category']), $t['title'], $caption, $quote ? $comp2 : null, $quote);
+    // مهام اليوم في جملة واحدة متدفّقة
+    $lines = [];
+    foreach ($doneTasks as $t) {
+        $l = rtrim(str_replace("\n", ' ', (string)($t['story_line'] ?: $t['title'])));
+        // rtrim() يعمل بالبايت ويكسر الحرف الأخير مع «،» متعددة البايتات — نستخدم preg بوحدة u
+        if ($l !== '') $lines[] = preg_replace('/[.،\s]+$/u', '', $l);
+    }
+    $journey = '';
+    if ($lines) {
+        $joiners = ['أولاً، ', 'ثم ', 'وبعدها ', 'وقبل الغروب ', 'وأخيراً '];
+        $parts = [];
+        foreach ($lines as $i => $l) $parts[] = $joiners[min($i, count($joiners) - 1)] . $l;
+        $journey = ' ' . implode('، ', $parts) . '.';
+    }
 
-        // عقبة صغيرة بعد الفصل الثاني — القصة بلا صراع ليست قصة
-        if ($i === 1 && count($doneTasks) > 2) {
-            $obstacles = [
-                ["فجأة… غيمة كسل كبيرة تقف في منتصف الطريق، رمادية وثقيلة، تهمس: «خلّيها لبكرة».", "الغيوم تمرّ يا {$name}. نفس عميق… وخطوة."],
-                ["صوت صغير في الرأس: «هذا صعب، اتركه». والحقيبة تبدو أثقل من قبل.", "الصعب يعني أنك تكبر. أنا أحمل الحقيبة، والخطوة لك!"],
-                ["ريح تعب تهبّ من بعيد، والعينان تريدان أن تغمضا قليلاً.", "استراحة قصيرة… ثم نكمل معاً. الأبطال يرتاحون ولا يستسلمون."],
-                ["باب مغلق في الطريق، ومفتاح ضائع. هل انتهت المغامرة هنا؟", "المفاتيح لا تضيع… إنها تنتظر من يبحث بصبر."],
-            ];
-            $ob = $pickOne($obstacles);
-            $add('obstacle', '🌩️', 'عقبة في الطريق', $ob[0] . ' لكن نفس عميق، وابتسامة صغيرة… والخطوة التالية أسهل مما بدت.', $comp1, $ob[1]);
+    // شخصية من تراثنا مرتبطة بمهمة اليوم لا عشوائية
+    $figureLine = '';
+    foreach ($doneTasks as $t) {
+        if ($f = figure_for_task($pdo, $t)) {
+            $figureLine = " وعلى جانب الطريق حكاية قديمة تهمس: {$f['name']}، {$f['title']} — وفي قلب {$name} اليوم شيء من تلك الروح.";
+            break;
         }
     }
 
-    // ---- شخصية من تراثنا: مرتبطة بمهمة اليوم لا عشوائية
-    $figure = null;
-    foreach ($doneTasks as $t) {
-        $figure = figure_for_task($pdo, $t);
-        if ($figure) break;
-    }
-    if ($figure) {
-        $line = trim((string)($figure['story_line'] ?: $figure['description']));
-        $add('figure', '🕌', 'شخصية من تراثنا',
-            "وعلى جانب الطريق، حكاية قديمة تهمس من بين الصفحات: {$figure['name']}، {$figure['title']}. {$line} … وفي قلب {$name} اليوم شيء من تلك الروح.");
-    }
-
-    // ---- الذروة: النجوم
     $totalPts = (int)array_sum(array_column($doneTasks, 'points'));
-    $add('climax', '⭐', 'نجوم اليوم',
-        "وعند الغروب، {$totalPts} نجمة تلمع في جيب {$name} ✨ وليست النجوم وحدها ما جُمع اليوم: يوم كامل من الشجاعة والصبر والمحاولة.",
-        $comp1, "السماء مليئة بالنجوم الليلة… وكل نجمة تعرف اسمك!");
-
-    // ---- حكمة اليوم حسب أكثر تصنيف حضر
     $cats = array_count_values(array_map(fn($t) => (string)$t['category'], $doneTasks));
     arsort($cats);
     $topCat = array_key_first($cats) ?: '';
     $morals = [
-        'مهارات حياتية' => 'من يرتّب الأشياء الصغيرة، يستطيع ترتيب الأحلام الكبيرة.',
-        'تعلّم'         => 'كل كلمة نتعلّمها نافذة جديدة نطلّ منها على العالم.',
-        'صحة'           => 'الجسد القوي بيت للقلب الشجاع.',
-        'إبداع'         => 'الخيال جناحان… ومن يستخدمهما يطير.',
-        'قيم'           => 'القلب الطيب أقوى من أي قوة في العالم.',
-        'صحة نفسية'     => 'الهدوء ليس ضعفاً؛ إنه أن تختار أنت متى تتحرّك.',
-        'حماية'         => 'الشجاعة أن تقول «لا» حين يجب، وأن تخبر من تثق به.',
-        'مسؤولية'       => 'الوعد الصغير الذي نفي به يصنع إنساناً كبيراً.',
-        'اجتماعي'       => 'الفرح الذي نتقاسمه يكبر، والحزن الذي نتقاسمه يصغر.',
-        'ثقافي'         => 'من عرف جذوره، لم تُسقطه أي ريح.',
+        'مهارات حياتية' => 'من يرتّب الأشياء الصغيرة يرتّب الأحلام الكبيرة',
+        'تعلّم'         => 'كل كلمة نتعلّمها نافذة جديدة على العالم',
+        'صحة'           => 'الجسد القوي بيت للقلب الشجاع',
+        'إبداع'         => 'الخيال جناحان ومن يستخدمهما يطير',
+        'قيم'           => 'القلب الطيب أقوى من أي قوة في العالم',
+        'صحة نفسية'     => 'الهدوء قوة لا يعرفها إلا الشجعان',
+        'حماية'         => 'الشجاعة أن تقول «لا» حين يجب',
+        'مسؤولية'       => 'الوعد الصغير الذي نفي به يصنع إنساناً كبيراً',
+        'اجتماعي'       => 'الفرح الذي نتقاسمه يكبر',
+        'ثقافي'         => 'من عرف جذوره لم تُسقطه أي ريح',
     ];
-    $add('moral', '💡', 'حكمة اليوم', $morals[$topCat] ?? 'كل يوم نحاول فيه هو يوم ننتصر فيه.');
+    $moral = $morals[$topCat] ?? 'كل يوم نحاول فيه هو يوم ننتصر فيه';
 
-    // ---- الخاتمة
-    $endings = [
-        "وهكذا انتهى اليوم {$dayIndex}… رأس على الوسادة، ونجوم في الجيب، وابتسامة لا تريد أن تنام. والغد يحمل فصلاً جديداً 🌙",
-        "الليل يسدل ستاره، و{$names} ينامان عند طرف السرير. أما {$name}، فحلم الليلة مليء بمغامرات الغد 🌙",
-        "أُغلق كتاب اليوم بهدوء، لكن الحكاية لم تنتهِ… ففي الصباح صفحة بيضاء جديدة باسم {$name} 🌙",
-    ];
-    $add('end', '🌙', 'تصبحون على مغامرة', $pickOne($endings), $comp1, $pickOne(["أحسنت اليوم! نلتقي غداً على أول الطريق.", "نومٌ هانئ يا نجم الحكاية… الغد ينتظرنا.", "هذه كانت أجمل مغامرة… حتى الآن!"]));
+    $caption = $pickOne($openings) . $journey . $figureLine
+        . " وعند الغروب، {$totalPts} نجمة تلمع في جيب {$name} ✨ وحكمة اليوم: {$moral} 🌙";
+
+    $quote = $pickOne([
+        "هذا ما أسمّيه شجاعة! نلتقي غداً على أول الطريق.",
+        "لم أشكّ لحظة في قدرتك يا {$name}. الغد ينتظرنا!",
+        "السماء مليئة بالنجوم الليلة… وكل نجمة تعرف اسمك!",
+    ]);
 
     mt_srand(); // إعادة البذرة العشوائية للحالة الطبيعية لبقية الطلب
-    return $scenes;
+    return [[
+        'kind'    => 'single',
+        'icon'    => $doneTasks ? category_icon((string)$doneTasks[0]['category']) : '📖',
+        'title'   => "مغامرة {$name} — اليوم {$dayIndex}",
+        'caption' => $caption,
+        'grad'    => $pickOne(['#6C63FF,#FF6FA5', '#2EC4B6,#6C63FF', '#FF7A50,#FFC93C', '#FF6FA5,#FFC93C', '#3A2A75,#FF7A50']),
+        'speaker' => $comp1,
+        'quote'   => $quote,
+    ]];
 }
 
 /** يبني مجلد صورة/صوت مخصّص لكل شخصية assets/images/characters/{slug}/ أو assets/audio/characters/{slug}/ */

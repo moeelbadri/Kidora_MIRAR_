@@ -134,7 +134,7 @@ require_once __DIR__ . '/includes/navbar.php';
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const W = canvas.width, H = canvas.height;
   const COLORS = ['#241645','#E5484D','#FF7A50','#FFC93C','#4CAF6D','#2EC4B6','#3B82F6','#6C63FF','#FF6FA5','#8B5A2B','#ffffff','#9CA3AF'];
-  const STAMPS = <?php echo json_encode(array_values(array_unique(array_merge($stamps, ['❤️','🌈','🌞','🌸','🦋','🐱','🚀','🎈','🍎','🏠','🌳','⚽']))), JSON_UNESCAPED_UNICODE); ?>;
+  const STAMPS = <?php echo json_encode(array_values(array_unique(array_merge($stamps, ['❤️','⭐','🌞','🌸','🦋','🐱','🚀','🎈','🍎','🏠','🌳','⚽']))), JSON_UNESCAPED_UNICODE); ?>;
   const BGS = [
     { key: 'white', label: '⬜', paint: c => { c.fillStyle = '#fff'; c.fillRect(0, 0, W, H); } },
     { key: 'paper', label: '📜', paint: c => { c.fillStyle = '#FFF7E0'; c.fillRect(0, 0, W, H); c.strokeStyle = 'rgba(120,80,20,.12)'; for (let y = 60; y < H; y += 48) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); } } },

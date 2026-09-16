@@ -57,6 +57,8 @@ function kidora_migrate(PDO $pdo): void {
             'remember_token'   => $isMysql ? "VARCHAR(64) DEFAULT NULL" : 'TEXT DEFAULT NULL',
             'remember_expires' => $isMysql ? "DATETIME DEFAULT NULL" : 'DATETIME DEFAULT NULL',
         ],
+        // ثيم عالم الشخصية (اسم العالم، الرفيق، زخرفة الخلفية) — سبتمبر 2026
+        'characters' => ['theme_json' => 'TEXT DEFAULT NULL'],
         // قسم الحماية اليومي: كل درس يحمل لعبته الخاصة وقد يكون مدفوعاً
         'safety_content' => [
             'game_type'  => $isMysql ? "VARCHAR(30) DEFAULT 'body'" : "TEXT DEFAULT 'body'",
@@ -107,6 +109,14 @@ function kidora_migrate(PDO $pdo): void {
     // الجلسة تحتاج 10. يُكمل من بنك البذر بالمحاور الناقصة دون لمس ما عدّله الأدمن.
     require_once __DIR__ . '/../database/seed.php';
     kidora_seed_assessment_questions($pdo, 10);
+
+    // الشخصيات الجديدة (سبتمبر 2026): تحلّ محلّ ميمو/زيزو/… وتعيد ربط الأطفال بها.
+    kidora_migrate_characters_v2($pdo);
+
+    // الفئة المستهدفة 6–12: بذور كُتبت لعمر 4 تُرفَع إلى 6 (ما عدّله الأدمن فوق 4 لا يُلمَس)
+    foreach (['tasks', 'games', 'game_questions', 'game_scenarios', 'safety_content'] as $t) {
+        if (kidora_table_exists($pdo, $t)) $pdo->exec("UPDATE `{$t}` SET age_min = 6 WHERE age_min < 6");
+    }
 
     // محتوى الألعاب انتقل من games-engine.js إلى القاعدة. الثلاثة تُنشأ معاً،
     // فوجود game_topics كافٍ للحكم — استعلام واحد لكل طلب بدل ثلاثة.

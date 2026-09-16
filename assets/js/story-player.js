@@ -37,6 +37,8 @@ const StoryPlayer = (function () {
   function render(story, containerId, opts = {}) {
     const container = document.getElementById(containerId);
     if (!container || !story || !story.scenes || !story.scenes.length) return;
+    // القصة اليومية الجديدة مشهد واحد: لوحة واحدة يقرأها الرفيق دفعة واحدة
+    if ((opts.book || opts.single) && story.scenes.length === 1) return renderSingle(story, containerId, container, opts);
     if (opts.book) return renderBook(story, containerId, container, opts);
 
     // animate = قصة متحركة: تشغيل تلقائي + انتقال بين المشاهد.
@@ -117,6 +119,71 @@ const StoryPlayer = (function () {
       el('play').onclick = () => (timer ? stopPlay() : startPlay());
       setTimeout(startPlay, 900);
     }
+  }
+
+  /* ---------------- وضع اللوحة الواحدة (القصة اليومية) ----------------
+     لوحة كبيرة واحدة: فنّ متدرّج، صورة الطفل والرفيق، النص كاملاً، وفقاعة
+     الرفيق. زر «اقرأ لي» يقرأ اللوحة كلّها بصوت الرفيق (Companion إن وُجد)،
+     ويبدأ تلقائياً مع animate. */
+  function renderSingle(story, containerId, container, opts) {
+    const s = story.scenes[0];
+    const c = window.KIDAURA_ACTIVE_CHARACTER || {};
+    const companionHtml = c.image
+      ? `<img src="${(window.KIDAURA_BASE || '')}/${c.image}" alt="">`
+      : `<span>${story.spriteFace || (c.icons && c.icons[0]) || '✨'}</span>`;
+    const [g1, g2] = String(s.grad || '#6C63FF,#FF6FA5').split(',');
+
+    container.innerHTML = `
+      ${opts.badge ? `<p style="text-align:center;color:var(--mint);font-weight:800;">${opts.badge}</p>` : ''}
+      <div class="story-single" id="${containerId}_single" style="--g1:${g1.trim()};--g2:${(g2 || g1).trim()}">
+        <div class="single-art">
+          <div class="book-art-sky"></div>
+          <div class="book-art-hill"></div>
+          <div class="book-art-hill two"></div>
+          <div class="single-icon">${s.icon || '📖'}</div>
+          <div class="book-hero">
+            ${story.photo ? `<div class="book-hero-photo"><img src="${story.photo}" alt=""></div>` : `<div class="book-hero-photo book-hero-fallback">🧒</div>`}
+            ${story.childName ? `<div class="book-hero-name">${esc(story.childName)}</div>` : ''}
+          </div>
+          <div class="book-companion">${companionHtml}</div>
+        </div>
+        <div class="single-text">
+          <h3 class="single-title">${esc(s.title || story.title || '')}</h3>
+          <p class="single-caption" id="${containerId}_caption">${esc(s.caption || '')}</p>
+          ${s.quote ? `<div class="single-quote"><b>${esc(s.speaker || '')}</b>${esc(s.quote)}</div>` : ''}
+        </div>
+        <div class="story-controls book-controls">
+          <button class="btn btn-primary" id="${containerId}_play">▶ اقرأ لي</button>
+        </div>
+      </div>
+      <div class="story-actions">
+        <button class="btn btn-primary btn-sm" id="${containerId}_download">⬇️ تنزيل كفيديو</button>
+        <button class="btn btn-ghost btn-sm" id="${containerId}_share">🔗 مشاركة</button>
+      </div>`;
+
+    const el = suffix => document.getElementById(`${containerId}_${suffix}`);
+    const box = el('single');
+    let reading = false;
+    const text = stripEmoji((s.title ? s.title + '. ' : '') + s.caption + (s.quote ? '. ' + (s.speaker ? s.speaker + ' ' : '') + s.quote : ''));
+
+    function stop() {
+      reading = false;
+      if (window.Companion) Companion.stop(); else if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      el('play').textContent = '▶ اقرأ لي'; box.classList.remove('is-reading');
+    }
+    function start() {
+      if (reading) return;
+      reading = true; el('play').textContent = '⏸️ إيقاف'; box.classList.add('is-reading');
+      const done = () => { if (reading) stop(); };
+      if (window.Companion) Companion.say(text, { mood: 'talk' }).then(done, done);
+      else if (typeof SoundEngine !== 'undefined' && SoundEngine.speak) {
+        if (!SoundEngine.speak(text, c, { onEnd: done })) setTimeout(done, Math.min(20000, text.length * 55));
+      } else setTimeout(done, Math.min(20000, text.length * 55));
+    }
+    el('play').onclick = () => (reading ? stop() : start());
+    el('download').onclick = () => exportVideo(story, { book: true });
+    el('share').onclick = () => share(story);
+    if (opts.animate) setTimeout(start, 900);
   }
 
   /* ---------------- وضع الكتاب المصوّر ---------------- */
@@ -302,7 +369,9 @@ const StoryPlayer = (function () {
     const outExt = recorder.mimeType && recorder.mimeType.includes("mp4") ? "mp4" : "webm";
     const chunks = [];
     recorder.ondataavailable = e => chunks.push(e.data);
-    const perScene = xopts.book ? 3200 : 2200;
+    // القصة ذات المشهد الواحد تبقى على الشاشة بقدر ما يحتاج نصّها للقراءة
+    const single = story.scenes.length === 1;
+    const perScene = single ? Math.min(20000, Math.max(6000, String(story.scenes[0].caption || '').length * 70)) : (xopts.book ? 3200 : 2200);
     const photoImg = story.photo ? Object.assign(new Image(), { src: story.photo }) : null;
 
     function drawScene(s) {
@@ -364,9 +433,11 @@ const StoryPlayer = (function () {
       // النص
       ctx.fillStyle = "#241645";
       if (s.title) { ctx.font = "800 22px Baloo Bhaijaan 2, sans-serif"; ctx.fillText(s.title, W / 2, 238); }
-      ctx.font = "600 17px Cairo, sans-serif";
-      const lines = wrapLines(ctx, s.caption, W - 90).slice(0, 4);
-      lines.forEach((l, k) => ctx.fillText(l, W / 2, 266 + k * 24));
+      const maxLines = story.scenes.length === 1 ? 7 : 4;
+      ctx.font = maxLines > 4 ? "600 14px Cairo, sans-serif" : "600 17px Cairo, sans-serif";
+      const lh = maxLines > 4 ? 19 : 24;
+      const lines = wrapLines(ctx, s.caption, W - 90).slice(0, maxLines);
+      lines.forEach((l, k) => ctx.fillText(l, W / 2, 262 + k * lh));
       if (s.quote) {
         ctx.fillStyle = "#6C63FF"; ctx.font = "700 14px Cairo, sans-serif";
         ctx.fillText(`${s.speaker ? s.speaker + ': ' : ''}«${s.quote}»`, W / 2, H - 14);

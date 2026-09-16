@@ -30,6 +30,7 @@ $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية'
 <link rel="stylesheet" href="<?php echo BASE_PATH; ?>/assets/css/main.css">
 <script src="<?php echo BASE_PATH; ?>/assets/js/theme-engine.js"></script>
 <script src="<?php echo BASE_PATH; ?>/assets/js/sound-engine.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/js/companion.js"></script>
 <script src="<?php echo BASE_PATH; ?>/assets/js/story-player.js"></script>
 <script src="<?php echo BASE_PATH; ?>/assets/js/games-engine.js"></script>
 </head>
@@ -51,13 +52,16 @@ $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية'
 
 <script>
   window.KIDAURA_ACTIVE_CHARACTER = <?php echo json_encode([
-      'slug'  => $__activeChar['slug'] ?? 'mimo',
+      'slug'  => $__activeChar['slug'] ?? 'spongebob',
       'color' => $__activeChar['color'] ?? '#6C63FF',
+      'move'  => $__activeChar['move_type'] ?? 'wiggle',
       'icons' => $__activeChar ? character_icons($__activeChar) : ['✨','⭐','🌟'],
+      'theme' => character_theme($__activeChar),
       'audio' => $__activeChar['audio_path'] ?? null,
       'image' => $__activeChar['image_path'] ?? null,
       'name'  => $__activeChar['name'] ?? '',
-  ], JSON_UNESCAPED_UNICODE); ?>;
+    ], JSON_UNESCAPED_UNICODE); ?>;
+  window.KIDAURA_CHILD_PHOTO = <?php echo json_encode(!empty($__headerChild['photo_path']) ? BASE_PATH . '/' . ltrim($__headerChild['photo_path'], '/') : null); ?>;
   window.KIDAURA_BASE = "<?php echo BASE_PATH; ?>";
   document.addEventListener('DOMContentLoaded', function(){
       ThemeEngine.applyBackground(window.KIDAURA_ACTIVE_CHARACTER);

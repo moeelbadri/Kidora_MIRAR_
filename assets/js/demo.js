@@ -174,7 +174,7 @@
       if (typeof icon !== "string" || icons.includes(icon) || icon === "⭐") return;
       icons.push(icon);
     });
-    ["✨", "🌈", "🚀", "💛", "🎈", "🌟"].forEach(icon => {
+    ["✨", "🚀", "💛", "🎈", "🌟"].forEach(icon => {
       if (icons.length < 4 && !icons.includes(icon)) icons.push(icon);
     });
     const deck = icons.slice(0, 4).concat(icons.slice(0, 4)).sort(() => Math.random() - .5);

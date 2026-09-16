@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS characters (
     image_path VARCHAR(255) DEFAULT NULL,
     audio_path VARCHAR(255) DEFAULT NULL,
     icons_json TEXT DEFAULT NULL,
+    theme_json TEXT DEFAULT NULL,
     is_premium TINYINT(1) DEFAULT 0,
     sort_order INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -49,7 +50,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     title VARCHAR(150) NOT NULL,
     description TEXT,
     category VARCHAR(80) DEFAULT 'عام',
-    age_min INT DEFAULT 4,
+    age_min INT DEFAULT 6,
     age_max INT DEFAULT 12,
     story_line VARCHAR(255) DEFAULT '',
     youtube_id VARCHAR(64) DEFAULT NULL,
@@ -66,7 +67,7 @@ CREATE TABLE IF NOT EXISTS games (
     title VARCHAR(150) NOT NULL,
     type VARCHAR(30) DEFAULT 'catch',
     category VARCHAR(50) DEFAULT 'تربوي',
-    age_min INT DEFAULT 4,
+    age_min INT DEFAULT 6,
     age_max INT DEFAULT 12,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -91,7 +92,7 @@ CREATE TABLE IF NOT EXISTS game_questions (
     topic_key VARCHAR(40) NOT NULL,
     question VARCHAR(255) NOT NULL,
     answer TINYINT(1) NOT NULL,
-    age_min INT DEFAULT 4,
+    age_min INT DEFAULT 6,
     age_max INT DEFAULT 12,
     active TINYINT(1) DEFAULT 1,
     reviewed TINYINT(1) DEFAULT 0,
@@ -103,7 +104,7 @@ CREATE TABLE IF NOT EXISTS game_scenarios (
     topic_key VARCHAR(40) NOT NULL,
     prompt VARCHAR(255) NOT NULL,
     choices_json TEXT NOT NULL,
-    age_min INT DEFAULT 4,
+    age_min INT DEFAULT 6,
     age_max INT DEFAULT 12,
     active TINYINT(1) DEFAULT 1,
     reviewed TINYINT(1) DEFAULT 0,
@@ -186,7 +187,7 @@ CREATE TABLE IF NOT EXISTS safety_content (
     youtube_id VARCHAR(64) DEFAULT NULL,
     game_type VARCHAR(30) DEFAULT 'body',
     is_premium TINYINT(1) DEFAULT 0,
-    age_min INT DEFAULT 4,
+    age_min INT DEFAULT 6,
     age_max INT DEFAULT 12,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

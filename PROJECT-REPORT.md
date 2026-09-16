@@ -11,23 +11,34 @@ Repo: `https://github.com/moeelbadri/Kidora_MIRAR_.git` (branch `main`)
 ## 1. What this is
 
 **Kidora is an Arabic-language (RTL) gamified behaviour-and-skills platform for
-children roughly aged 4–12.** Hero tagline: *"حيث يتحول التعلم إلى مغامرة بطولية"*
+children aged 6–12** (registration enforces 6–12; all seed content is `age_min >= 6`). Hero tagline: *"حيث يتحول التعلم إلى مغامرة بطولية"*
 (where learning turns into a heroic adventure).
 
 A child registers their own account (supplying a parent name + parent WhatsApp
-number), picks two cartoon companion characters, then runs a daily loop of
-tasks → historical-figure cards → mini-games → a generated personal story, while
-the platform profiles their behaviour across six axes and reports progress to the
-parent over WhatsApp.
+number), picks **one** companion character (the server assigns the second free one
+automatically; both are switchable from the profile), then runs a daily loop of
+tasks → historical-figure video → mini-games → safety mission or a generated personal
+story, while the platform profiles their behaviour across six axes and reports
+progress to the parent over WhatsApp.
 
 Two defining design decisions:
 
-1. **The companion character is the entire product skin.** One of the child's two
-   chosen characters is "active" and appears on every page as a floating widget
-   that walks across the bottom of the screen, speaks Arabic aloud via the browser
-   `SpeechSynthesis` API, and delivers a different context-appropriate line per page.
-   Its `color` + `icons_json` also drive the site-wide animated background gradient
-   and the floating emoji, so swapping companion re-themes the whole app.
+1. **The companion character is the entire product skin and the child's guide.** One
+   of the child's two characters is "active" and appears on every page as a large
+   floating widget (`assets/js/companion.js`, `Companion` API) that walks slowly
+   across the bottom of the screen, has moods (`talk|cheer|think|wave|point`),
+   speaks Arabic aloud via `SpeechSynthesis` (background music pauses while it
+   talks), reads questions/tasks/stories, announces every transition and celebrates
+   every win. Its `color` + `icons_json` + `theme_json` drive the site-wide animated
+   background gradient, the floating emoji **and a per-character "motif" layer**
+   (bubbles for SpongeBob's Bikini Bottom, leaves for Dora's jungle, webs for
+   Spider-Man…), so swapping companion re-themes the whole app into that world.
+
+   The Sep 2026 character set is **SpongeBob, Dora, Gumball, Ladybug, Spider-Man,
+   Batman, Ben 10, Detective Conan** (`kidora_characters_v2()` in `database/seed.php`;
+   SpongeBob + Dora free). The shipped avatars are **placeholder SVGs** under
+   `assets/images/characters/{slug}/avatar.svg` — the names are third-party IP and
+   real artwork must be licensed and uploaded through the admin Characters tab.
 
 2. **Monetisation runs through WhatsApp, manually — there is no payment gateway.**
    Only the first two characters are free; the rest render dimmed with a 🔒.
@@ -38,7 +49,7 @@ Two defining design decisions:
 
 | Step | What happens | Where |
 |---|---|---|
-| 1 | Child registers, may only pick `is_premium = 0` characters | `index.php` L62–110 |
+| 1 | Child registers, picks **one** `is_premium = 0` character; the server assigns the other free one as `character_2` | `index.php` |
 | 2 | Free plan row auto-inserted as `active` | `index.php` L98–102 |
 | 3 | Child presses "اشترك عبر واتساب" on a paid plan | `subscriptions.php` L10–31 |
 | 4 | `subscriptions` row written as `pending`; `wa.me` deep link opened in a new tab with a pre-filled message (child name, age, plan, parent name + phone, email) | `subscriptions.php` L21–27, `whatsapp_link()` in `includes/functions.php` L95–103 |
@@ -63,23 +74,32 @@ Two defining design decisions:
 The flow is rigidly sequenced; each stage gates the next.
 
 ```
-index.php (landing + login/register)
-   ├─ register ─> subscriptions.php?welcome=1   FIRST screen after signup
-   │                 │  welcome banner + "تخطّي الآن وابدأ مغامرتي" escape hatch
-   │                 └─> welcome.php
-   ├─ login, assessment due ─> welcome.php
-   └─ login, otherwise      ─> dashboard.php    the real signed-in home (670 lines)
-        └─> assessment.php  behaviour quiz — only every 10 days
-             └─> tasks.php   4 age-filtered tasks, one at a time
-                  │  after each task: story line + LINKED historical figure + themed game
-                  └─> safety.php      (hard redirect once all 4 are done)
-                       └─> games.php  play >= 2 games   (free plan: only 2 exist)
-                            └─> story.php       PAID — free plan sees a paywall
-                                 └─> grand-story.php   every 30 stories
+index.php (landing + login/register, age 6–12, ONE character)
+   ├─ register ─> welcome.php   full-screen animated greeting: companion + child's
+   │                            photo, spoken lines, auto-continues (no subscription
+   │                            prompt here any more)
+   ├─ login, assessment due ─> welcome.php ─> assessment.php
+   └─ login, otherwise      ─> dashboard.php    the signed-in home
+        └─> assessment.php  SILENT quiz: companion reads each question, answers go
+             │              to api/assess-answer.php, no progress/feedback shown,
+             │              auto-redirect to tasks.php. Results only in admin.
+             └─> tasks.php   client-side state machine (api/complete-task.php):
+                  │  task → companion narrates story_line + pair line → figure video
+                  │  autoplays (KidoraYT) → themed mini-game → next task. No page
+                  │  reloads, no «متابعة» button.
+                  └─> games.php?from=tasks   companion announces «game of the day»
+                       │  (deterministic per child/day); after ANY game a choice modal:
+                       ├─> safety.php   3-step mission: rule (+video) → game → medal
+                       └─> story.php    PAID — one-scene story of the real day
+                                          └─> grand-story.php  every 30 stories, 8 chapters
 ```
 
+Once tasks + a game + (safety **or** story) are flagged done for the day
+(`localStorage` `kidora_done_*`), `dashboard.php` shows the spoken goodbye modal.
+
 Under the free plan the loop still runs end to end — missions, their mini-games, the
-historical figures, safety, and the two library games are all free. What the paywall
+historical figures, safety, and the two library games are all free
+(`STORY_MIN_GAMES = 1`: the game of the day is enough to unlock the story). What the paywall
 holds back is the **daily story**, and with it the 30-story grand adventure.
 
 `dashboard.php` is the post-login landing page for a returning child (welcome banner,
@@ -92,12 +112,19 @@ assessment-due greeting.
   الذكاء العاطفي (emotional intelligence), الإبداع (creativity), التركيز (focus),
   الأمان الشخصي (personal safety).
 - Three answers each, scored **1–3**, each answer inserted as a `quiz_history` row.
+- **Silent by design (Sep 2026).** The child sees one question at a time, the
+  companion reads it aloud, the answer is POSTed to `api/assess-answer.php`
+  (`question_id`, `option` 1–3) which returns the next question as JSON — no
+  reload, no progress counter, no per-answer comment, no chart. On the last answer
+  the companion celebrates and the page redirects to `tasks.php`. The bar chart /
+  axis summary lives **only** in the admin Users tab (inline analysis panel) and the
+  parent WhatsApp report.
 - Question set is pinned in the session (`$_SESSION['assess_qids']`) so leaving the
   page mid-quiz resumes rather than reshuffles.
 - Gated by `needs_assessment()` (`includes/functions.php` L129–133): first run, then
   **every 10 days** via `children.last_assessment_at`.
-- Results render as a bar chart expressed as a **level out of 3, deliberately not a
-  percentage** (`assessment_axis_summary()` → `AVG(value)`).
+- Admin results are a **level out of 3, deliberately not a percentage**
+  (`assessment_axis_summary()` → `AVG(value)`).
 - A button WhatsApps the full report to the parent (`profile.php`).
 - **Read-aloud (Sep 2026).** The question card has a `🔊 اسمع السؤال والخيارات`
   button (question + numbered options) and the companion's reply card has `🔊 اسمع`.
@@ -115,7 +142,16 @@ assessment-due greeting.
 
 ### `tasks.php` — the core
 - 4 tasks drawn at random, filtered `age_min <= age <= age_max`, then **pinned for
-  the day** in `daily_progress.task_pool_ids` so a refresh doesn't reroll them.
+  the day** in `daily_progress.task_pool_ids` so a refresh doesn't reroll them
+  (`daily_task_pool()` in `includes/functions.php`).
+- **Client-driven state machine (Sep 2026).** The page renders once; everything after
+  is JS. «أنجزت المهمة» POSTs to `api/complete-task.php`, which awards points and
+  returns `story_line`, `pair_line` (`companion_pair_line()` — ties the task
+  category to the companion + sidekick), the linked `figure` (+ `youtube_id`), the
+  mission `game`, and `all_done`. The companion then narrates, the figure video
+  **autoplays with sound** through `KidoraYT` (YouTube IFrame API, `youtube-nocookie`;
+  the child's tap on the task button is the user activation that permits it), the
+  mini-game runs in place, and the next task slides in — no reloads, no «متابعة».
 - **The mission package is topically coherent.** Each task row carries the whole
   package: `title`/`description` (read aloud on load), `story_line` (shown on
   completion), optional `youtube_id` (a video *about the mission*), `figure_id`
@@ -129,22 +165,26 @@ assessment-due greeting.
   admin-added tasks still get a sensible figure without manual linking.
 - All 24 seeded tasks are explicitly linked (e.g. "اقرأ قصة قصيرة" → شهرزاد,
   "تحدي الحساب السريع" → الخوارزمي, "تحدي الابتكار" → عباس بن فرناس).
-- Once all 4 are done: **hard redirect to `safety.php`** (`tasks.php` L51–53).
-  Note the README's section 4 claims it redirects to the games library — the code
-  redirects to safety.
+- Once all 4 are done the companion announces it and the page goes to
+  `games.php?from=tasks`, where the game of the day is highlighted; safety or the
+  story come **after** that game through the choice modal (see below).
 
-### `safety.php` — child-protection module (rewritten Sep 11 2026 by a collaborator, gentled Sep 12)
+### `safety.php` — «بطل الأمان» (3-step mission, Sep 2026)
 One **lesson per day**: `LESSONS` = age-filtered `safety_content` rows; the day index
-lives in `localStorage` (`kidora_safety_v5`, advances only after the child presses
-«أنهيت المهمة، أراك غداً»). Each lesson has a story part (YouTube embed if
-`youtube_id`, else read aloud) **and** a mini-game chosen by
-`safety_content.game_type`: `body` (tap the private zone), `distance` (drag yourself
+lives in `localStorage` (`kidora_safety_v5`, advances when the medal is earned). The
+page is a companion-led mission with a 3-step bar and one big card at a time:
+**1 القاعدة** — the rule read aloud by the companion, then the lesson video autoplays
+via `KidoraYT` (or the big «فهمت، إلى اللعبة» button) → **2 اللعبة** — one of the
+eight engines below → **3 الوسام** — confetti, medal, `kidoraMarkDone('safety')`, and
+three big choices (daily story if premium / another game / home). The old owl
+«رفيقتك الحكيمة», the gold «أنهيت المهمة» button and the goodbye screen are gone
+(goodbye is the dashboard's job). Engine `speak()` calls route through
+`Companion.say()`. The mini-game is chosen by `safety_content.game_type`: `body` (tap the private zone), `distance` (drag yourself
 away from the stranger), `hotspot` (tap the dangers in a kitchen/pool/home scene),
 `scenario` (3-choice situations), `match` (emergency numbers), `quiz` (yes/no
 internet safety), `password` (build a strong password), `street` (cross on green).
-Finishing both unlocks the gold button → celebration → goodbye. The four seeded
-lessons map to `body / distance / quiz / scenario` (seed + `kidora_migrate()` for
-DBs seeded earlier).
+The four seeded lessons map to `body / distance / quiz / scenario` (seed +
+`kidora_migrate()` for DBs seeded earlier).
 
 **The safety module never says «خطأ», shows no X and no score** (the user's explicit
 rule: «م بينفع يحكيله اجابة خاطئة … تيجي بتحفيز بس»). Every engine routes a miss
@@ -156,7 +196,14 @@ warm gold, never red; the quiz carries a `tip` per question and ends with «أن
 36 seeded rows grouped into 6 categories (تربوي / علمي / اجتماعي / سلوكي / ثقافي / صحي)
 × the 6 mechanics, each with an icon + colour, age-filtered. Completion POSTs to
 `api/play-game.php` which increments `daily_progress.games_played`. **No score is sent
-to the server.** Each card passes its category to `GamesEngine.run()` via `data-*`
+to the server.**
+
+**Game of the day + choice (Sep 2026).** `game_of_the_day()` picks one visible card
+deterministically from `crc32(day|child_id)` and renders it as a hero card; arriving
+with `?from=tasks` makes the companion announce it and scroll to it. After **any**
+game finishes, `openChoice()` shows a two-option modal narrated by the companion —
+🛡️ بطل الأمان (`safety.php`) or 📖 قصتي اليومية (`story.php`, locked copy for free
+plan) — instead of a fixed redirect. Each card passes its category to `GamesEngine.run()` via `data-*`
 attributes, so a صحي game asks health questions and a ثقافي game asks heritage ones.
 
 **Mechanics (Sep 2026 rewrite — `reaction` and `memory` are gone):**
@@ -202,23 +249,23 @@ allowance — it belongs to the mission package and stays free.
 - **Paid feature.** Without an active plan the page shows a paywall card and the
   `generate_story` POST handler refuses (`$isPremium` is checked server-side, not
   just in the view). An already-generated story stays viewable if the plan lapses.
-- Gated on `tasksDone && games_played >= FREE_LIBRARY_GAMES`.
-- Child may upload a photo; scenes come from `daily_story_scenes()` in
-  `includes/functions.php` (Sep 2026): a **real narrative arc**, not a caption list —
-  cover → opening with a companion quote → one chapter per completed task (a
-  transition sentence + the task's `story_line` + a category-flavoured reaction) → an
-  obstacle scene after the second chapter → the historical figure met that day
-  (`figure_for_task()`) → climax with the day's points → a moral chosen from the
-  child's strongest category → an end page. Sentence pools are seeded with
-  `crc32(child_id|date)` so the same day always tells the same story but two children
-  (or two days) never read identical text. Saved to `daily_stories.scenes_json`
-  (each scene has `kind`, optional `speaker`/`quote`), `children.ring_days` +1
-  (+10 points). **No AI API** — this is PHP templating on purpose.
-- Rendering uses `StoryPlayer` **book mode** (`book: true`): a cream paper page with a
-  chapter ribbon («الفصل ١»…), scene art, the child's photo/name as hero, the
-  companion in the margin with a speech bubble, page-turn animation, dots, and
-  autoplay that waits for `SoundEngine.speak()` to finish each page (timed fallback
-  when voice is off).
+- Gated on `tasksDone && games_played >= STORY_MIN_GAMES` (= 1, the game of the day).
+- Child may upload a photo; the story comes from `daily_story_scenes()` in
+  `includes/functions.php`. **Since Sep 2026 it is ONE scene** (`kind: 'single'`): a
+  single flowing paragraph about the real day — a seeded opening, the completed
+  tasks' `story_line`s joined with «أولاً / ثم / وبعدها / وقبل الغروب», the linked
+  historical figure (`figure_for_task()`), the day's points, and a one-line moral from
+  the strongest category — plus a companion `speaker`/`quote`. Sentence pools are
+  seeded with `crc32(child_id|date)` so a refresh never changes the text. Saved to
+  `daily_stories.scenes_json`, `children.ring_days` +1 (+10 points). **No AI API** —
+  PHP templating on purpose. Stories generated before this change (multi-scene) still
+  open in book mode.
+- Rendering: `StoryPlayer.render(..., {book: true, animate: true})` auto-selects
+  **single mode** (`renderSingle`) when the story has exactly one scene: one big poster
+  card (art + icon, child's photo/name, companion, full text, quote bubble) and a
+  single «اقرأ لي» button; the companion reads the whole card via `Companion.say()`
+  and starts automatically. Multi-scene stories (old daily stories, grand story) use
+  **book mode**: cream page, chapter ribbon, page-turn, dots, narration-synced autoplay.
 - Exportable as a real video file from the browser — Canvas + `MediaRecorder`,
   640×360, tries `video/mp4` then falls back to `video/webm`; book mode draws the
   same paper layout (`drawBookScene`). `xopts.onBlob` receives the Blob (used by the
@@ -228,11 +275,13 @@ allowance — it belongs to the mission package and stays free.
 Consumes **30** daily stories (`GRAND_STORY_DAYS`) and builds one "Grand Adventure"
 from the child's *actual month*, not from concatenating scenes.
 `child_achievement_summary()` reads `daily_progress` over the story date range plus
-`quiz_history`, and `grand_story_scenes()` turns that into ~14 captioned chapters:
-missions completed, the two strongest categories, the historical figures met (via
-`tasks.figure_id`), games played, stars earned, assessment growth (first session
-average vs latest), strongest axis, three sampled highlights from the daily stories,
-and a finale. Both helpers live in `includes/functions.php`.
+`quiz_history`, and `grand_story_scenes()` turns that into **exactly 8 chapters**
+told as one journey (Sep 2026): البداية → الطريق (missions) → الكنز المخفي (strongest
+category) → رفاق من التاريخ (figures met) → العقبة (games as training) → من دفتر
+الرحلة (three sampled lines from the daily stories) → القمة (stars, assessment
+growth, strongest axis) → النهاية… والبداية. Every chapter always exists; when its
+data source is empty it is narrated generically so the arc never has holes. Both
+helpers live in `includes/functions.php`. No `mb_*` — truncation is `preg` `/u`.
 Scenes carry optional `icon` + `title`, which `StoryPlayer` renders as a floating
 chapter header and also draws into the exported video.
 This is what the `0/30` ring in the navbar tracks (`children.ring_days`).
@@ -254,18 +303,29 @@ third-party mail API is used.
 ### Other pages
 - `friends.php` — per-character friend stories (**hardcoded** in JS, not DB).
 - `culture.php` — Arab/Islamic cultural story bank (**hardcoded** in JS, not DB).
-- `games2.php` — 4 self-contained canvas arcade games: Snake (الأفعى),
-  Brick Breaker (ضرب الطوب), Flappy Bird, Road Race (سباق الطريق). Fully
-  client-side, not in the `games` table, not admin-manageable.
-- `profile.php` — editable profile, companion switcher, behaviour chart,
-  story archive, drawings gallery, WhatsApp report button.
+- `games2.php` — «ألعاب الذكاء» (rewritten Sep 2026): 4 self-contained **educational**
+  canvas games with a real end state, touch-only, no timers, companion reads every
+  question: `numbers` صيّاد الأرقام (tap the bubble completing the equation, 10
+  rounds), `letters` بحر الحروف (catch the fish carrying the missing letter, 8
+  words), `memory` ذاكرة الأشكال (Simon-style shape sequence, 6 rounds), `path` مسار
+  الأرقام (tap river stones in order / skip-counting, 3 rounds). `LEVEL` is a server
+  decision from age (1: 6–8, 2: 9–12). Winning POSTs `api/play-game.php` and flags
+  `kidora_done_game_*`. Still hardcoded (not in the `games` table) by design — they
+  are canvas mechanics, not content. The old Snake/Breakout/Flappy/Racer are gone.
+- `welcome.php` — full-screen animated post-registration greeting: the companion,
+  the child's uploaded photo, spoken lines with progress dots, then auto-continue to
+  `assessment.php` / `dashboard.php`.
+- `profile.php` — big profile photo with change/upload, **single companion switcher**
+  (POST `set_companion`; always keeps a second free character), voice picker
+  (`SoundEngine.listVoices()/setPreferredVoice()`), behaviour chart, story archive,
+  drawings gallery, WhatsApp report button.
 - **Remember-me (Sep 11 2026, collaborator):** `kidora_remember_login()` stores a
   90-day token in `children.remember_token/remember_expires` + `kidora_remember`
   cookie; `index.php` shows «متابعة كـ <name>» when the cookie is present and logs in
   on `?continue=1` (token rotated). Expiry compare is passed from PHP (`date()`),
-  not `NOW()`, so it works on SQLite too. `dashboard.php` shows a goodbye modal once
-  tasks + game + safety are all flagged done for the day (`localStorage`
-  `kidora_done_*` keys). `test-cookie.php` is a leftover debug page.
+  not `NOW()`, so it works on SQLite too. `dashboard.php` shows a spoken goodbye
+  modal once tasks + game + (safety **or** story) are flagged done for the day
+  (`localStorage` `kidora_done_*` keys; `window.kidoraMarkDone(type)`). `test-cookie.php` is a leftover debug page.
 - `forgot-password.php` / `reset-password.php` — public password-reset pair (Sep
   2026). Request: always the same neutral message (no account enumeration), max
   `PASSWORD_RESET_MAX_PER_HOUR = 3` tokens per child, token = 64 hex chars stored as
@@ -302,7 +362,13 @@ historical `--gold` token remains indigo.
   a 4-stop gradient `#1B1035 → #241645 → #3A2A75 → #1B1035` animating on a 12 s
   loop, **recoloured live to the active character's colour**, overlaid with 20–30
   emoji rising from the bottom on per-character motion curves, plus 3 drifting wave
-  layers. Net effect: bright cards floating on a deep animated night sky.
+  layers, plus (Sep 2026) a **motif layer** (`.theme-motif-layer`,
+  `ThemeEngine.updateMotif()`): glyphs and animation chosen by
+  `theme_json.motif` (`bubbles | leaves | confetti | stars | webs | bats | clues`,
+  table `MOTIFS` in `theme-engine.js`) so SpongeBob's pages bubble and Batman's have bats.
+  Net effect: bright cards floating on a deep animated night sky themed to the
+  companion's world. The motif layer sits **under** the `::after` scrim, so it does
+  not change the contrast budget below.
 - **The background must stay dark — this is a load-bearing constraint, not taste.**
   All text on top of it is light (`#fff`, `#f1f5f9`, `#D9D0FF`), so any change that
   brightens the background makes text vanish as the gradient animates. Three
@@ -322,6 +388,14 @@ historical `--gold` token remains indigo.
 - **Motion vocabulary** — every character has a `move_type` that drives both the
   companion idle animation and the floating-icon animation:
   `wiggle | bounce | dash | float | hop | stomp`.
+- **Companion widget** (`#companionWidget`, `assets/js/companion.js` + `main.css`):
+  150px avatar (104px mobile), a **slow** 34 s walk across the bottom that pauses
+  while talking, mood classes on the avatar (`mood-talk|mood-cheer|mood-think|
+  mood-wave|mood-point`) and a speech bubble that shows the
+  sidekick (`theme_json.sidekick`) and stays exactly as long as the utterance.
+  `Companion.say(text, {mood})` returns a promise resolved when speech ends;
+  `sequence([...])`, `celebrate()`, `guideTo(selector, text)`, `readAloud()`, `stop()`.
+  Pages narrate through this API rather than calling `SoundEngine.speak` directly.
 - **Typography**: Baloo Bhaijaan 2 (display) + Cairo (body) via `main.css`;
   `includes/navbar.php` separately imports **Tajawal** for the nav only.
 - **Palette**: coral→pink gradient CTAs, mint for safety, violet for charts. The
@@ -333,10 +407,12 @@ historical `--gold` token remains indigo.
 
 ### Navigation (`includes/navbar.php`, 1,007 lines — self-contained HTML+CSS+JS)
 Fixed dark glass bar (`rgba(10,18,35,.92)` + 24px blur): logo, 30-day progress ring,
-**5 primary links** (الرئيسية / مهامي / قصتي اليومية / قصص أصدقائي / ألعابي), a
-"المزيد" dropdown opening as a **2-column grid** for the remaining 7, VIP/free badge,
-and separate 🗣️ voice + 🔇 music toggles. Below 1024px it collapses to a
-right-side sliding sidebar carrying all 12 links.
+**4 primary links** (الرئيسية / مهامي / ألعابي / قصتي اليومية — child-sized targets,
+bigger type), a "المزيد" dropdown for the other 9 (safety, friends, culture, grand
+story, ألعاب الذكاء, drawing, assessment, subscription, profile), the child's **photo
+avatar** linking to the profile, VIP/free badge, and 🗣️ voice + 🔇 music toggles
+(all such buttons are wired centrally in `app.js`). Below 1024px it collapses to a
+right-side sliding sidebar carrying all links.
 
 ### Admin panel
 Deliberately different: dark navy sidebar (230px) + cream content area, white cards
@@ -358,12 +434,13 @@ includes/header.php   <head>, animated background, KIDAURA_* JS globals, loads 4
 includes/navbar.php   nav + sidebar (self-contained)
 includes/public-nav.php guest navigation (self-contained)
 includes/demo-content.php PHP demo story templates and guide lines
-includes/footer.php   companion widget + toast host + app.js
+includes/footer.php   companion widget + toast host + companion.js + app.js
+assets/js/companion.js Companion API (speech bubble, moods, sidekick) + KidoraYT (IFrame API)
 demo.php              public character / memory / narrated-story experience
 assets/js/landing.js  public intro, carousel, modal, reveals, and auth interactions
 assets/js/demo.js     public demo state machine, memory game, and narration
 assets/vendor/gsap/   GSAP + ScrollTrigger, vendored for the no-build public layer
-api/                  the only 2 AJAX endpoints
+api/                  6 AJAX endpoints (see §5 API endpoints)
 admin/                guard + tab router + 9 tab files
 database/             schema.sql (MySQL) · schema_sqlite.sql · seed.php
 ```
@@ -404,14 +481,15 @@ require_once __DIR__ . '/includes/footer.php';
 ```
 
 Session flash keys (`$_SESSION['flash_*']`) carry cross-redirect state:
-`flash_story`, `flash_points`, `flash_figure`, `flash_game_type`, `flash_game_title`,
-`flash_quiz_msg`, `flash_toast`, `flash_wa_link`, `admin_flash`.
+`flash_toast`, `flash_wa_link`, `flash_profile`, `admin_flash`. (The task-completion
+and assessment flashes are gone — both flows moved to JSON endpoints in Sep 2026.)
 
 ### PHP → JS wire
 | Global | Set in | Contents |
 |---|---|---|
-| `KIDAURA_ACTIVE_CHARACTER` | `header.php` L53–59 | `slug`, `color`, `icons[]`, `audio`, `name` — **note: no `move`**, so floating icons always default to `wiggle` in-app |
-| `KIDAURA_BASE` | `header.php` L60 | `BASE_PATH` |
+| `KIDAURA_ACTIVE_CHARACTER` | `header.php` | `slug`, `name`, `color`, `icons[]`, `image`, `audio`, **`move`**, **`theme`** (`world`, `sidekick{name,icon}`, `motif`) |
+| `KIDAURA_CHILD_PHOTO` | `header.php` | URL of the child's uploaded photo or `null` |
+| `KIDAURA_BASE` | `header.php` | `BASE_PATH` |
 | `KIDAURA_CHILD` | `navbar.php` | `id`, `name`, `points` |
 | `KIDAURA_PAGE_LINE` | each page | Arabic line the companion speaks on load |
 | `KIDORA_LANDING` | `index.php` | public character data, intro state, and registration prefill |
@@ -421,10 +499,11 @@ Session flash keys (`$_SESSION['flash_*']`) carry cross-redirect state:
 | File | Global | Role |
 |---|---|---|
 | `theme-engine.js` | `ThemeEngine` | `applyBackground()` / `previewCharacter()` — recolours gradient, sets `--theme-accent`/`--theme-glow`, spawns floating icons |
-| `sound-engine.js` | `SoundEngine` | `speak()` via `SpeechSynthesis` (`ar-SA`, prefers an Arabic female voice), optional `onEnd` callback, `sfx()` tones for public interactions, pre-speech chime, and optional Web Audio background music. Toggles persist in `localStorage` (`kidaura_voice`, `kidaura_music`) |
-| `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay, a play/pause button, and a caption/chapter cross-fade; `opts.book` (story + grand-story) switches to the paper-book layout with narration-synced page turns; manual navigation cancels autoplay |
+| `sound-engine.js` | `SoundEngine` | `speak()` via `SpeechSynthesis` (`ar-SA`; `pickBestVoice()` scores Arabic voices, `preferredVoiceName` from the profile voice picker wins), `cleanSpeech()` strips emoji/symbols so nothing is read as «رمز», optional `onEnd`, **background music pauses while speaking and resumes after**, `sfx()` tones, optional Web Audio music. `listVoices()/setPreferredVoice()/getPreferredVoice()`. Toggles persist in `localStorage` (`kidaura_voice`, `kidaura_music`, `kidaura_voice_name`). Automatic tashkeel is **not** feasible client-side; voice quality is bounded by the OS voices |
+| `companion.js` | `Companion`, `KidoraYT` | see §4 «Companion widget». `KidoraYT.play(hostId, videoId, {autoplay, skipId})` loads the YouTube IFrame API once (`youtube-nocookie`), autoplays, and resolves on ENDED / skip button / error (6 s guard if the script is blocked). Used by `tasks.php` and `safety.php` |
+| `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay; `opts.book` switches to the paper-book layout with narration-synced page turns; a **one-scene story in book mode renders as `renderSingle`** (poster card read in one go by `Companion`); `exportVideo` holds a single scene for `clamp(len×70ms, 6–20 s)` and draws up to 7 text lines |
 | `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `puzzle` / `hide` / `adventure`. **Content is fetched from `api/game-content.php`, not hardcoded** (a small `FALLBACK` bank exists only so a failed request never shows a broken screen). `game_types()` in `includes/functions.php` is the authoritative slug→label list. Feedback vocabulary is `PRAISE` / `ENCOURAGE` only |
-| `app.js` | `companionSay()` | bootstrap: nav toggle, voice/music buttons, companion click + swap, auto page greeting |
+| `app.js` | — | bootstrap: nav toggle, **all** `.voice-btn`/`.music-btn` toggles, `data-say` buttons (→ `Companion.readAloud`), companion click + swap; the page greeting is spoken by `companion.js` from `KIDAURA_PAGE_LINE` |
 
 **Age-adaptive play (Sep 2026).** `GAME_TIMER_MIN_AGE = 10` in
 `includes/functions.php`. The server decides which version a child gets and returns
@@ -441,6 +520,14 @@ Read-aloud goes through `SoundEngine.speak()`, so the existing mute toggle still
 
 ### API endpoints
 All require `$_SESSION['child_id']` and have no CSRF token.
+- `POST api/assess-answer.php` (`question_id`, `option` 1–3) → records the
+  `quiz_history` row and returns `{ok, done, next:{id, question, options[]}}`; on the
+  last answer sets `last_assessment_at`, clears the session question set, returns
+  `{done:true}`. `{ok:false, reload:true}` if the session set is missing.
+- `POST api/complete-task.php` (`task_id`) → validates the task is in today's pool and
+  not done, appends to `completed_task_ids`, awards points, returns `{ok, points,
+  story_line, pair_line, figure{name,title,story_line,youtube_id,…}, game{type,title},
+  all_done}`.
 - `POST api/play-game.php` → `games_played += 1`, returns `{ok, games_played}`.
 - `POST api/swap-companion.php` → toggles `active_character` between `character_1`
   and `character_2`, returns `{ok, active_character}`; client reloads the page.
@@ -465,7 +552,7 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 
 | Table | Purpose |
 |---|---|
-| `characters` | slug, name, title, trait, `color`, `move_type`, `image_path`, `audio_path`, `icons_json`, `is_premium`, `sort_order` |
+| `characters` | slug, name, title, trait, `color`, `move_type`, `image_path`, `audio_path`, `icons_json`, `is_premium`, `sort_order`, **`theme_json`** (`{world, sidekick:{name,icon}, motif}`, Sep 2026) |
 | `children` | the user account: credentials, age, parent name/phone, optional `photo_path`, `character_1/2`, `active_character`, `points`, `ring_days`, `last_assessment_at`, `remember_token` / `remember_expires` |
 | `tasks` | title, description, category, age range, `story_line`, `youtube_id`, `game_type`, `points`, `active` |
 | `games` | title, `type`, category, age range, description, `is_active` |
@@ -485,7 +572,7 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 | `wa_log` | every WhatsApp message generated |
 | `settings` | `whatsapp_number`, `platform_name`, `story_api_key`, `smtp_host/port/user/pass/from/from_name/tls_name` (key-value) |
 
-Seeded volumes: 6 characters, **29 tasks**, 36 games (6 mechanics × 6 categories),
+Seeded volumes: **8 characters** (v2 set, `settings.characters_version = 2`), **29 tasks**, 36 games (6 mechanics × 6 categories),
 12 assessment questions, 29 history figures (every one reachable from a task),
 4 safety items, 3 plans, 3 settings, and — for in-game content — 9 topics,
 **192 true/false questions** and **78 adventure scenarios**, both age-tagged.
@@ -517,8 +604,13 @@ topic covers strangers, frightening secrets, unwanted touch, and that an adult's
 mistake is never the child's fault — messages a person should approve rather than a
 language check. They keep playing while they wait.
 
-Characters: **mimo (ميمو)** and **zizo (زيزو)** are free; **finn, nova, lulu, rex**
-are premium.
+Characters (v2, Sep 2026): **spongebob** and **dora** are free; **gumball, ladybug,
+spiderman, batman, ben10, conan** are premium. `kidora_migrate_characters_v2()`
+(called from `kidora_migrate()`) replaces the old mimo/zizo/finn/nova/lulu/rex rows
+on an existing DB and remaps every child's `character_1/2/active_character`
+(mimo → dora, everything else → spongebob, second free slot filled), guarded by
+`settings.characters_version`. `friends.php` / `includes/demo-content.php` banks were
+re-keyed to the new slugs.
 
 ---
 
@@ -600,9 +692,8 @@ Two gotchas found while fixing this:
 3. ~~**Assessment length**: only 6 `quiz_questions` seeded, so the UI showed
    "سؤال 1 من 6".~~ **RESOLVED Aug 2026** — 12 questions now seed from `seed.php`
    (the 6-row version lived in the schema files' `INSERT` blocks, which are gone).
-4. **Ring denominator mismatch**: `admin/tabs/users.php` L36 prints
-   `ring_days . '/10'` while the navbar, `grand-story.php`, and the README all use
-   **30**. *(Still open.)*
+4. ~~**Ring denominator mismatch**: `admin/tabs/users.php` printed `ring_days/10`
+   while everything else uses **30**.~~ **RESOLVED Sep 2026.**
 5. ~~**Unhandled game types**: `reaction` / `memory` / `adventure` silently fell back
    to `catch`.~~ **RESOLVED Aug 2026** — all six mechanics are implemented in
    `games-engine.js`. `reaction` is a 5-round tap-on-green timer, `memory` is a
@@ -616,14 +707,12 @@ Two gotchas found while fixing this:
    questions and a 3-scene adventure. `TOPIC_BY_CATEGORY` maps both the task
    vocabulary (تعلّم، صحة، قيم…) and the games-library vocabulary
    (تربوي، علمي، سلوكي…) onto them.
-7. **Orphaned character art**: images exist at
-   `assets/images/characters/mimo/u_6a8ad4cbd08a9.png` and
-   `assets/images/characters/zizo/u_6a8ad4f849c2a.png`, but **every**
-   `characters.image_path` is `NULL`, so all six characters render as emoji fallbacks.
-   The public carousel, modal, registration picker, and demo accept `image_path`
-   when it is populated and otherwise render the character's first icon.
-8. `KIDAURA_ACTIVE_CHARACTER` omits `move`, so in-app floating icons always animate
-   as `wiggle` regardless of character. Only the registration preview passes `move`.
+7. ~~**Orphaned character art** — every `characters.image_path` was `NULL`, so all
+   characters rendered as emoji.~~ **RESOLVED Sep 2026** — the v2 set ships with
+   placeholder `avatar.svg` files and `image_path` set; real (licensed) art is an
+   admin upload. The old `assets/characters/` and `mimo/`, `zizo/` PNGs were deleted.
+8. ~~`KIDAURA_ACTIVE_CHARACTER` omits `move`.~~ **RESOLVED Sep 2026** — `move` and
+   `theme` are both passed (see §5 wire table).
 9. `SoundEngine.playCharacterClip()` (the only consumer of uploaded character audio)
    is exported but **never called**, so admin-uploaded voice files are unused.
 
@@ -632,8 +721,11 @@ Two gotchas found while fixing this:
     are hardcoded JS objects. **Still open** — these are the last two hardcoded
     content banks; `games-engine.js` was moved to the database in Sep 2026 and is the
     worked example to copy.
-11. `games2.php`'s 4 arcade games are hardcoded canvas implementations outside the
-    `games` table.
+11. `games2.php`'s 4 games are hardcoded canvas implementations outside the `games`
+    table. **Accepted (Sep 2026):** they were rewritten as goal-based educational
+    mechanics (see §3 «Other pages»); the word/number banks inside them are small and
+    age-levelled, but if they grow they should move to the database like
+    `game_questions` did.
 
 ### Security
 12. Hardcoded plaintext admin credentials in source; no `session_regenerate_id()`,
@@ -796,9 +888,50 @@ Defects that surfaced and were fixed on the way:
 - Legacy `reaction`/`memory` rows: migration renames both `type` and title; verified on
   a copy of a pre-Sep DB.
 
-Still open from this pass: the arcade games in `games2.php` are endless score games
-and were verified to render and respond to input, not to "complete" (they have no end
-state by design).
+~~Still open from this pass: the arcade games in `games2.php` are endless score games.~~
+Replaced in the Sep 2026 child-experience pass by four goal-based educational games.
+
+### The Sep 2026 child-experience pass (companion-led flow, characters v2)
+Product direction from the owner: the platform was too hard for a 6–12-year-old to
+drive alone, too quiet, and too "click continue". Everything below was verified
+against the running SQLite app over HTTP (register → silent assessment via
+`api/assess-answer.php` → 4 tasks via `api/complete-task.php` → `api/play-game.php` →
+premium story generation → single-scene render; every inline `<script>` and every
+`assets/js/*.js` passes `node --check`). No headless browser was available on this
+host, so animations and autoplay were reviewed by reading, not by pixel.
+
+- **Characters v2** — mimo/zizo/finn/nova/lulu/rex → spongebob/dora/gumball/ladybug/
+  spiderman/batman/ben10/conan with `theme_json` (world, sidekick, motif) and
+  placeholder SVG avatars; `kidora_migrate_characters_v2()` remaps existing children.
+  ⚠️ These names are third-party IP; the shipped art is deliberately generic.
+- **One character at registration**, second free one server-assigned; switch from
+  the profile. Age range 6–12 everywhere (register validation, seed, admin forms).
+- **`welcome.php`** rebuilt as a full-screen animated greeting with the child's photo;
+  the subscription page is no longer the first screen after signup and the paywall
+  does not appear after the assessment.
+- **Assessment is silent**: sequential questions over AJAX, no progress, no comments,
+  no chart for the child; admin Users tab gained an inline analysis panel.
+- **Tasks are a state machine**: story → pair line → figure video autoplay → game →
+  next task, all narrated by the companion, no reloads (`KidoraYT` for the IFrame
+  API). Completion → `games.php?from=tasks` → game of the day → choice modal
+  (safety / story). `STORY_MIN_GAMES = 1`.
+- **Safety** is a 3-step mission (rule → game → medal) led by the companion; the
+  eight gentle engines are unchanged.
+- **Daily story is one scene**, grand story is **8 fixed chapters**; `StoryPlayer`
+  gained `renderSingle`.
+- **Companion**: `companion.js` API, bigger and slower, moods, sidekick bubble, reads
+  everything; **music pauses while it speaks**; `cleanSpeech()` strips emoji;
+  best-Arabic-voice scoring + a voice picker in the profile.
+- **🌈 removed** from every PHP/JS file (owner request).
+- **Navbar**: 4 primary links, bigger targets, photo avatar; profile shows the photo
+  large with a change form.
+- **`games2.php`** → four educational canvas games with real end states.
+
+Bugs found on the way (fixed): `rtrim($s, '.،')` corrupted UTF-8 in the new story
+builder (byte-wise trim on a multibyte delimiter → `json_encode` returned `false` and
+an empty `scenes_json` row was written) — use `preg_replace('/…/u')`; `mb_*` used in
+the grand story builder although the runtime has no mbstring (see the note above —
+**never `mb_*`**); `safety.php` called `is_premium_active()` with the wrong signature.
 
 ## 9. Running it locally
 
@@ -877,3 +1010,22 @@ proxy the public hostname to `127.0.0.1:81`.
 - **Two question tables, different jobs.** `quiz_questions` is the daily assessment
   that feeds `quiz_history` and the growth axes; `game_questions` is true/false
   content inside mini-games. They are not interchangeable.
+- **The companion narrates; pages don't.** Use `Companion.say/sequence/celebrate/
+  guideTo` (they return promises and handle moods, bubble, music pause). Do not add
+  raw `SpeechSynthesisUtterance` or `SoundEngine.speak` calls in pages; the one
+  exception is a fallback when `window.Companion` is absent.
+- **Auto-advance instead of «متابعة».** Flows that chain content (tasks, safety,
+  assessment, welcome) are client-side state machines fed by JSON endpoints; the
+  child's first tap is the user activation that lets `KidoraYT` autoplay with sound.
+  Do not reintroduce full-page POST-redirect steps in the middle of a chain.
+- **YouTube playback goes through `KidoraYT.play()`** (IFrame API,
+  `youtube-nocookie`), so a video's end can advance the flow. Never a bare `<iframe>`
+  in a chained flow.
+- **Daily story = one scene, grand story = eight chapters.** `StoryPlayer` picks
+  `renderSingle` for a one-scene story in book mode; keep multi-scene support for
+  stories already stored.
+- **No `mb_*` functions** — the runtime has no mbstring. Use `preg_*` with the `u`
+  flag, and never `rtrim()/trim()` with a multibyte character list.
+- **No 🌈.** The owner asked for it to be gone from the product; don't add it back.
+- **Character IP.** The v2 companions carry third-party names. Keep artwork generic
+  until licensed; the admin upload is the path for real art.

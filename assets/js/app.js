@@ -11,59 +11,18 @@ document.addEventListener("DOMContentLoaded", function () {
     navToggle.addEventListener("click", () => navLinks.classList.toggle("open"));
   }
 
-  // ---------- زر الصوت (منفصل عن الموسيقى) ----------
-  const voiceBtn = document.getElementById("voiceToggle");
-  if (voiceBtn) {
-    const refreshVoiceBtn = () => {
-      const on = SoundEngine.isVoiceEnabled();
-      voiceBtn.classList.toggle("on", on);
-      voiceBtn.textContent = on ? "🗣️" : "🔈";
-    };
-    refreshVoiceBtn();
-    voiceBtn.addEventListener("click", () => {
-      SoundEngine.setVoiceEnabled(!SoundEngine.isVoiceEnabled());
-      refreshVoiceBtn();
-    });
-  }
+  // ---------- أزرار الصوت والموسيقى (الهيدر + سايدبار الجوال معاً) ----------
+  const voiceBtns = document.querySelectorAll(".voice-btn, #voiceToggle");
+  const musicBtns = document.querySelectorAll(".music-btn, #musicToggle");
+  const refreshVoice = () => { const on = SoundEngine.isVoiceEnabled(); voiceBtns.forEach(b => { b.classList.toggle("on", on); b.textContent = on ? "🗣️" : "🔈"; }); };
+  const refreshMusic = () => { const on = SoundEngine.isMusicEnabled(); musicBtns.forEach(b => { b.classList.toggle("on", on); b.textContent = on ? "🔊" : "🔇"; }); };
+  refreshVoice(); refreshMusic();
+  if (SoundEngine.isMusicEnabled()) SoundEngine.startMusic();
+  voiceBtns.forEach(b => b.addEventListener("click", () => { SoundEngine.setVoiceEnabled(!SoundEngine.isVoiceEnabled()); refreshVoice(); }));
+  musicBtns.forEach(b => b.addEventListener("click", () => { SoundEngine.setMusicEnabled(!SoundEngine.isMusicEnabled()); refreshMusic(); }));
 
-  // ---------- زر الموسيقى ----------
-  const musicBtn = document.getElementById("musicToggle");
-  if (musicBtn) {
-    const refreshMusicBtn = () => {
-      const on = SoundEngine.isMusicEnabled();
-      musicBtn.classList.toggle("on", on);
-      musicBtn.textContent = on ? "🔊" : "🔇";
-    };
-    refreshMusicBtn();
-    if (SoundEngine.isMusicEnabled()) SoundEngine.startMusic();
-    musicBtn.addEventListener("click", () => {
-      SoundEngine.setMusicEnabled(!SoundEngine.isMusicEnabled());
-      refreshMusicBtn();
-    });
-  }
-
-  // ---------- الرفيق الدائم ----------
-  const bubble = document.getElementById("companionBubble");
-  const avatar = document.getElementById("companionAvatar");
+  // ---------- الرفيق الدائم (المنطق في companion.js) ----------
   const swapBtn = document.getElementById("companionSwapBtn");
-  let companionTimeout = null;
-
-  window.companionSay = function (text) {
-    if (bubble) {
-      bubble.textContent = text;
-      bubble.style.display = "block";
-      clearTimeout(companionTimeout);
-      companionTimeout = setTimeout(() => { bubble.style.display = "none"; }, 5200);
-    }
-    if (window.KIDAURA_ACTIVE_CHARACTER) SoundEngine.speak(text, window.KIDAURA_ACTIVE_CHARACTER);
-  };
-
-  if (avatar) {
-    avatar.addEventListener("click", () => {
-      window.companionSay(window.KIDAURA_LAST_LINE || (window.KIDAURA_ACTIVE_CHARACTER ? window.KIDAURA_ACTIVE_CHARACTER.name + "! أنا معك دايماً 💛" : "أنا معك دايماً!"));
-    });
-  }
-
   if (swapBtn) {
     swapBtn.addEventListener("click", () => {
       fetch(window.KIDAURA_BASE + "/api/swap-companion.php", { method: "POST" })
@@ -92,13 +51,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       return;
     }
-    SoundEngine.speak(text, window.KIDAURA_ACTIVE_CHARACTER);
     btn.classList.add("is-speaking");
-    setTimeout(() => btn.classList.remove("is-speaking"), 1200);
+    const done = () => btn.classList.remove("is-speaking");
+    if (window.Companion) Companion.readAloud(text).then(done);
+    else { SoundEngine.speak(text, window.KIDAURA_ACTIVE_CHARACTER); setTimeout(done, 1200); }
   });
-
-  // رسالة ترحيب تلقائية من الرفيق عند دخول أي صفحة (إن حُدّدت عبر PHP)
-  if (window.KIDAURA_PAGE_LINE) {
-    setTimeout(() => window.companionSay(window.KIDAURA_PAGE_LINE), 500);
-  }
 });

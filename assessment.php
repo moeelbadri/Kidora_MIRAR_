@@ -5,7 +5,8 @@ $child = require_login();
 
 $dueNow = needs_assessment($child);
 
-// جلسة أسئلة التحليل الحالية (10 أسئلة، تبقى نفسها حتى تكتمل حتى لو غادر الصفحة)
+// جلسة أسئلة التحليل (10 أسئلة تبقى نفسها حتى تكتمل). الإجابات عبر api/assess-answer.php
+// بلا إعادة تحميل، بلا تعليق، بلا مؤشر تقدّم — النتائج للأدمن فقط.
 if ($dueNow) {
     if (empty($_SESSION['assess_qids']) || ($_SESSION['assess_child_id'] ?? 0) != $child['id']) {
         $ids = array_column($pdo->query("SELECT id FROM quiz_questions WHERE active = 1")->fetchAll(), 'id');
@@ -17,147 +18,126 @@ if ($dueNow) {
 }
 $qSet = $_SESSION['assess_qids'] ?? [];
 $answered = $_SESSION['assess_answered'] ?? [];
-
-// ---------------- معالجة إجابة ----------------
-$flashMsg = null;
-if ($dueNow && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['answer_question_id'])) {
-    $qid = (int)$_POST['answer_question_id'];
-    $opt = (int)($_POST['option'] ?? 0);
-    if (in_array($qid, $qSet) && !in_array($qid, $answered) && in_array($opt, [1,2,3])) {
-        $q = $pdo->prepare("SELECT * FROM quiz_questions WHERE id = ?"); $q->execute([$qid]); $question = $q->fetch();
-        if ($question) {
-            $value = (int)$question["option_{$opt}_value"];
-            $msg = $question["option_{$opt}_msg"];
-            $pdo->prepare("INSERT INTO quiz_history (child_id, axis, value) VALUES (?,?,?)")->execute([$child['id'], $question['axis'], $value]);
-            $_SESSION['assess_answered'][] = $qid;
-            $_SESSION['flash_quiz_msg'] = $msg;
-        }
-    }
-    if (count($_SESSION['assess_answered']) >= count($qSet)) {
-        $pdo->prepare("UPDATE children SET last_assessment_at = CURRENT_TIMESTAMP WHERE id = ?")->execute([$child['id']]);
-        $_SESSION['assess_just_finished'] = true;
-    }
-    header('Location: assessment.php'); exit;
-}
-$flashMsg = $_SESSION['flash_quiz_msg'] ?? null;
-unset($_SESSION['flash_quiz_msg']);
-$answered = $_SESSION['assess_answered'] ?? [];
-$justFinished = !empty($_SESSION['assess_just_finished']);
-if ($justFinished) unset($_SESSION['assess_just_finished']);
-$doneNow = $dueNow && count($answered) >= count($qSet) && count($qSet) > 0;
+$remaining = array_values(array_diff($qSet, $answered));
 
 $currentQuestion = null;
-if ($dueNow && !$doneNow && !$flashMsg) {
-    $remaining = array_values(array_diff($qSet, $answered));
-    if ($remaining) {
-        $st = $pdo->prepare("SELECT * FROM quiz_questions WHERE id = ?"); $st->execute([$remaining[0]]); $currentQuestion = $st->fetch();
-    }
+if ($dueNow && $remaining) {
+    $st = $pdo->prepare("SELECT id, question, option_1, option_2, option_3 FROM quiz_questions WHERE id = ?");
+    $st->execute([$remaining[0]]);
+    $currentQuestion = $st->fetch();
+}
+if ($dueNow && !$remaining && $qSet) {
+    // كل الأسئلة أُجيبت في جلسة سابقة ولم يُسجَّل الإكمال — أكمِله وانطلق
+    $pdo->prepare("UPDATE children SET last_assessment_at = CURRENT_TIMESTAMP WHERE id = ?")->execute([$child['id']]);
+    unset($_SESSION['assess_qids'], $_SESSION['assess_answered'], $_SESSION['assess_child_id']);
+    header('Location: tasks.php'); exit;
 }
 
-$axisRows = assessment_axis_summary($pdo, $child['id']);
-$activePlan = get_active_plan($pdo, $child['id']);
-$showSubCTA = ($doneNow || !$dueNow) && count($axisRows) > 0 && (!$activePlan || (int)$activePlan['price_ils'] === 0);
-
-$nextDueLabel = null;
-if (!empty($child['last_assessment_at'])) {
-    $nextTs = strtotime($child['last_assessment_at']) + 10*86400;
-    if ($nextTs > time()) $nextDueLabel = date('Y-m-d', $nextTs);
-}
-
-$__pageTitle = 'تحليل شخصيتي — Kidora';
-$__pageLine = $dueNow ? "جاوب بصدق، أنا جنبك بكل خطوة 🌟" : "خلّينا نلعب ونتقدّم لحد التحليل الجاي 🚀";
+$hero = active_character($pdo, $child);
+$__pageTitle = 'أسئلة صغيرة — Kidora';
+$__pageLine = $dueNow ? "أسئلة قليلة يا {$child['name']}، اختر ما يشبهك. لا توجد إجابة خاطئة!" : "التحليل التالي بعد أيام… يلا إلى مهام اليوم!";
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
+<style>
+  .as-wrap{ max-width:720px; margin:0 auto; }
+  .as-card{ position:relative; padding:34px 26px 28px; border-radius:30px; text-align:center; transition:opacity .3s, transform .3s; }
+  .as-card.is-swapping{ opacity:0; transform:translateY(12px); }
+  .as-q{ font-size:clamp(22px,3.4vw,30px); line-height:1.6; color:var(--ink); margin:8px 0 22px; font-weight:900; }
+  .as-opts{ display:grid; gap:12px; }
+  .as-opt{ display:flex; align-items:center; gap:14px; width:100%; min-height:64px; padding:14px 18px; border-radius:20px; border:3px solid transparent; background:var(--cream-2, #F6F2FF); color:var(--ink); font-size:clamp(17px,2.4vw,20px); font-weight:800; text-align:start; cursor:pointer; transition:transform .15s, border-color .15s, box-shadow .15s; }
+  .as-opt:hover, .as-opt:focus-visible{ transform:translateY(-2px); border-color:var(--theme-accent); box-shadow:0 10px 24px rgba(0,0,0,.12); outline:none; }
+  .as-opt:active{ transform:scale(.98); }
+  .as-opt.is-picked{ border-color:var(--theme-accent); background:#fff; }
+  .as-opt .as-num{ flex:0 0 40px; width:40px; height:40px; border-radius:50%; display:grid; place-items:center; background:linear-gradient(150deg,var(--theme-accent),var(--theme-glow)); color:#fff; font-size:18px; }
+  .as-listen{ position:absolute; top:14px; inset-inline-start:14px; min-width:44px; min-height:44px; border-radius:999px; background:rgba(0,0,0,.05); font-size:20px; }
+  .as-card[aria-busy="true"] .as-opt{ pointer-events:none; opacity:.6; }
+</style>
 <div class="page-body">
 <main class="container" style="padding-top:26px;">
-  <div class="section-head">
-    <div class="eyebrow">لعبة اكتشاف الذات — كل 10 أيام</div>
-    <h2 class="section-title">تحليل شخصيتي</h2>
-    <p class="section-sub">10 أسئلة قصيرة على شكل لعبة تساعدنا نفهم شخصيتك أكثر، تظهر مرة كل 10 أيام فقط. إجابتك تُبنى كمخطط تقدّم حقيقي وليس نسبة مئوية!</p>
-  </div>
-
-  <?php if ($flashMsg): ?>
-    <div class="quiz-card card quiz-flash-pop">
-      <div class="quiz-confetti">🎉✨🌟💫🎊</div>
-      <div style="font-size:52px;">🌟</div>
-      <h3><?php echo h($flashMsg); ?></h3>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px;">
-        <button type="button" class="btn btn-listen" data-say="<?php echo h($flashMsg); ?>">🔊 اسمع</button>
-        <a href="assessment.php" class="btn btn-primary">التالي</a>
+  <div class="as-wrap">
+  <?php if ($currentQuestion): ?>
+    <div class="section-head" style="text-align:center;">
+      <div class="eyebrow">لعبة «ما يشبهني»</div>
+      <h2 class="section-title">اختر ما يشبهك</h2>
+    </div>
+    <div class="card as-card" id="asCard" data-qid="<?php echo (int)$currentQuestion['id']; ?>">
+      <button type="button" class="as-listen" id="asListen" title="اسمع السؤال">🔊</button>
+      <h3 class="as-q" id="asQuestion"><?php echo h($currentQuestion['question']); ?></h3>
+      <div class="as-opts" id="asOpts">
+        <?php for ($i = 1; $i <= 3; $i++): ?>
+          <button type="button" class="as-opt" data-opt="<?php echo $i; ?>"><span class="as-num"><?php echo $i; ?></span><span><?php echo h($currentQuestion["option_{$i}"]); ?></span></button>
+        <?php endfor; ?>
       </div>
     </div>
-
-  <?php elseif ($dueNow && !$doneNow && $currentQuestion): ?>
-    <div class="task-progress-dots">
-      <?php foreach ($qSet as $i => $qid): ?><span class="<?php echo in_array($qid,$answered) ? 'done' : (($qid===$currentQuestion['id']) ? 'current' : ''); ?>"></span><?php endforeach; ?>
-    </div>
-    <p style="text-align:center;color:#D9D0FF;font-weight:700;">سؤال <?php echo count($answered)+1; ?> من <?php echo count($qSet); ?></p>
-    <?php
-      // السؤال ثم الخيارات مرقّمة — الصغير الذي لا يقرأ بعد يسمع ما سيختاره
-      $sayQuestion = $currentQuestion['question'];
-      for ($i = 1; $i <= 3; $i++) $sayQuestion .= " الخيار {$i}: " . $currentQuestion["option_{$i}"] . '.';
-    ?>
-    <div class="quiz-card card quiz-live">
-      <div class="quiz-reaction-avatar" id="quizAvatar">🤔</div>
-      <div class="quiz-axis"><?php echo h($currentQuestion['axis']); ?></div>
-      <h3><?php echo h($currentQuestion['question']); ?></h3>
-      <button type="button" class="btn btn-listen" data-say="<?php echo h($sayQuestion); ?>">🔊 اسمع السؤال والخيارات</button>
-      <form method="POST" class="quiz-options">
-        <input type="hidden" name="answer_question_id" value="<?php echo (int)$currentQuestion['id']; ?>">
-        <?php for ($i = 1; $i <= 3; $i++): ?>
-          <button type="submit" name="option" value="<?php echo $i; ?>" class="quiz-opt" onmouseover="bounceAvatar()"><?php echo h($currentQuestion["option_{$i}"]); ?></button>
-        <?php endfor; ?>
-      </form>
-    </div>
-
-  <?php elseif ($justFinished || ($dueNow && $doneNow)): ?>
-    <div class="quiz-card card quiz-flash-pop">
-      <div class="quiz-confetti">🎊🏆✨🎉🌟</div>
-      <div style="font-size:56px;">🏆</div>
-      <h3>أنجزت تحليل شخصيتك كاملاً!</h3>
-      <p style="color:var(--ink-soft);">رائع! سجّلنا كل إجاباتك، وسيُرسل والداك تقرير تقدّمك، وسيظهر التحليل التالي بعد 10 أيام.</p>
-      <a href="tasks.php" class="btn btn-primary" style="margin-top:10px;">يلا لمهامي اليومية 💪</a>
-    </div>
-
   <?php else: ?>
-    <div class="quiz-card card">
-      <div style="font-size:52px;">🗓️</div>
-      <h3>التحليل التالي بعد كم يوم</h3>
-      <p style="color:var(--ink-soft);">تحليل شخصيتك يظهر كل 10 أيام فقط عشان نراقب تقدّمك الحقيقي بدون إزعاج.<?php echo $nextDueLabel ? " التحليل الجاي بتاريخ <b>{$nextDueLabel}</b>." : ""; ?></p>
-      <a href="tasks.php" class="btn btn-primary">يلا لمهامي اليومية 💪</a>
+    <div class="card as-card">
+      <div style="font-size:56px;">🗓️</div>
+      <h3 style="color:var(--ink);">الأسئلة الصغيرة تعود بعد أيام</h3>
+      <p style="color:var(--ink-soft);">نسألك كل 10 أيام فقط. الآن… يلا إلى مهام اليوم!</p>
+      <a href="tasks.php" class="btn btn-primary" style="min-height:56px;font-size:18px;">📋 مهام اليوم</a>
     </div>
   <?php endif; ?>
-
-  <?php if ($showSubCTA): ?>
-    <div class="card" style="max-width:560px;margin:22px auto 0;padding:22px;background:var(--cream-2);text-align:center;">
-      <p style="font-weight:800;color:var(--coral);font-size:17px;">بناءً على تحليل طفلك، نقترح ترقية اشتراكه لفتح المزيد من الشخصيات والقصص والألعاب 💡</p>
-      <a href="subscriptions.php" class="btn btn-gold" style="margin-top:10px;">شاهد خطط الاشتراك المقترحة</a>
-    </div>
-  <?php endif; ?>
-
-<!--  -->
   </div>
 </main>
 </div>
 <footer class="site-footer">Kidora © 2026</footer>
-<script>window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;</script>
 <script>
-  <?php if ($currentQuestion && game_is_calm_age((int)$child['age'])): ?>
-    // تحت سنّ المؤقّتات (نفس قاعدة الألعاب): السؤال يُقرأ تلقائياً بعد تحية الرفيق،
-    // فالطفل الذي لا يقرأ بعد لا يحتاج أن يجد زر «اسمع» أولاً.
-    document.addEventListener('DOMContentLoaded', function(){
-      setTimeout(function(){
-        SoundEngine.speak(<?php echo json_encode($sayQuestion, JSON_UNESCAPED_UNICODE); ?>, window.KIDAURA_ACTIVE_CHARACTER);
-      }, 3200);
-    });
-  <?php endif; ?>
-  function bounceAvatar(){
-    const el = document.getElementById('quizAvatar');
-    if (!el) return;
-    const faces = ['🤔','😊','🧐','😄'];
-    el.textContent = faces[Math.floor(Math.random()*faces.length)];
-    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;
+<?php if ($currentQuestion): ?>
+(function(){
+  const card = document.getElementById('asCard');
+  const qEl = document.getElementById('asQuestion');
+  const opts = document.getElementById('asOpts');
+  const childName = <?php echo json_encode($child['name'], JSON_UNESCAPED_UNICODE); ?>;
+  let busy = false;
+
+  function speechFor(){
+    const parts = [qEl.textContent.trim()];
+    opts.querySelectorAll('.as-opt').forEach((b, i) => parts.push('الخيار ' + (i + 1) + ': ' + b.lastElementChild.textContent.trim() + '.'));
+    return parts.join(' ');
   }
+  // الرفيق يقرأ السؤال والخيارات بنفسه (كل الأعمار)
+  function readQuestion(delay){ setTimeout(() => { if (window.Companion) Companion.readAloud(speechFor()); }, delay || 0); }
+  document.getElementById('asListen').addEventListener('click', () => readQuestion(0));
+
+  function render(next){
+    card.classList.add('is-swapping');
+    setTimeout(() => {
+      card.dataset.qid = next.id;
+      qEl.textContent = next.question;
+      opts.innerHTML = next.options.map((o, i) => `<button type="button" class="as-opt" data-opt="${i + 1}"><span class="as-num">${i + 1}</span><span></span></button>`).join('');
+      opts.querySelectorAll('.as-opt span:last-child').forEach((sp, i) => sp.textContent = next.options[i]);
+      card.classList.remove('is-swapping');
+      card.removeAttribute('aria-busy');
+      readQuestion(250);
+    }, 300);
+  }
+
+  opts.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.as-opt');
+    if (!btn || busy) return;
+    busy = true; btn.classList.add('is-picked'); card.setAttribute('aria-busy', 'true');
+    if (window.SoundEngine) { SoundEngine.stop(); SoundEngine.sfx('pop'); }
+    const body = new URLSearchParams({ question_id: card.dataset.qid, option: btn.dataset.opt });
+    let data = null;
+    try { data = await (await fetch(<?php echo json_encode(BASE_PATH . '/api/assess-answer.php'); ?>, { method: 'POST', body })).json(); } catch (err) {}
+    if (!data || !data.ok) { if (data && data.reload) location.reload(); busy = false; card.removeAttribute('aria-busy'); return; }
+    if (data.done) {
+      card.classList.add('is-swapping');
+      if (window.Companion) {
+        await Companion.celebrate('شكراً يا ' + childName + '! صرت أعرفك أكثر. يلا إلى مهام اليوم!');
+        location.href = 'tasks.php';
+      } else location.href = 'tasks.php';
+      return;
+    }
+    busy = false;
+    render(data.next);
+  });
+
+  // بعد تحية الصفحة يقرأ الرفيق السؤال الأول
+  document.addEventListener('DOMContentLoaded', () => readQuestion(4200));
+})();
+<?php endif; ?>
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
