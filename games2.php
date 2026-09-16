@@ -2,9 +2,9 @@
 /**
  * ألعاب الذكاء — أربع ألعاب تعليمية على Canvas بهدف واضح (لا نقاط لا نهائية):
  *   numbers  صيّاد الأرقام   — حساب: التقط الفقاعة التي تُكمل المعادلة (10 التقاطات)
- *   letters  بحر الحروف      — لغة: التقط السمكة التي تحمل الحرف الناقص من الكلمة (8 كلمات)
- *   memory   ذاكرة الأشكال   — ذاكرة: كرّر تسلسل الأشكال المضيئة (6 جولات)
- *   path     مسار الأرقام    — منطق/عدّ: اضغط الحجارة بالترتيب الصحيح (3 جولات)
+ *   trace    تتبّع الحروف    — لغة/حركة دقيقة: ارسم الحرف العربي بإصبعك فوق شكله (6 حروف)
+ *   sort     فرّز بذكاء      — تصنيف: اسحب كل شيء إلى سلّته (صحي/غير صحي، يُعاد تدويره/لا) (10 أشياء)
+ *   memory   إيقاع الذاكرة   — ذاكرة: كرّر تسلسل أيقونات عالم رفيقك المضيئة (6 جولات)
  *
  * كل لعبة: لمس فقط (لا لوحة مفاتيح)، بلا مؤقّت، الرفيق يقرأ السؤال ويحتفل.
  * الصعوبة قرار خادم من عمر الطفل (LEVEL 1: 6–8 سنوات، LEVEL 2: 9–12).
@@ -76,22 +76,22 @@ require_once __DIR__ . '/includes/navbar.php';
       <p>التقط الفقاعة التي تُكمل المعادلة قبل أن تطير!</p>
       <button class="eg-play" type="button">▶ العب</button>
     </div>
-    <div class="eg-card" style="--c:#2ec4b6" onclick="EG.open('letters')">
-      <div class="ic">🐠</div><h3>بحر الحروف</h3>
+    <div class="eg-card" style="--c:#2ec4b6" onclick="EG.open('trace')">
+      <div class="ic">✍️</div><h3>تتبّع الحروف</h3>
       <span class="skill">لغة</span>
-      <p>سمكة تحمل الحرف الناقص من الكلمة — اصطدها!</p>
+      <p>ارسم الحرف بإصبعك فوق شكله حتى يضيء كله.</p>
+      <button class="eg-play" type="button">▶ العب</button>
+    </div>
+    <div class="eg-card" style="--c:#6c63ff" onclick="EG.open('sort')">
+      <div class="ic">🧺</div><h3>فرّز بذكاء</h3>
+      <span class="skill">تصنيف</span>
+      <p>اسحب كل شيء إلى سلّته الصحيحة: صحي أو لا؟ يُعاد تدويره أو لا؟</p>
       <button class="eg-play" type="button">▶ العب</button>
     </div>
     <div class="eg-card" style="--c:#ff6fa5" onclick="EG.open('memory')">
-      <div class="ic">🧩</div><h3>ذاكرة الأشكال</h3>
+      <div class="ic">🧩</div><h3>إيقاع الذاكرة</h3>
       <span class="skill">ذاكرة</span>
-      <p>راقب الأشكال التي تضيء ثم كرّرها بنفس الترتيب.</p>
-      <button class="eg-play" type="button">▶ العب</button>
-    </div>
-    <div class="eg-card" style="--c:#6c63ff" onclick="EG.open('path')">
-      <div class="ic">🪨</div><h3>مسار الأرقام</h3>
-      <span class="skill">منطق</span>
-      <p>اعبر النهر بالضغط على الحجارة بالترتيب الصحيح.</p>
+      <p>راقب أيقونات عالم رفيقك التي تضيء ثم كرّرها بنفس الترتيب.</p>
       <button class="eg-play" type="button">▶ العب</button>
     </div>
   </div>
@@ -192,51 +192,81 @@ const EG = (function () {
   };
 
   /* ============================================================
-     2) بحر الحروف — اللغة
+     2) تتبّع الحروف — الحرف يُرسم كقناع على كانفاس خفي، والطفل يمرّ بإصبعه
+        فوقه؛ نحسب نسبة خلايا القناع التي لمسها. لا مؤقّت، لا «خطأ»:
+        الخروج عن الحرف لا يُحتسب ولا يُعاقَب.
      ============================================================ */
-  const WORDS1 = [['قمر', '🌙'], ['بيت', '🏠'], ['كتاب', '📖'], ['شمس', '☀️'], ['سمكة', '🐟'], ['وردة', '🌹'], ['قلم', '✏️'], ['باب', '🚪'], ['تفاحة', '🍎'], ['نجمة', '⭐'], ['أسد', '🦁'], ['قطة', '🐱']];
-  const WORDS2 = [['مدرسة', '🏫'], ['حديقة', '🌳'], ['طائرة', '✈️'], ['مكتبة', '📚'], ['سفينة', '🚢'], ['فراشة', '🦋'], ['مفتاح', '🔑'], ['ساعة', '⌚'], ['جزيرة', '🏝️'], ['مظلّة', '☂️'], ['زرافة', '🦒'], ['كوكب', '🪐']];
-  const ALPHA = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي';
-  const Letters = {
-    title: '🐠 بحر الحروف', total: 8,
-    init() { this.score = 0; this.fx = []; this.pool = shuffle([...(LEVEL === 1 ? WORDS1 : WORDS2)]); this.newRound(); },
+  const LETTERS1 = [['ا','أرنب','🐇'],['ب','بطة','🦆'],['ت','تفاحة','🍎'],['د','دب','🐻'],['ر','رمان','🍅'],['س','سمكة','🐟'],['ع','عنب','🍇'],['ق','قمر','🌙'],['م','موز','🍌'],['ن','نجمة','⭐']];
+  const LETTERS2 = [['ج','جمل','🐪'],['ح','حوت','🐋'],['خ','خروف','🐑'],['ص','صقر','🦅'],['ض','ضفدع','🐸'],['ط','طائرة','✈️'],['ظ','ظرف','✉️'],['غ','غزال','🦌'],['ف','فراشة','🦋'],['ك','كتاب','📖'],['ه','هلال','🌙'],['ي','يد','✋']];
+  const Trace = {
+    title: '✍️ تتبّع الحروف', total: 6, need: LEVEL === 1 ? .62 : .75,
+    init() { this.score = 0; this.fx = []; this.pool = shuffle([...(LEVEL === 1 ? LETTERS1 : LETTERS2)]); this.drawing = false; this.newRound(); },
     newRound() {
-      const [w, emoji] = this.pool.pop(); const chars = [...w.replace(/ّ/g, '')];
-      const i = rnd(0, chars.length - 1); this.missing = chars[i]; this.emoji = emoji; this.word = w;
-      this.shown = chars.map((c, k) => k === i ? '_' : c).join(' ');
-      const set = new Set([this.missing]); while (set.size < 4) set.add(ALPHA[rnd(0, ALPHA.length - 1)]);
-      const opts = shuffle([...set]);
-      this.fish = opts.map((c, k) => ({ c, x: -80 - k * (W / 3.5), y: H * (.3 + k * .17), sp: (LEVEL === 1 ? .9 : 1.3) + Math.random() * .4, dir: 1, color: PALETTE[(k + 1) % PALETTE.length] }));
-      ask(`الكلمة ${w} ${emoji}. ما الحرف الناقص؟ اصطد السمكة الصحيحة.`);
-      $('egQ').textContent = `${emoji}  ${this.shown}`;
+      const [ch, word, emoji] = this.pool.pop(); this.ch = ch; this.word = word; this.emoji = emoji; this.done = false;
+      this.strokes = []; this.cur = null; this.buildMask(); this.covered = new Set(); this.pct = 0;
+      ask(`حرف ${ch}، مثل ${word} ${emoji}. ارسم الحرف بإصبعك فوق شكله.`);
+      $('egQ').textContent = `${emoji}  ${word}  —  حرف «${ch}»`;
     },
-    tap(p) {
-      const hit = this.fish.find(f => Math.abs(f.x - p.x) < 48 && Math.abs(f.y - p.y) < 34);
-      if (!hit) return;
-      if (hit.c === this.missing) { this.score++; setProg(this.score, this.total); pop(hit.x, hit.y, '#8ff5e6'); fb(`${praise()} الكلمة: ${this.word}`, true); say(`${praise()} ${this.word}`, 'cheer'); if (this.score >= this.total) return win(this, 'أكملت ثماني كلمات!'); this.fish = []; setTimeout(() => this.newRound(), 800); }
-      else { pop(hit.x, hit.y, '#ffe99a'); fb(gentle(), false); }
+    /* قناع الحرف بخلايا 8px: يُعاد بناؤه عند تغيّر المقاس */
+    buildMask() {
+      this.cell = 8; this.fs = Math.min(H * .78, W * .6);
+      const off = document.createElement('canvas'); off.width = Math.ceil(W); off.height = Math.ceil(H); const o = off.getContext('2d');
+      o.fillStyle = '#fff'; o.font = `900 ${this.fs}px "Baloo Bhaijaan 2", Cairo, sans-serif`; o.textAlign = 'center'; o.textBaseline = 'middle'; o.fillText(this.ch, W / 2, H * .5);
+      const d = o.getImageData(0, 0, off.width, off.height).data; const cols = Math.ceil(W / this.cell), rows = Math.ceil(H / this.cell);
+      this.mask = new Set(); this.maskW = off.width;
+      for (let cy = 0; cy < rows; cy++) for (let cx = 0; cx < cols; cx++) {
+        let hit = 0; for (let y = 0; y < this.cell; y += 2) for (let x = 0; x < this.cell; x += 2) { const px = cx * this.cell + x, py = cy * this.cell + y; if (px < off.width && py < off.height && d[(py * off.width + px) * 4 + 3] > 128) hit++; }
+        if (hit >= 4) this.mask.add(cy * cols + cx);
+      }
+      this.cols = cols;
     },
-    update() { this.fish.forEach(f => { f.x += f.sp; if (f.x > W + 80) f.x = -80; }); },
+    paint(p) {
+      if (this.done) return;
+      if (this.cur) this.cur.push(p);
+      const r = this.cell * 2.2; // سماحة الإصبع
+      for (let dy = -r; dy <= r; dy += this.cell) for (let dx = -r; dx <= r; dx += this.cell) {
+        const k = Math.floor((p.y + dy) / this.cell) * this.cols + Math.floor((p.x + dx) / this.cell);
+        if (this.mask.has(k)) this.covered.add(k);
+      }
+      this.pct = this.covered.size / Math.max(1, this.mask.size);
+      if (this.pct >= this.need) this.finishLetter();
+    },
+    finishLetter() {
+      this.done = true; this.score++; setProg(this.score, this.total); pop(W / 2, H / 2, '#8ff5e6');
+      fb(`${praise()} حرف ${this.ch} — ${this.word}`, true); say(`${praise()} ${this.ch}، ${this.word}.`, 'cheer');
+      if (this.score >= this.total) return win(this, 'رسمت ستة حروف بيدك!');
+      setTimeout(() => this.newRound(), 1100);
+    },
+    down(p) { if (this.done) return; this.drawing = true; this.cur = [p]; this.strokes.push(this.cur); this.paint(p); },
+    move(p) { if (this.drawing) this.paint(p); },
+    up() { this.drawing = false; this.cur = null; if (!this.done && this.pct > 0 && this.pct < this.need) fb(`أكمل الحرف… ${Math.round(this.pct * 100)}٪`, true); },
+    tap() {},
+    update() {},
     draw() {
-      bg('#0b3b5e', '#062a45');
-      for (let i = 0; i < 5; i++) { ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.beginPath(); ctx.ellipse((W / 5) * i + 60, H - 30, 90, 40, 0, 0, Math.PI * 2); ctx.fill(); }
-      this.fish.forEach(f => {
-        ctx.save(); ctx.translate(f.x, f.y); ctx.fillStyle = f.color; ctx.shadowColor = f.color; ctx.shadowBlur = 14;
-        ctx.beginPath(); ctx.ellipse(0, 0, 44, 28, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(-68, -22); ctx.lineTo(-68, 22); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(24, -8, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#1a1040'; ctx.beginPath(); ctx.arc(25, -8, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#1a1040'; ctx.font = '900 30px Cairo, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(f.c, -4, 2); ctx.restore();
-      });
+      bg('#231448', '#160a30');
+      // الحرف الدليل (خافت) ثم الجزء الملوّن الذي غُطّي
+      ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `900 ${this.fs}px "Baloo Bhaijaan 2", Cairo, sans-serif`;
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.setLineDash([10, 8]); ctx.strokeText(this.ch, W / 2, H * .5); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillText(this.ch, W / 2, H * .5); ctx.restore();
+      ctx.fillStyle = 'rgba(46,196,182,.55)';
+      this.covered.forEach(k => { const cx = k % this.cols, cy = Math.floor(k / this.cols); ctx.fillRect(cx * this.cell, cy * this.cell, this.cell, this.cell); });
+      // خطوط الإصبع
+      ctx.strokeStyle = '#ffc93c'; ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = .9;
+      this.strokes.forEach(st => { if (st.length < 2) return; ctx.beginPath(); ctx.moveTo(st[0].x, st[0].y); st.forEach(q => ctx.lineTo(q.x, q.y)); ctx.stroke(); }); ctx.globalAlpha = 1;
+      // شريط التغطية
+      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(W * .2, H - 26, W * .6, 12); ctx.fillStyle = '#2ec4b6'; ctx.fillRect(W * .2, H - 26, W * .6 * Math.min(1, this.pct / this.need), 12);
+      ctx.fillStyle = '#fff'; ctx.font = '900 44px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(this.emoji, W - 16, 12);
       drawFx();
     }
   };
 
   /* ============================================================
-     3) ذاكرة الأشكال — الذاكرة (تسلسل يطول كل جولة)
+     3) إيقاع الذاكرة — تسلسل يطول كل جولة من أيقونات عالم الرفيق
      ============================================================ */
-  const SHAPES = [['●', '#ffc93c'], ['■', '#2ec4b6'], ['▲', '#ff6fa5'], ['★', '#6c63ff'], ['♥', '#ff7a50'], ['◆', '#8ff5e6']];
+  const THEME_ICONS = ((window.KIDAURA_ACTIVE_CHARACTER || {}).icons || []).filter(Boolean);
+  const SHAPES = [0, 1, 2, 3, 4, 5].map(i => [THEME_ICONS[i] || ['●', '■', '▲', '★', '♥', '◆'][i], PALETTE[i]]);
   const Memory = {
-    title: '🧩 ذاكرة الأشكال', total: 6,
+    title: '🧩 إيقاع الذاكرة', total: 6,
     init() { this.score = 0; this.fx = []; this.seq = []; this.lit = -1; this.input = []; this.busy = false; this.n = LEVEL === 1 ? 4 : 6; this.newRound(); },
     cells() { const cols = this.n === 4 ? 2 : 3, rows = this.n / cols; const s = Math.min(W / (cols + 1), H / (rows + .8)); const ox = (W - cols * s) / 2, oy = (H - rows * s) / 2; return Array.from({ length: this.n }, (_, i) => ({ x: ox + (i % cols) * s + s / 2, y: oy + Math.floor(i / cols) * s + s / 2, r: s * .38 })); },
     async newRound() {
@@ -267,36 +297,48 @@ const EG = (function () {
   };
 
   /* ============================================================
-     4) مسار الأرقام — المنطق والعدّ (تصاعدي / عدّ بالقفز)
+     4) فرّز بذكاء — سلّتان؛ يظهر شيء واحد في المنتصف ويُسحب (أو تُضغط السلّة)
+        إلى مكانه. المجموعات: صحي/غير صحي، يُعاد تدويره/لا.
      ============================================================ */
-  const Path = {
-    title: '🪨 مسار الأرقام', total: 3,
-    init() { this.score = 0; this.fx = []; this.newRound(); },
-    newRound() {
-      const rules = LEVEL === 1 ? [[1, 1], [1, 1], [2, 2]] : [[2, 2], [5, 5], [3, 3], [10, 10]];
-      const [start, step] = rules[rnd(0, rules.length - 1)];
-      const s0 = LEVEL === 1 ? rnd(1, 5) : rnd(1, 4) * start; this.step = step;
-      this.order = Array.from({ length: 8 }, (_, i) => s0 + i * step); this.next = 0;
-      const cols = 4, rows = 2, cw = W / cols, rh = (H * .72) / rows;
-      this.stones = shuffle(this.order.map(v => v)).map((v, i) => ({ v, x: cw * (i % cols) + cw / 2 + rnd(-8, 8), y: H * .2 + rh * Math.floor(i / cols) + rh / 2 + rnd(-6, 6), r: Math.min(cw, rh) * .34, done: false }));
-      ask(step === 1 ? `اعبر النهر: اضغط الحجارة من الأصغر إلى الأكبر، ابدأ بـ ${s0}.` : `اعبر النهر بالعدّ ${ar(step)} ${ar(step)}: ابدأ بـ ${s0}.`);
+  const SORT_SETS = [
+    { q: 'صحي أم غير صحي؟', a: ['🥗 صحي', '#2ec4b6'], b: ['🍭 غير صحي', '#ff6fa5'],
+      items: [['🍎', 0], ['🥕', 0], ['🥦', 0], ['💧', 0], ['🍌', 0], ['🥛', 0], ['🍟', 1], ['🍭', 1], ['🥤', 1], ['🍩', 1], ['🍫', 1], ['🍬', 1]] },
+    { q: 'يُعاد تدويره أم لا؟', a: ['♻️ يُعاد تدويره', '#2ec4b6'], b: ['🗑️ نفايات', '#6c63ff'],
+      items: [['📰', 0], ['🍾', 0], ['🥫', 0], ['📦', 0], ['🧴', 0], ['📄', 0], ['🍌', 1], ['🍎', 1], ['🧻', 1], ['🍕', 1], ['🥚', 1], ['🌽', 1]] },
+  ];
+  const Sort = {
+    title: '🧺 فرّز بذكاء', total: 10,
+    init() { this.score = 0; this.fx = []; this.set = SORT_SETS[rnd(0, SORT_SETS.length - 1)]; this.queue = shuffle([...this.set.items]).slice(0, this.total); this.drag = null; this.next(); },
+    baskets() { const bw = Math.min(W * .34, 260), bh = Math.min(H * .34, 150); return [{ x: W * .04, y: H - bh - 12, w: bw, h: bh, k: 0 }, { x: W - bw - W * .04, y: H - bh - 12, w: bw, h: bh, k: 1 }]; },
+    next() {
+      if (!this.queue.length) return;
+      const [icon, k] = this.queue[0]; this.item = { icon, k, x: W / 2, y: H * .3, r: Math.min(56, W / 9) };
+      ask(`${this.set.q} أين نضع ${icon}؟ اسحبه إلى سلّته.`); $('egQ').textContent = `${this.set.q}  ${icon}`;
     },
-    tap(p) {
-      const s = this.stones.find(st => !st.done && Math.hypot(st.x - p.x, st.y - p.y) <= st.r + 10); if (!s) return;
-      if (s.v === this.order[this.next]) { s.done = true; this.next++; pop(s.x, s.y, '#8ff5e6'); if (window.SoundEngine && SoundEngine.click) SoundEngine.click(); fb(`${ar(s.v)} ✓`, true);
-        if (this.next >= this.order.length) { this.score++; setProg(this.score, this.total); say(praise(), 'cheer'); if (this.score >= this.total) return win(this, 'عبرت النهر ثلاث مرات بالترتيب الصحيح!'); setTimeout(() => this.newRound(), 900); } }
-      else { pop(s.x, s.y, '#ffe99a'); fb(`${gentle()} الرقم التالي أكبر من ${ar(this.order[Math.max(0, this.next - 1)])}.`, false); }
+    drop(k) {
+      const it = this.item; if (!it) return;
+      if (k === it.k) { this.score++; this.queue.shift(); setProg(this.score, this.total); pop(it.x, it.y, '#8ff5e6'); fb(praise(), true); say(praise(), 'cheer'); this.item = null;
+        if (this.score >= this.total) return win(this, 'فرزت عشرة أشياء في سلّتها الصحيحة!'); setTimeout(() => this.next(), 700); }
+      else { pop(it.x, it.y, '#ffe99a'); fb(`${gentle()} فكّر: ${it.icon} — ${this.set.q}`, false); it.x = W / 2; it.y = H * .3; }
     },
+    inBasket(p) { return this.baskets().find(b => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h); },
+    down(p) { const it = this.item; if (!it) return; if (Math.hypot(it.x - p.x, it.y - p.y) <= it.r + 14) { this.drag = { dx: it.x - p.x, dy: it.y - p.y }; return; } const b = this.inBasket(p); if (b) this.drop(b.k); },
+    move(p) { if (this.drag && this.item) { this.item.x = p.x + this.drag.dx; this.item.y = p.y + this.drag.dy; } },
+    up(p) { if (!this.drag) return; this.drag = null; const b = this.inBasket(p); if (b) this.drop(b.k); else if (this.item) { this.item.x = W / 2; this.item.y = H * .3; } },
+    tap() {},
     update() {},
     draw() {
-      bg('#0a2f4a', '#0d4a6a');
-      ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 3; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(0, H * .15 + i * (H * .15)); ctx.bezierCurveTo(W * .3, H * .12 + i * (H * .15), W * .7, H * .18 + i * (H * .15), W, H * .15 + i * (H * .15)); ctx.stroke(); }
-      this.stones.forEach(s => {
-        ctx.save(); ctx.globalAlpha = s.done ? .35 : 1; ctx.fillStyle = s.done ? '#2ec4b6' : '#c9b48a'; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 12;
-        ctx.beginPath(); ctx.ellipse(s.x, s.y, s.r * 1.15, s.r, 0, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-        ctx.fillStyle = '#1a1040'; ctx.font = `900 ${Math.round(s.r * .9)}px Cairo, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(ar(s.v), s.x, s.y + 2); ctx.restore();
+      bg('#1b1035', '#2a1b4e');
+      this.baskets().forEach(b => {
+        const lab = b.k === 0 ? this.set.a : this.set.b;
+        ctx.save(); ctx.fillStyle = lab[1]; ctx.globalAlpha = .28; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 22); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = lab[1]; ctx.lineWidth = 4; ctx.setLineDash([12, 8]); ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 22); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.min(24, b.w / 9)}px Cairo, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(lab[0], b.x + b.w / 2, b.y + b.h / 2); ctx.restore();
       });
-      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = '900 16px Cairo, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(`التالي: ${this.next < this.order.length ? ar(this.order[this.next]) : '🏁'}`, W - 14, 10);
+      const it = this.item;
+      if (it) { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 20; ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+        ctx.font = `${Math.round(it.r * 1.3)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(it.icon, it.x, it.y + 4); ctx.restore(); }
+      ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '800 15px Cairo, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('اسحب الشيء إلى السلّة، أو اضغط السلّة', W / 2, 10);
       drawFx();
     }
   };
@@ -312,7 +354,7 @@ const EG = (function () {
   }
 
   /* ---------- الحلقة ---------- */
-  const GAMES = { numbers: Numbers, letters: Letters, memory: Memory, path: Path };
+  const GAMES = { numbers: Numbers, trace: Trace, sort: Sort, memory: Memory };
   function loop() { if (!game) return; game.update(); game.draw(); anim = requestAnimationFrame(loop); }
   function open(k) {
     key = k; game = GAMES[k]; if (!game) return;
@@ -326,9 +368,12 @@ const EG = (function () {
     if (anim) cancelAnimationFrame(anim); anim = null; game = null; modal.classList.remove('open');
     if (window.Companion) Companion.stop();
   }
-  canvas.addEventListener('pointerdown', e => { if (game && !game.won) { e.preventDefault(); game.tap(pos(e)); } });
+  canvas.addEventListener('pointerdown', e => { if (!game || game.won) return; e.preventDefault(); canvas.setPointerCapture(e.pointerId); if (game.down) game.down(pos(e)); else game.tap(pos(e)); });
+  canvas.addEventListener('pointermove', e => { if (game && !game.won && game.move) { e.preventDefault(); game.move(pos(e)); } });
+  canvas.addEventListener('pointerup', e => { if (game && !game.won && game.up) game.up(pos(e)); });
+  canvas.addEventListener('pointercancel', e => { if (game && game.up) game.up(pos(e)); });
   $('egRepeat').onclick = () => lastQ && say(lastQ);
-  window.addEventListener('resize', () => { if (game) resize(); });
+  window.addEventListener('resize', () => { if (game) { resize(); if (game.buildMask) { game.buildMask(); game.covered = new Set(); game.strokes = []; game.pct = 0; } } });
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
   if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r); this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); return this; };

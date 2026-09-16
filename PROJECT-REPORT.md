@@ -179,7 +179,9 @@ eight engines below → **3 الوسام** — confetti, medal, `kidoraMarkDone(
 three big choices (daily story if premium / another game / home). The old owl
 «رفيقتك الحكيمة», the gold «أنهيت المهمة» button and the goodbye screen are gone
 (goodbye is the dashboard's job). Engine `speak()` calls route through
-`Companion.say()`. The mini-game is chosen by `safety_content.game_type`: `body` (tap the private zone), `distance` (drag yourself
+`Companion.say()`. Engines are short on purpose (`SF_MAX_QUIZ = 3` questions,
+rotating by day; `SF_MAX_SCENES = 2` situations) and every choice/answer button is
+≥ 64 px tall. The mini-game is chosen by `safety_content.game_type`: `body` (tap the private zone), `distance` (drag yourself
 away from the stranger), `hotspot` (tap the dangers in a kitchen/pool/home scene),
 `scenario` (3-choice situations), `match` (emergency numbers), `quiz` (yes/no
 internet safety), `password` (build a strong password), `street` (cross on green).
@@ -306,12 +308,16 @@ third-party mail API is used.
 - `games2.php` — «ألعاب الذكاء» (rewritten Sep 2026): 4 self-contained **educational**
   canvas games with a real end state, touch-only, no timers, companion reads every
   question: `numbers` صيّاد الأرقام (tap the bubble completing the equation, 10
-  rounds), `letters` بحر الحروف (catch the fish carrying the missing letter, 8
-  words), `memory` ذاكرة الأشكال (Simon-style shape sequence, 6 rounds), `path` مسار
-  الأرقام (tap river stones in order / skip-counting, 3 rounds). `LEVEL` is a server
-  decision from age (1: 6–8, 2: 9–12). Winning POSTs `api/play-game.php` and flags
-  `kidora_done_game_*`. Still hardcoded (not in the `games` table) by design — they
-  are canvas mechanics, not content. The old Snake/Breakout/Flappy/Racer are gone.
+  rounds), `trace` تتبّع الحروف (draw the Arabic letter with a finger over its
+  dashed outline — the glyph is rasterised to an 8 px cell mask on an offscreen
+  canvas and the letter completes at 62 % / 75 % coverage; strokes off the letter are
+  ignored, never punished; 6 letters), `sort` فرّز بذكاء (drag each item into one of
+  two baskets — صحي/غير صحي or يُعاد تدويره/نفايات; tapping a basket also works; 10
+  items), `memory` إيقاع الذاكرة (Simon-style sequence built from the active
+  companion's theme icons, 6 rounds). `LEVEL` is a server decision from age (1: 6–8,
+  2: 9–12). Winning POSTs `api/play-game.php` and flags `kidora_done_game_*`. Still
+  hardcoded (not in the `games` table) by design — they are canvas mechanics, not
+  content. The old Snake/Breakout/Flappy/Racer are gone.
 - `welcome.php` — full-screen animated post-registration greeting: the companion,
   the child's uploaded photo, spoken lines with progress dots, then auto-continue to
   `assessment.php` / `dashboard.php`.
@@ -894,10 +900,13 @@ Replaced in the Sep 2026 child-experience pass by four goal-based educational ga
 ### The Sep 2026 child-experience pass (companion-led flow, characters v2)
 Product direction from the owner: the platform was too hard for a 6–12-year-old to
 drive alone, too quiet, and too "click continue". Everything below was verified
-against the running SQLite app over HTTP (register → silent assessment via
-`api/assess-answer.php` → 4 tasks via `api/complete-task.php` → `api/play-game.php` →
-premium story generation → single-scene render; every inline `<script>` and every
-`assets/js/*.js` passes `node --check`). No headless browser was available on this
+against the running SQLite app over HTTP for a **6-year-old and an 11-year-old**
+(register → silent assessment via `api/assess-answer.php` → 4 age-fitting tasks via
+`api/complete-task.php` → `game-content` returns `calm` only for the 6-year-old →
+`api/play-game.php` → `games2` LEVEL 1 vs 2 → safety lessons filtered by age → story
+paywall; plus premium story generation → single-scene render; every inline `<script>`
+and every `assets/js/*.js` passes `node --check`). A pre-v2 database was also upgraded
+in place through `kidora_migrate()`. No headless browser was available on this
 host, so animations and autoplay were reviewed by reading, not by pixel.
 
 - **Characters v2** — mimo/zizo/finn/nova/lulu/rex → spongebob/dora/gumball/ladybug/
@@ -925,7 +934,8 @@ host, so animations and autoplay were reviewed by reading, not by pixel.
 - **🌈 removed** from every PHP/JS file (owner request).
 - **Navbar**: 4 primary links, bigger targets, photo avatar; profile shows the photo
   large with a change form.
-- **`games2.php`** → four educational canvas games with real end states.
+- **`games2.php`** → four educational canvas games with real end states (numbers,
+  letter tracing, two-basket sorting, theme-icon memory).
 
 Bugs found on the way (fixed): `rtrim($s, '.،')` corrupted UTF-8 in the new story
 builder (byte-wise trim on a multibyte delimiter → `json_encode` returned `false` and

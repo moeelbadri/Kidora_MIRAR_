@@ -196,7 +196,7 @@ require_once __DIR__ . '/includes/navbar.php';
 .sc-box{background:rgba(255,255,255,.05);border-radius:18px;padding:1.2rem}
 .sc-q{font-weight:800;font-size:1.05rem;margin-bottom:1rem;line-height:1.6}
 .sc-choices{display:flex;flex-direction:column;gap:.6rem}
-.sc-choice{background:rgba(255,255,255,.08);border:2px solid transparent;
+.sc-choice{min-height:64px;background:rgba(255,255,255,.08);border:2px solid transparent;
   border-radius:14px;padding:.8rem 1rem;color:#fff;font-weight:700;
   cursor:pointer;transition:.2s;font-family:inherit;text-align:right;
   font-size:.95rem;display:flex;align-items:center;gap:.6rem}
@@ -210,7 +210,7 @@ require_once __DIR__ . '/includes/navbar.php';
 /* ========== MATCH ========== */
 .mt-board{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.5rem}
 .mt-col{display:flex;flex-direction:column;gap:.5rem}
-.mt-item{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12);
+.mt-item{min-height:64px;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12);
   border-radius:14px;padding:.8rem;color:#fff;font-weight:800;cursor:pointer;
   transition:.2s;font-family:inherit;font-size:1rem;
   display:flex;align-items:center;justify-content:center;gap:.5rem;min-height:52px}
@@ -227,7 +227,7 @@ require_once __DIR__ . '/includes/navbar.php';
   transition:.4s;border-radius:10px}
 .qz-q{font-weight:800;font-size:1.05rem;margin-bottom:1rem;line-height:1.6}
 .qz-btns{display:flex;gap:.8rem;justify-content:center}
-.qz-btn{flex:1;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);
+.qz-btn{flex:1;min-height:68px;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);
   border-radius:14px;padding:1rem;color:#fff;font-weight:900;font-size:1.1rem;
   cursor:pointer;transition:.2s;font-family:inherit}
 .qz-btn:hover{background:rgba(255,255,255,.15);border-color:#ffc93c}
@@ -263,10 +263,10 @@ require_once __DIR__ . '/includes/navbar.php';
 .st-lamp.on-r{background:#ff3b3b;box-shadow:0 0 20px #ff3b3b}
 .st-lamp.on-g{background:#2ec4b6;box-shadow:0 0 20px #2ec4b6}
 .st-btn{position:absolute;bottom:5%;right:5%;background:rgba(255,201,60,.9);
-  color:#241645;border:none;border-radius:14px;padding:.7rem 1.2rem;
-  font-weight:900;cursor:pointer;font-family:inherit;font-size:.9rem}
+  color:#241645;border:none;border-radius:14px;padding:.9rem 1.4rem;min-height:64px;min-width:120px;
+  font-weight:900;cursor:pointer;font-family:inherit;font-size:1.05rem}
 
-/* ========== MODAL الفيديو ========== */
+/* ========== الاحتفال ========== */
 .sf-confetti{position:fixed;inset:0;z-index:9998;pointer-events:none;overflow:hidden}
 .sf-confetti span{position:absolute;top:-60px;
   animation:sfFall 3s linear forwards}
@@ -324,6 +324,7 @@ const todayLesson = LESSONS[PROG.day % LESSONS.length];
 const STORY_OK = <?= is_premium_active($pdo, (int)$child['id']) ? 'true' : 'false' ?>;
 
 /* المهمة من ثلاث خطوات: 1 القاعدة (+فيديو) → 2 اللعبة → 3 الوسام */
+const SF_MAX_QUIZ = 3, SF_MAX_SCENES = 2; // محرّكات أقصر: طفل 6–12 يحفظ قاعدة واحدة في اليوم
 let step = 0;
 let gameCompleted = false;
 function checkBothDone(){ if (gameCompleted && step === 2) setTimeout(goStep3, 1400); }
@@ -632,6 +633,7 @@ function gameScenario(box, L){
   else if (title.includes('لا'))   qs = noQs();
   else if (title.includes('مشاعر') || title.includes('خائف')) qs = feelingsQs();
   else qs = generalQs();
+  qs = qs.slice(0, SF_MAX_SCENES); // بعثة قصيرة: موقفان يكفيان لتثبيت القاعدة
 
   let i = 0;
   function render(){
@@ -758,7 +760,7 @@ function gameQuiz(box){
     {q:'📸 هل من الآمن نشر صوري مع أي شخص؟', a:false, tip:'صوري أشاركها فقط بإذن أهلي ومع من أعرفهم 🖼️'},
     {q:'🚫 إذا أزعجني شخص على الإنترنت، هل أخبر أهلي؟', a:true, tip:'أي شيء يزعجني أخبر به أهلي فوراً — هذا تصرّف الأبطال 💪'},
     {q:'👥 هل من الآمن مقابلة شخص تعرّفت عليه على الإنترنت وحدي؟', a:false, tip:'لا أذهب لأي لقاء لا يعرفه أهلي 🚫🤝'}
-  ];
+  ].filter((_, k, all) => ((k - PROG.day) % all.length + all.length) % all.length < SF_MAX_QUIZ); // 3 أسئلة تتبدّل بالأيام
   let i = 0;
   function render(){
     if (i >= qs.length){
