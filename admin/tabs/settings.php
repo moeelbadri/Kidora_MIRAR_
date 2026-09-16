@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['test_mail'])) {
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
         $_SESSION['admin_flash'] = '❌ اكتب بريداً صالحاً للتجربة';
     } else {
-        $html = mail_template('رسالة تجريبية', '<p>هذه رسالة تجريبية من لوحة تحكم Kidora للتأكد أن إعدادات البريد تعمل.</p><p>الوقت: ' . h(date('Y-m-d H:i')) . '</p>');
+        $html = mail_template('رسالة تجريبية', '<p dir="rtl" style="direction:rtl;text-align:right;">هذه رسالة تجريبية من لوحة تحكم Kidora للتأكد أن إعدادات البريد تعمل.</p><p>الوقت: ' . h(date('Y-m-d H:i')) . '</p>');
         $err = send_mail($pdo, $to, 'Kidora — رسالة تجريبية', $html, "هذه رسالة تجريبية من لوحة تحكم Kidora.\nالوقت: " . date('Y-m-d H:i'));
         $_SESSION['admin_flash'] = $err === null ? "✅ أُرسلت الرسالة التجريبية إلى {$to}" : "❌ فشل الإرسال — {$err}";
     }

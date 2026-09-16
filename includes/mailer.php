@@ -159,11 +159,16 @@ function mail_template(string $title, string $bodyHtml, string $ctaUrl = '', str
     $cta = $ctaUrl !== ''
         ? '<p style="text-align:center;margin:28px 0;"><a href="' . h($ctaUrl) . '" style="background:linear-gradient(135deg,#FF7A50,#FF6FA5);color:#fff;text-decoration:none;font-weight:800;padding:14px 30px;border-radius:40px;display:inline-block;font-size:16px;">' . h($ctaLabel) . '</a></p>'
         : '';
-    return '<!doctype html><html dir="rtl" lang="ar"><body style="margin:0;background:#1B1035;padding:24px;font-family:Cairo,Tahoma,Arial,sans-serif;">'
-        . '<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:22px;padding:30px;color:#241645;line-height:1.9;">'
+    // Gmail وأمثاله يتجاهلون dir على <html>/<body> ويحتفظون بالأنماط المضمّنة فقط،
+    // لذا الاتجاه والمحاذاة يُكرَّران مضمّنَين على كل حاوية وعلى الجدول الخارجي.
+    $rtl = 'direction:rtl;text-align:right;unicode-bidi:embed;';
+    return '<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"></head>'
+        . '<body dir="rtl" style="margin:0;background:#1B1035;padding:24px;font-family:Cairo,Tahoma,Arial,sans-serif;' . $rtl . '">'
+        . '<table role="presentation" dir="rtl" width="100%" cellpadding="0" cellspacing="0" style="' . $rtl . '"><tr><td align="center">'
+        . '<div dir="rtl" style="max-width:560px;margin:0 auto;background:#fff;border-radius:22px;padding:30px;color:#241645;line-height:1.9;font-size:16px;' . $rtl . '">'
         . '<div style="text-align:center;font-size:30px;font-weight:900;color:#6C63FF;">Kidora ✨</div>'
-        . '<h2 style="text-align:center;margin:12px 0 18px;color:#241645;">' . h($title) . '</h2>'
-        . $bodyHtml . $cta
-        . '<p style="color:#8b7aa8;font-size:12px;text-align:center;margin-top:24px;">هذه رسالة تلقائية من منصة Kidora — لا حاجة للرد عليها.</p>'
-        . '</div></body></html>';
+        . '<h2 dir="rtl" style="text-align:center;margin:12px 0 18px;color:#241645;">' . h($title) . '</h2>'
+        . '<div dir="rtl" style="' . $rtl . '">' . $bodyHtml . '</div>' . $cta
+        . '<p dir="rtl" style="color:#8b7aa8;font-size:12px;text-align:center;margin-top:24px;">هذه رسالة تلقائية من منصة Kidora — لا حاجة للرد عليها.</p>'
+        . '</div></td></tr></table></body></html>';
 }
