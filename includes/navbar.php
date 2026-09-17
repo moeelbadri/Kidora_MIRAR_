@@ -39,7 +39,7 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
   <div class="header-inner">
 
     <!-- ===== الشعار (أفقي بسيط) ===== -->
-    <a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link">
+    <!-- <a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link">
       <div class="logo-icon">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
           <circle cx="50" cy="50" r="46" fill="#3b82f6" />
@@ -55,7 +55,15 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
         </svg>
       </div>
       <span class="logo-name">Kidora</span>
-    </a>
+    </a> -->
+
+
+      <!-- ===== الشعار (صورة) ===== -->
+<a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link">
+  <img src="https://i.ibb.co/5xTnMgBw/Screenshot-2026-09-17-125511.png" 
+       alt="Kidora" 
+       class="logo-img">
+</a>
 
     <!-- ===== حلقة التقدم المصغرة ===== -->
     <div class="header-ring">
