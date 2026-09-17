@@ -59,12 +59,15 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
 
 
 <!-- ===== الشعار (صورة) ===== -->
-<a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link" style="flex-shrink:0;">
-  <img src="https://i.ibb.co/5xTnMgBw/Screenshot-2026-09-17-125511.png" 
+<!-- ===== الشعار (صورة) ===== -->
+<a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link" 
+   style="order:100; margin:0; flex-shrink:0;">
+  <img src="https://i.ibb.co/PZ41NRfV/Screenshot-2026-09-17-125511-removebg-preview.png" 
        alt="Kidora" 
-       style="height:42px; width:auto; max-width:160px; object-fit:contain; display:block;">
+       style="height:55px; width:auto; max-width:220px; object-fit:contain; display:block; filter:drop-shadow(0 3px 8px rgba(0,0,0,.35));">
 </a>
 
+<!-- نقل الحلقة كمان -->
     <!-- ===== حلقة التقدم المصغرة ===== -->
     <div class="header-ring">
       <a class="story-ring" href="<?php echo BASE_PATH; ?>/grand-story.php">
@@ -1006,6 +1009,12 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     body.sidebar-open .sidebar-toggle-btn .toggle-icon span:nth-child(3) {
       width: 18px;
     }
+
+
+      
+      /*  */
+
+      .header-ring { order: 99; }
 
     .app-sidebar {
       width: 280px;
