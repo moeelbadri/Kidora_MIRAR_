@@ -58,11 +58,11 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     </a> -->
 
 
-      <!-- ===== الشعار (صورة) ===== -->
-<a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link">
+<!-- ===== الشعار (صورة) ===== -->
+<a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link" style="flex-shrink:0;">
   <img src="https://i.ibb.co/5xTnMgBw/Screenshot-2026-09-17-125511.png" 
        alt="Kidora" 
-       class="logo-img">
+       style="height:42px; width:auto; max-width:160px; object-fit:contain; display:block;">
 </a>
 
     <!-- ===== حلقة التقدم المصغرة ===== -->
