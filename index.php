@@ -1,4 +1,3 @@
-
 <?php
 // الواجهة العامة + تسجيل الدخول وإنشاء الحساب
 session_start();
@@ -22,29 +21,21 @@ if (isset($_GET['logout'])) {
 /* ============================================================
    الدخول التلقائي — للطفل اللي سجّل قبل (كوكي "تذكرني")
    ============================================================ */
-/* ============================================================
-   إذا الكوكي موجود:
-   - ?continue=1  → دخول تلقائي فعلي
-   - بدونها        → نعرض "متابعة كـ ريمان"
-   ============================================================ */
 $rememberChild = null;
 
 if (empty($_SESSION['child_id'])) {
 
     if (isset($_GET['continue'])) {
-        // الطفل ضغط "متابعة كـ ريمان"
         $autoChild = kidora_try_auto_login($pdo);
         if ($autoChild) {
             header('Location: ' . (needs_assessment($autoChild) ? 'welcome.php' : 'dashboard.php'));
             exit;
         }
     } else {
-        // نتفحص بدون دخول — عشان نعرض الشاشة
         $rememberChild = kidora_peek_remember($pdo);
     }
 }
 
-/* إذا كان طلب POST (نموذج)، نعرض الفورم دايماً */
 $showContinue = ($rememberChild && $_SERVER['REQUEST_METHOD'] !== 'POST');
 
 /* ============================================================
@@ -63,7 +54,6 @@ $plans = $pdo->query("SELECT * FROM subscription_plans ORDER BY sort_order ASC, 
 $publicStats = public_counts($pdo);
 $loginError = null;
 $registerError = null;
-// رسالة نجاح بعد تعيين كلمة مرور جديدة (reset-password.php)
 $loginFlash = $_SESSION['flash_login'] ?? null;
 unset($_SESSION['flash_login']);
 
@@ -95,8 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             session_regenerate_id(true);
             $_SESSION['child_id'] = $user['id'];
             $_SESSION['child_name'] = $user['name'];
-
-            /* ✅ سجّل "تذكرني" للدخول التلقائي مستقبلاً */
             kidora_remember_login($pdo, (int)$user['id']);
 
             $fullUser = $pdo->prepare("SELECT * FROM children WHERE id = ?");
@@ -110,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 }
 
 /* ============================================================
-   إنشاء الحساب — اختيار الشخصيتين مقيد بالمجانيتين على الخادم
+   إنشاء الحساب
    ============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $name = trim($_POST['child_name'] ?? '');
@@ -121,7 +109,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm_password'] ?? '';
     $char1 = (int)($_POST['character_1'] ?? 0);
-    // الطفل يختار رفيقاً واحداً؛ الرفيق المجاني الآخر يُضاف تلقائياً ويبدّل بينهما من البروفايل
     $freeChars = array_values(array_filter($characters, fn($c) => empty($c['is_premium'])));
     $char2 = 0;
     foreach ($freeChars as $fc) { if ((int)$fc['id'] !== $char1) { $char2 = (int)$fc['id']; break; } }
@@ -172,8 +159,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     session_regenerate_id(true);
                     $_SESSION['child_id'] = $childId;
                     $_SESSION['child_name'] = $name;
-
-                    /* ✅ سجّل "تذكرني" للدخول التلقائي مستقبلاً */
                     kidora_remember_login($pdo, $childId);
 
                     header('Location: welcome.php');
@@ -216,10 +201,53 @@ require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/public-nav.php';
 ?>
 
+<!-- ✅ intro خارج public-page (يغطي الشاشة كـ overlay) -->
+<?php if ($introVideo['mp4'] || $introVideo['webm'] || $introVideo['poster']): ?>
+  <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
+    <?php if ($introVideo['mp4'] || $introVideo['webm']): ?>
+      <video class="public-intro-media" id="introVideo" autoplay muted playsinline preload="auto"<?php echo $introVideo['poster'] ? ' poster="' . h(BASE_PATH . '/' . $introVideo['posterPath']) . '"' : ''; ?>>
+        <?php if ($introVideo['webm']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['webmPath']); ?>" type="video/webm"><?php endif; ?>
+        <?php if ($introVideo['mp4']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['mp4Path']); ?>" type="video/mp4"><?php endif; ?>
+      </video>
+    <?php endif; ?>
+    <div class="public-intro-scrim"></div>
+    <div class="public-intro-content">
+      <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
+        <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
+          <span style="--char-color:<?php echo h($introChar['color']); ?>"><?php echo h($introChar['icons'][0] ?? '✨'); ?></span>
+        <?php endforeach; ?>
+      </div>
+      <div class="public-intro-logo">Kidora</div>
+      <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
+      <div class="public-intro-actions">
+        <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
+        <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
+      </div>
+    </div>
+  </div>
+<?php else: ?>
+  <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
+    <div class="public-intro-scrim"></div>
+    <div class="public-intro-content">
+      <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
+        <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
+          <span style="--char-color:<?php echo h($introChar['color']); ?>"><?php echo h($introChar['icons'][0] ?? '✨'); ?></span>
+        <?php endforeach; ?>
+      </div>
+      <div class="public-intro-logo">Kidora</div>
+      <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
+      <div class="public-intro-actions">
+        <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
+        <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
+      </div>
+    </div>
+  </div>
+<?php endif; ?>
+
 <style>
   :root{--k-gold:#ffc93c;--k-gold-deep:#f5a623;--k-blue:#5b8def;--k-pink:#ff6fa5;--k-cyan:#2ec4b6;--k-ink:#241645;--k-card:rgba(255,255,255,.07);--k-line:rgba(255,255,255,.14)}
-.public-page{position:relative;overflow:hidden;color:#f1f5f9}
-   .public-container{width:min(1180px,calc(100% - 32px));margin:0 auto}
+  .public-page{color:#f1f5f9}
+  .public-container{width:min(1180px,calc(100% - 32px));margin:0 auto}
   .public-hero{min-height:clamp(620px,calc(100vh - 72px),820px);display:grid;grid-template-columns:1.1fr .9fr;align-items:center;gap:44px;padding:76px 0 48px}
   .public-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid rgba(255,201,60,.34);border-radius:999px;color:#ffe99a;background:rgba(255,201,60,.1);font-size:13px;font-weight:900}
   .public-hero h1{margin:18px 0 12px;font-family:var(--font-display);font-size:clamp(48px,8vw,92px);line-height:.98;letter-spacing:-1px}
@@ -242,8 +270,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-video-frame{position:relative;min-height:min(68svh,680px);overflow:hidden;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:#05030b;box-shadow:0 28px 70px rgba(0,0,0,.38)}
   .public-video-frame:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(10,6,26,.02),rgba(10,6,26,.5))}
   .public-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-  
-  /* Full-screen video */
   .public-video-full{width:100vw;min-height:100vh;margin:0;padding:0;position:relative;overflow:hidden;background:#0a061a}
   .public-video-full .public-video-frame{position:absolute;inset:0;width:100%;height:100%;border:none;border-radius:0;box-shadow:none}
   .public-video-full .public-video-frame iframe{width:100%;height:100%;border:0}
@@ -300,7 +326,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   @media(max-width:600px){.public-section{padding:64px 0}.public-container{width:min(100% - 22px,560px)}.public-features{grid-template-columns:1fr}.public-form-grid{grid-template-columns:1fr}.public-field.full{grid-column:auto}.public-pick-grid{grid-template-columns:repeat(3,1fr)}.public-auth-card{padding:20px 14px}.public-carousel-window{margin:0 28px}.public-character-card{flex-basis:calc(82vw - 22px)}.public-character-poster{height:185px}.public-stat{min-width:calc(50% - 6px)}.public-stat strong{font-size:22px}}
   @media(prefers-reduced-motion:reduce){.public-orbit,.public-hero-character{animation:none}.public-feature{opacity:1;transform:none}}
 
-
 /* ============================================================
    شاشة "متابعة كـ ريمان"
    ============================================================ */
@@ -317,7 +342,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   0%{transform:scale(.92) translateY(12px);opacity:0}
   100%{transform:scale(1) translateY(0);opacity:1}
 }
-
 .continue-avatar{
   width:130px;height:130px;margin:0 auto 18px;border-radius:50%;
   display:grid;place-items:center;overflow:hidden;
@@ -335,7 +359,6 @@ require_once __DIR__ . '/includes/public-nav.php';
 }
 .continue-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .continue-emoji{font-size:4rem;filter:drop-shadow(0 4px 12px rgba(0,0,0,.4))}
-
 .continue-title{
   font-family:var(--font-display,inherit);
   font-size:1.4rem;margin:.3rem 0 .2rem;
@@ -349,7 +372,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   -webkit-text-fill-color:transparent;
   font-weight:900;
 }
-
 .continue-actions{display:flex;flex-direction:column;gap:.8rem}
 .continue-btn-main{
   width:100%;
@@ -361,7 +383,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   0%,100%{box-shadow:0 12px 28px rgba(255,201,60,.28)}
   50%{box-shadow:0 16px 40px rgba(255,201,60,.55)}
 }
-
 .continue-btn-switch{
   background:transparent;border:none;
   color:#b9abd4;font-size:.9rem;
@@ -371,7 +392,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   text-decoration:underline;text-underline-offset:3px;
 }
 .continue-btn-switch:hover{color:#ffc93c}
-
 @media(max-width:600px){
   .continue-card{padding:28px 18px;border-radius:24px}
   .continue-avatar{width:105px;height:105px}
@@ -381,52 +401,6 @@ require_once __DIR__ . '/includes/public-nav.php';
 </style>
 
 <div class="public-page">
-  <?php if ($introVideo['mp4'] || $introVideo['webm'] || $introVideo['poster']): ?>
-    <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
-      <?php if ($introVideo['mp4'] || $introVideo['webm']): ?>
-        <video class="public-intro-media" id="introVideo" autoplay muted playsinline preload="auto"<?php echo $introVideo['poster'] ? ' poster="' . h(BASE_PATH . '/' . $introVideo['posterPath']) . '"' : ''; ?>>
-          <?php if ($introVideo['webm']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['webmPath']); ?>" type="video/webm"><?php endif; ?>
-          <?php if ($introVideo['mp4']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['mp4Path']); ?>" type="video/mp4"><?php endif; ?>
-        </video>
-      <?php endif; ?>
-      <div class="public-intro-scrim"></div>
-      <div class="public-intro-content">
-        <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
-          <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
-            <span style="--char-color:<?php echo h($introChar['color']); ?>"><?php echo h($introChar['icons'][0] ?? '✨'); ?></span>
-          <?php endforeach; ?>
-        </div>
-        <div class="public-intro-logo">Kidora</div>
-        <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
-        <div class="public-intro-actions">
-          <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
-          <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
-        </div>
-      </div>
-    </div>
-  <?php else: ?>
-    <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
-      <div class="public-intro-scrim"></div>
-      <div class="public-intro-content">
-      <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
-  <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
-    <span style="--char-color:<?php echo h($introChar['color']); ?>; display:inline-flex; align-items:center; justify-content:center; width:1em; height:1em;">
-      <img src="https://i.ibb.co/Nzr63J7/Screenshot-2026-09-17-131732-removebg-preview.png" 
-           alt="" 
-           style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 4px var(--char-color));" />
-    </span>
-  <?php endforeach; ?>
-</div>
-        <div class="public-intro-logo">Kidora</div>
-        <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
-        <div class="public-intro-actions">
-          <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
-          <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
-        </div>
-      </div>
-    </div>
-  <?php endif; ?>
-
   <main>
     <!-- فيديو تعريفي بملء الشاشة -->
     <section class="public-video-full" id="videoShowcase">
@@ -534,37 +508,34 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
+    <?php if ($showContinue): ?>
+      <!-- 🎬 شاشة "متابعة كـ ريمان" -->
+      <section class="public-auth-section public-container" id="continue">
+        <div class="continue-card">
+          <div class="continue-avatar"
+               style="--c-color:<?php echo h($rememberChild['_char_color'] ?? '#6C63FF'); ?>">
+            <?php if (!empty($rememberChild['photo_path'])): ?>
+              <img src="<?php echo h(BASE_PATH . '/' . ltrim($rememberChild['photo_path'], '/')); ?>"
+                   alt="<?php echo h($rememberChild['name']); ?>">
+            <?php else: ?>
+              <span class="continue-emoji"><?php echo h($rememberChild['_char_icon'] ?? '✨'); ?></span>
+            <?php endif; ?>
+          </div>
 
-               <?php if ($showContinue): ?>
-  <!-- 🎬 شاشة "متابعة كـ ريمان" -->
-  <section class="public-auth-section public-container" id="continue">
-    <div class="continue-card">
-      <div class="continue-avatar"
-           style="--c-color:<?php echo h($rememberChild['_char_color'] ?? '#6C63FF'); ?>">
-        <?php if (!empty($rememberChild['photo_path'])): ?>
-          <img src="<?php echo h(BASE_PATH . '/' . ltrim($rememberChild['photo_path'], '/')); ?>"
-               alt="<?php echo h($rememberChild['name']); ?>">
-        <?php else: ?>
-          <span class="continue-emoji"><?php echo h($rememberChild['_char_icon'] ?? '✨'); ?></span>
-        <?php endif; ?>
-      </div>
+          <h2 class="continue-title">مرحباً بعودتك! 👋</h2>
+          <p class="continue-name"><?php echo h($rememberChild['name']); ?></p>
 
-      <h2 class="continue-title">مرحباً بعودتك! 👋</h2>
-      <p class="continue-name"><?php echo h($rememberChild['name']); ?></p>
-
-      <div class="continue-actions">
-        <a href="?continue=1" class="k-btn k-btn-gold continue-btn-main">
-          🚀 متابعة كـ <?php echo h($rememberChild['name']); ?>
-        </a>
-        <button type="button" class="continue-btn-switch" onclick="showLoginForm()">
-          لست <?php echo h($rememberChild['name']); ?>؟ سجّل بحساب آخر
-        </button>
-      </div>
-    </div>
-  </section>
-<?php endif; ?>
-
-               
+          <div class="continue-actions">
+            <a href="?continue=1" class="k-btn k-btn-gold continue-btn-main">
+              🚀 متابعة كـ <?php echo h($rememberChild['name']); ?>
+            </a>
+            <button type="button" class="continue-btn-switch" onclick="showLoginForm()">
+              لست <?php echo h($rememberChild['name']); ?>؟ سجّل بحساب آخر
+            </button>
+          </div>
+        </div>
+      </section>
+    <?php endif; ?>
 
     <!-- تسجيل الدخول / التسجيل -->
     <section class="public-auth-section public-container" id="auth">
@@ -573,7 +544,8 @@ require_once __DIR__ . '/includes/public-nav.php';
         <h2>جاهز لمغامرة جديدة؟</h2>
         <p>أنشئ حساباً للطفل في دقائق، أو عد إلى رحلتك من هنا.</p>
       </div>
-<div class="public-auth-card" id="authCard" <?php echo $showContinue ? 'style="display:none"' : ''; ?>>        <div class="public-auth-tabs" role="tablist" aria-label="تسجيل الدخول أو إنشاء الحساب">
+      <div class="public-auth-card" id="authCard" <?php echo $showContinue ? 'style="display:none"' : ''; ?>>
+        <div class="public-auth-tabs" role="tablist" aria-label="تسجيل الدخول أو إنشاء الحساب">
           <button type="button" class="public-auth-tab <?php echo $shouldOpenRegister ? '' : 'active'; ?>" data-auth-tab="login" role="tab" aria-selected="<?php echo $shouldOpenRegister ? 'false' : 'true'; ?>">تسجيل الدخول</button>
           <button type="button" class="public-auth-tab <?php echo $shouldOpenRegister ? 'active' : ''; ?>" data-auth-tab="register" role="tab" aria-selected="<?php echo $shouldOpenRegister ? 'true' : 'false'; ?>">إنشاء حساب</button>
         </div>
@@ -655,17 +627,14 @@ window.KIDORA_LANDING = <?php echo json_encode([
     'hasVideo' => $introVideo['mp4'] || $introVideo['webm'],
     'reducedMotion' => false,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-
-
 </script>
 
-                 <script>
+<script>
 function showLoginForm(){
   const cont = document.getElementById('continue');
   const card = document.getElementById('authCard');
   if (cont) cont.style.display = 'none';
   if (card) card.style.display = '';
-  // ننزل تلقائياً عند الفورم
   if (card) card.scrollIntoView({behavior:'smooth', block:'center'});
 }
 </script>
