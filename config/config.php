@@ -39,6 +39,9 @@ if (!defined('BASE_PATH')) {
     define('BASE_PATH', $__base);
 }
 
+// أيقونة تبويب المتصفح (شعار Kidora)
+define('KIDORA_FAVICON', 'https://i.ibb.co/Nzr63J7/Screenshot-2026-09-17-131732-removebg-preview.png');
+
 // بيانات دخول لوحة الإدارة
 define('ADMIN_EMAIL', 'admin@kidora.com');
 define('ADMIN_PASSWORD', 'admin123');

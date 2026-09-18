@@ -38,47 +38,21 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
 <header class="app-header" id="appHeader">
   <div class="header-inner">
 
-    <!-- ===== الشعار (أفقي بسيط) ===== -->
-    <!-- <a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link">
-      <div class="logo-icon">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="46" fill="#3b82f6" />
-          <path d="M30 20 L30 80 M30 50 L58 20 M30 50 L58 80"
-                stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
-          <path d="M35 26 L35 74 M35 50 L55 26 M35 50 L55 74"
-                stroke="#fcd34d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
-          <circle cx="18" cy="20" r="3" fill="#fbbf24" />
-          <circle cx="78" cy="20" r="3" fill="#fbbf24" />
-          <circle cx="18" cy="80" r="3" fill="#fbbf24" />
-          <circle cx="78" cy="80" r="3" fill="#fbbf24" />
-          <circle cx="50" cy="10" r="3" fill="#fbbf24" />
-        </svg>
-      </div>
-      <span class="logo-name">Kidora</span>
-    </a> -->
-
-
-<!-- ===== الشعار (صورة) ===== -->
-<!-- ===== الشعار (صورة) ===== -->
-<a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link" 
-   style="order:100; margin:0; flex-shrink:0;">
-  <img src="https://i.ibb.co/PZ41NRfV/Screenshot-2026-09-17-125511-removebg-preview.png" 
-       alt="Kidora" 
-       style="height:55px; width:auto; max-width:220px; object-fit:contain; display:block; filter:drop-shadow(0 3px 8px rgba(0,0,0,.35));">
-</a>
-
-<!-- نقل الحلقة كمان -->
-    <!-- ===== حلقة التقدم المصغرة ===== -->
-    <div class="header-ring">
-      <a class="story-ring" href="<?php echo BASE_PATH; ?>/grand-story.php">
-        <svg viewBox="0 0 46 46">
-          <circle class="ring-bg" cx="23" cy="23" r="19"></circle>
-          <circle class="ring-fg" id="headerRingFg" cx="23" cy="23" r="19"
-                  stroke-dasharray="<?php echo $__circumference; ?>"
-                  stroke-dashoffset="<?php echo $__offset; ?>"></circle>
-        </svg>
-        <span class="ring-label"><?php echo $__ringDays; ?>/30</span>
+    <div class="header-brand">
+      <a href="<?php echo BASE_PATH; ?>/dashboard.php" class="logo-link" aria-label="Kidora — الرئيسية">
+        <img src="https://i.ibb.co/PZ41NRfV/Screenshot-2026-09-17-125511-removebg-preview.png" alt="Kidora">
       </a>
+      <div class="header-ring">
+        <a class="story-ring" href="<?php echo BASE_PATH; ?>/grand-story.php">
+          <svg viewBox="0 0 46 46">
+            <circle class="ring-bg" cx="23" cy="23" r="19"></circle>
+            <circle class="ring-fg" id="headerRingFg" cx="23" cy="23" r="19"
+                    stroke-dasharray="<?php echo $__circumference; ?>"
+                    stroke-dashoffset="<?php echo $__offset; ?>"></circle>
+          </svg>
+          <span class="ring-label"><?php echo $__ringDays; ?>/30</span>
+        </a>
+      </div>
     </div>
 
     <!-- ===== القائمة الأفقية (لللاب توب فقط) ===== -->
@@ -306,15 +280,31 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
   }
 
   /* ======================================================
-     الشعار (أفقي الآن)
+     الشعار + حلقة التقدم (يمين الشريط في RTL)
      ====================================================== */
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
   .logo-link {
     display: flex;
     align-items: center;
-    gap: 8px;
     text-decoration: none;
     transition: transform 0.3s ease;
     flex-shrink: 0;
+  }
+
+  .logo-link img {
+    height: 40px;
+    width: auto;
+    max-width: 150px;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.35));
   }
 
   .logo-link:hover {
@@ -349,6 +339,8 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    padding-inline-start: 10px;
+    border-inline-start: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .story-ring {
@@ -959,6 +951,10 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     .logo-name {
       font-size: 1.5rem;
     }
+    .logo-link img {
+      height: 46px;
+      max-width: 170px;
+    }
   }
 
   /* ======================================================
@@ -976,6 +972,16 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     }
     .logo-name {
       font-size: 1.1rem;
+    }
+    .header-brand {
+      gap: 6px;
+    }
+    .logo-link img {
+      height: 30px;
+      max-width: 108px;
+    }
+    .header-ring {
+      padding-inline-start: 6px;
     }
 
     .story-ring {
@@ -1009,12 +1015,6 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     body.sidebar-open .sidebar-toggle-btn .toggle-icon span:nth-child(3) {
       width: 18px;
     }
-
-
-      
-      /*  */
-
-      .header-ring { order: 99; }
 
     .app-sidebar {
       width: 280px;

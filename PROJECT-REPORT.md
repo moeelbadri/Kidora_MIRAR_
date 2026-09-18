@@ -410,9 +410,13 @@ historical `--gold` token remains indigo.
   `navbar.php`. ~20 surfaces read `var(--gold)` (auth tabs, character-card borders,
   `.eyebrow`, points-fly, story ring, admin tabs), so "correcting" it to gold is a
   redesign, not a cleanup. Left as-is with a comment at `main.css` L8.
+- **Favicon**: `KIDORA_FAVICON` in `config/config.php` (Kidora wordmark PNG). Linked
+  from `includes/header.php` (every child-facing page) and the two admin `<head>`s
+  (`admin/login.php`, `admin/index.php`).
 
 ### Navigation (`includes/navbar.php`, 1,007 lines — self-contained HTML+CSS+JS)
-Fixed dark glass bar (`rgba(10,18,35,.92)` + 24px blur): logo, 30-day progress ring,
+Fixed dark glass bar (`rgba(10,18,35,.92)` + 24px blur): **RTL-start brand cluster**
+(Kidora wordmark on the far right, then the 30-day progress ring),
 **4 primary links** (الرئيسية / مهامي / ألعابي / قصتي اليومية — child-sized targets,
 bigger type), a "المزيد" dropdown for the other 9 (safety, friends, culture, grand
 story, ألعاب الذكاء, drawing, assessment, subscription, profile), the child's **photo
@@ -436,7 +440,7 @@ GSAP files; the application remains build-free.
 config/config.php     constants, BASE_PATH auto-detection, admin creds, TZ Asia/Gaza
 config/db.php         kidaura_connect() — PDO; on first SQLite run creates schema + seeds
 includes/functions.php shared helpers (auth, daily progress, characters, subs, uploads)
-includes/header.php   <head>, animated background, KIDAURA_* JS globals, loads 4 engines
+includes/header.php   <head> (incl. favicon), animated background, KIDAURA_* JS globals, loads 4 engines
 includes/navbar.php   nav + sidebar (self-contained)
 includes/public-nav.php guest navigation (self-contained)
 includes/demo-content.php PHP demo story templates and guide lines

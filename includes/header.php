@@ -24,6 +24,9 @@ $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية'
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?php echo h($__pageTitle); ?></title>
+<link rel="icon" type="image/png" href="<?php echo h(KIDORA_FAVICON); ?>">
+<link rel="shortcut icon" type="image/png" href="<?php echo h(KIDORA_FAVICON); ?>">
+<link rel="apple-touch-icon" href="<?php echo h(KIDORA_FAVICON); ?>">
 <meta name="description" content="منصة تفاعلية حديثة تعتمد على الأبطال والقصص التفاعلية لتعزيز سلوك الطفل وحمايته وتنميته إيجابياً.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;600;700;800&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
