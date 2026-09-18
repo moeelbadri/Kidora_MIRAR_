@@ -65,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_analysis'])) {
     }
     header('Location: profile.php'); exit;
 }
+
 // ---------------- حذف رسمة من معرضي (الطفل يحذف رسوماته هو فقط) ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_drawing'])) {
     $d = $pdo->prepare("SELECT * FROM drawings WHERE id = ? AND child_id = ?");
@@ -76,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_drawing'])) {
     }
     header('Location: profile.php#drawings'); exit;
 }
+
 $flashWaLink = $_SESSION['flash_wa_link'] ?? null;
 unset($_SESSION['flash_wa_link']);
 $flashProfile = $_SESSION['flash_profile'] ?? null;
@@ -99,6 +101,40 @@ $axisStmt = $pdo->prepare("SELECT axis, AVG(value) avg_v FROM quiz_history WHERE
 $axisStmt->execute([$child['id']]);
 $axisRows = $axisStmt->fetchAll();
 $badges = json_decode_safe($child['badges_json'], []);
+
+/* ============================================================
+   مخطط السلوك الطفولي — أيقونات وألوان ومستويات
+   ============================================================ */
+if (!function_exists('pf_axis_style')) {
+    function pf_axis_style(string $axis): array {
+        $map = [
+            'التعاطف'   => ['icon'=>'❤️','bg'=>'#FFE4EC','color'=>'#FF6FA5'],
+            'الثقة'     => ['icon'=>'💪','bg'=>'#E3FBF8','color'=>'#2EC4B6'],
+            'الأمان'    => ['icon'=>'🛡️','bg'=>'#E6F0FF','color'=>'#5B8DEF'],
+            'الشجاعة'   => ['icon'=>'🦁','bg'=>'#FFF1D6','color'=>'#F5A623'],
+            'الصدق'     => ['icon'=>'⭐','bg'=>'#FFF7D6','color'=>'#FFB13C'],
+            'التعاون'   => ['icon'=>'🤝','bg'=>'#EEF7E5','color'=>'#7BC043'],
+            'الصبر'     => ['icon'=>'🐢','bg'=>'#E3FBF8','color'=>'#3EB8A4'],
+            'الإبداع'   => ['icon'=>'🎨','bg'=>'#F3E9FF','color'=>'#9B7BFF'],
+            'المسؤولية' => ['icon'=>'🌟','bg'=>'#FFF7D6','color'=>'#FFB13C'],
+            'الحدود'    => ['icon'=>'🚧','bg'=>'#FFEAD6','color'=>'#FF7A45'],
+            'المشاعر'   => ['icon'=>'🌈','bg'=>'#F3E9FF','color'=>'#9B7BFF'],
+            'الاحترام'  => ['icon'=>'🙏','bg'=>'#E6F0FF','color'=>'#5B8DEF'],
+            'النظام'    => ['icon'=>'📋','bg'=>'#F3E9FF','color'=>'#7B6EFF'],
+        ];
+        foreach ($map as $k=>$v) { if (mb_strpos($axis, $k) !== false) return $v; }
+        return ['icon'=>'✨','bg'=>'#EEEBFF','color'=>'#6C63FF'];
+    }
+}
+if (!function_exists('pf_axis_level')) {
+    function pf_axis_level(float $avg): string {
+        if ($avg >= 2.5) return 'بطل خارق! 🦸';
+        if ($avg >= 2.0) return 'رائع جداً! 🌟';
+        if ($avg >= 1.5) return 'في تقدّم جميل! 🚀';
+        if ($avg >= 1.0) return 'بداية الرحلة! 🌱';
+        return 'خطوة أولى! 💫';
+    }
+}
 
 $__pageTitle = 'ملفي الشخصي — Kidora';
 $__pageLine = $flashProfile ?: "هذا ملفك يا {$child['name']}… انظر كل ما حققناه معاً! ⭐";
@@ -138,6 +174,166 @@ require_once __DIR__ . '/includes/navbar.php';
   .pf-companion-lock{ position:absolute; top:8px; inset-inline-end:8px; font-size:22px; }
   .pf-companion b{ display:block; margin-top:8px; color:var(--ink); font-size:16px; }
   .pf-companion small{ display:block; color:var(--ink-soft); font-size:12px; font-weight:700; margin-top:2px; }
+
+  /* ============================================================
+     مخطط السلوك الطفولي
+     ============================================================ */
+  .pf-chart{
+    position:relative;
+    padding:26px 22px 24px;
+    border-radius:28px;
+    background:linear-gradient(160deg,#FFF8E7 0%,#F0E9FF 100%);
+    border:3px dashed #C9B8FF;
+    overflow:hidden;
+    max-width:640px;
+    margin-bottom:14px;
+    box-shadow:0 20px 50px rgba(108,99,255,.15);
+  }
+  .pf-chart::before{
+    content:"";position:absolute;top:-50px;right:-50px;
+    width:160px;height:160px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,201,60,.45),transparent 70%);
+    pointer-events:none;
+  }
+  .pf-chart::after{
+    content:"";position:absolute;bottom:-40px;left:-40px;
+    width:140px;height:140px;border-radius:50%;
+    background:radial-gradient(circle,rgba(108,99,255,.3),transparent 70%);
+    pointer-events:none;
+  }
+  .pf-chart-head{
+    display:flex;align-items:center;gap:14px;
+    margin-bottom:20px;position:relative;z-index:1;
+  }
+  .pf-chart-mascot{
+    width:60px;height:60px;border-radius:50%;
+    display:grid;place-items:center;font-size:34px;
+    background:linear-gradient(135deg,#FFE07A,#FFB13C);
+    box-shadow:0 10px 24px rgba(255,177,60,.5);
+    animation:pfFloat 3s ease-in-out infinite;
+    flex-shrink:0;
+  }
+  @keyframes pfFloat{
+    0%,100%{transform:translateY(0) rotate(-4deg)}
+    50%{transform:translateY(-6px) rotate(4deg)}
+  }
+  .pf-chart-head h3{margin:0;color:#3B2E6B;font-size:1.2rem;font-weight:900;}
+  .pf-chart-head p{margin:3px 0 0;color:#7B6EA8;font-size:.85rem;font-weight:700;}
+
+  .pf-axis{
+    position:relative;z-index:1;
+    background:#fff;
+    border-radius:22px;
+    padding:14px 16px;
+    margin-bottom:12px;
+    box-shadow:0 8px 22px rgba(108,99,255,.12);
+    border:2px solid #EFE9FF;
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:14px;
+    align-items:center;
+    transition:transform .25s,box-shadow .25s;
+  }
+  .pf-axis:hover{
+    transform:translateY(-3px);
+    box-shadow:0 14px 30px rgba(108,99,255,.22);
+  }
+  .pf-axis-icon{
+    width:52px;height:52px;border-radius:16px;
+    display:grid;place-items:center;font-size:28px;
+    background:var(--axis-bg,#EEEBFF);
+    flex-shrink:0;
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.06);
+  }
+  .pf-axis-info{min-width:0;}
+  .pf-axis-name{
+    display:flex;justify-content:space-between;align-items:center;
+    gap:10px;margin-bottom:8px;
+  }
+  .pf-axis-name b{
+    color:#3B2E6B;font-size:1rem;font-weight:900;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .pf-axis-stars{
+    font-size:.9rem;letter-spacing:1px;white-space:nowrap;
+    flex-shrink:0;
+  }
+  .pf-axis-bar{
+    height:18px;border-radius:999px;
+    background:#EFE9FF;overflow:hidden;position:relative;
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.07);
+  }
+  .pf-axis-fill{
+    height:100%;border-radius:999px;
+    background:linear-gradient(90deg,
+      var(--axis-color,#6C63FF),
+      color-mix(in srgb,var(--axis-color,#6C63FF) 60%,#fff));
+    box-shadow:0 0 12px color-mix(in srgb,var(--axis-color,#6C63FF) 60%,transparent);
+    transition:width 1.3s cubic-bezier(.34,1.56,.64,1);
+    position:relative;
+  }
+  .pf-axis-fill::after{
+    content:"";position:absolute;inset:0;
+    background-image:repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,.28) 0 8px,
+      transparent 8px 16px
+    );
+    border-radius:999px;
+    animation:pfStripe 1.6s linear infinite;
+  }
+  @keyframes pfStripe{to{background-position:32px 0;}}
+  .pf-axis-level{
+    margin-top:8px;
+    color:var(--axis-color,#6C63FF);
+    font-size:.82rem;font-weight:900;
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+  }
+  .pf-axis-num{
+    color:#8E82B8;font-size:.75rem;font-weight:800;
+    background:#F6F3FF;padding:2px 8px;border-radius:999px;
+  }
+
+  .pf-chart-summary{
+    position:relative;z-index:1;
+    margin-top:18px;
+    padding:16px 18px;
+    border-radius:22px;
+    background:linear-gradient(135deg,#FFE07A,#FFB13C);
+    color:#3B2E6B;
+    text-align:center;
+    box-shadow:0 12px 28px rgba(255,177,60,.45);
+  }
+  .pf-chart-summary .big{
+    display:block;font-size:1.15rem;font-weight:900;margin-bottom:4px;
+  }
+  .pf-chart-summary .sub{
+    display:block;font-size:.85rem;font-weight:800;opacity:.85;
+  }
+  .pf-chart-summary b{color:#7B3FAF;}
+
+  .pf-chart-empty{
+    position:relative;z-index:1;
+    text-align:center;
+    padding:30px 16px;
+    color:#7B6EA8;
+    font-weight:800;
+    font-size:.95rem;
+  }
+  .pf-chart-empty .em{
+    font-size:3.2rem;display:block;margin-bottom:10px;
+    animation:pfFloat 2.4s ease-in-out infinite;
+  }
+
+  @media(max-width:500px){
+    .pf-chart{padding:20px 14px 18px;border-radius:22px;}
+    .pf-axis{padding:12px 12px;gap:10px;border-radius:18px;}
+    .pf-axis-icon{width:44px;height:44px;font-size:24px;border-radius:14px;}
+    .pf-axis-name b{font-size:.9rem;}
+    .pf-axis-stars{font-size:.78rem;}
+    .pf-chart-summary .big{font-size:1rem;}
+    .pf-chart-summary .sub{font-size:.78rem;}
+  }
 </style>
 <div class="page-body">
 <main class="container" style="padding-top:26px;">
@@ -215,17 +411,73 @@ require_once __DIR__ . '/includes/navbar.php';
     <?php endforeach; ?>
   </div>
 
-  <h3 style="margin-top:34px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">مخطط تحليل السلوك الحقيقي</h3>
-  <div class="card" style="padding:22px;max-width:560px;margin-bottom:10px;">
-    <div class="chart-wrap">
-      <?php if (!$axisRows): ?>
-        <p style="color:var(--ink-soft);text-align:center;">أجب عن أسئلة التحليل ليظهر مخططك 📊</p>
-      <?php else: foreach ($axisRows as $row): $pct=((float)$row['avg_v']/3)*100; ?>
-        <div class="chart-row"><div><?php echo h($row['axis']); ?></div><div class="chart-bar-bg"><div class="chart-bar-fg" style="width:<?php echo $pct; ?>%;"></div></div><div style="font-weight:800;color:var(--violet);"><?php echo number_format($row['avg_v'],1); ?></div></div>
-      <?php endforeach; endif; ?>
+  <h3 style="margin-top:34px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">🧭 رحلة نموي البطولية</h3>
+
+  <?php if (!$axisRows): ?>
+    <div class="pf-chart">
+      <div class="pf-chart-head">
+        <div class="pf-chart-mascot">🧭</div>
+        <div>
+          <h3>هنا ستكبر قواي!</h3>
+          <p>أجب عن أسئلة التحليل لتبدأ الرحلة 🌱</p>
+        </div>
+      </div>
+      <div class="pf-chart-empty">
+        <span class="em">🌱</span>
+        لا يوجد مخطط بعد — أكمل تحليل السلوك ليظهر نموك!
+      </div>
     </div>
-  </div>
-  <form method="POST"><button type="submit" name="send_analysis" class="btn btn-mint btn-sm" style="margin-bottom:26px;">📲 إرسال نتيجة التحليل لولي الأمر عبر واتساب</button></form>
+  <?php else:
+    $sum = 0; $cnt = 0;
+    foreach ($axisRows as $r) { $sum += (float)$r['avg_v']; $cnt++; }
+    $overall = $cnt ? ($sum / $cnt) : 0;
+    $overallPct = (int)round(($overall / 3) * 100);
+    $overallLevel = pf_axis_level($overall);
+  ?>
+    <div class="pf-chart">
+      <div class="pf-chart-head">
+        <div class="pf-chart-mascot">🧭</div>
+        <div>
+          <h3>رحلة نموي البطولية</h3>
+          <p>كل قوة تكبر معك خطوة بخطوة 🌟</p>
+        </div>
+      </div>
+
+      <?php foreach ($axisRows as $row):
+        $avg  = (float)$row['avg_v'];
+        $pct  = (int)round(($avg / 3) * 100);
+        $st   = pf_axis_style((string)$row['axis']);
+        $full = max(0, min(3, (int)round($avg)));
+        $stars = str_repeat('⭐', $full) . str_repeat('☆', 3 - $full);
+        $level = pf_axis_level($avg);
+      ?>
+        <div class="pf-axis"
+             style="--axis-bg:<?php echo h($st['bg']); ?>;--axis-color:<?php echo h($st['color']); ?>;">
+          <div class="pf-axis-icon"><?php echo $st['icon']; ?></div>
+          <div class="pf-axis-info">
+            <div class="pf-axis-name">
+              <b><?php echo h($row['axis']); ?></b>
+              <span class="pf-axis-stars" aria-label="مستوى <?php echo $full; ?> من 3"><?php echo $stars; ?></span>
+            </div>
+            <div class="pf-axis-bar">
+              <div class="pf-axis-fill" data-pct="<?php echo $pct; ?>" style="width:0%;"></div>
+            </div>
+            <div class="pf-axis-level">
+              <?php echo $level; ?>
+              <span class="pf-axis-num"><?php echo number_format($avg,1); ?> / 3</span>
+            </div>
+          </div>
+        </div>
+      <?php endforeach; ?>
+
+      <div class="pf-chart-summary">
+        <span class="big"><?php echo $overallLevel; ?></span>
+        <span class="sub">أنت في <b><?php echo $overallPct; ?>%</b> من رحلتك — واصل التألق! 🚀</span>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <form method="POST"><button type="submit" name="send_analysis" class="btn btn-mint btn-sm" style="margin:14px 0 26px;">📲 إرسال نتيجة التحليل لولي الأمر عبر واتساب</button></form>
 
   <h3 style="color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">سجل قصصي اليومية (فيديو لكل يوم)</h3>
   <div class="reco-strip">
@@ -285,6 +537,19 @@ require_once __DIR__ . '/includes/navbar.php';
   function testVoice(){ if (window.Companion) Companion.say('مرحباً يا <?php echo h($child['name']); ?>! هكذا يبدو صوتي. هل يعجبك؟', { mood: 'wave' }); }
   document.addEventListener('DOMContentLoaded', fillVoices);
   if ('speechSynthesis' in window) window.speechSynthesis.addEventListener('voiceschanged', fillVoices);
+
+  /* ============================================================
+     تحريك شرائط مخطط السلوك عند الدخول
+     ============================================================ */
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.pf-axis-fill').forEach(function(el, i){
+      const pct = parseInt(el.dataset.pct || '0', 10);
+      setTimeout(function(){
+        el.style.width = pct + '%';
+      }, 150 * i + 200);
+    });
+  });
+
   <?php if ($flashWaLink): ?> window.open(<?php echo json_encode($flashWaLink); ?>, '_blank'); <?php endif; ?>
   <?php if ($flashProfile): ?>
     document.addEventListener('DOMContentLoaded', function(){
