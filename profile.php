@@ -176,163 +176,237 @@ require_once __DIR__ . '/includes/navbar.php';
   .pf-companion small{ display:block; color:var(--ink-soft); font-size:12px; font-weight:700; margin-top:2px; }
 
   /* ============================================================
-     مخطط السلوك الطفولي
+     مخطط السلوك — Bar Chart طفولي
      ============================================================ */
-  .pf-chart{
+  .pf-bars{
     position:relative;
-    padding:26px 22px 24px;
+    padding:24px 20px 20px;
     border-radius:28px;
     background:linear-gradient(160deg,#FFF8E7 0%,#F0E9FF 100%);
     border:3px dashed #C9B8FF;
     overflow:hidden;
-    max-width:640px;
+    max-width:680px;
     margin-bottom:14px;
     box-shadow:0 20px 50px rgba(108,99,255,.15);
   }
-  .pf-chart::before{
+  .pf-bars::before{
     content:"";position:absolute;top:-50px;right:-50px;
     width:160px;height:160px;border-radius:50%;
     background:radial-gradient(circle,rgba(255,201,60,.45),transparent 70%);
     pointer-events:none;
   }
-  .pf-chart::after{
+  .pf-bars::after{
     content:"";position:absolute;bottom:-40px;left:-40px;
     width:140px;height:140px;border-radius:50%;
     background:radial-gradient(circle,rgba(108,99,255,.3),transparent 70%);
     pointer-events:none;
   }
-  .pf-chart-head{
+
+  /* رأس المخطط */
+  .pf-bars-head{
     display:flex;align-items:center;gap:14px;
     margin-bottom:20px;position:relative;z-index:1;
   }
-  .pf-chart-mascot{
-    width:60px;height:60px;border-radius:50%;
-    display:grid;place-items:center;font-size:34px;
+  .pf-bars-mascot{
+    width:56px;height:56px;border-radius:50%;
+    display:grid;place-items:center;font-size:32px;
     background:linear-gradient(135deg,#FFE07A,#FFB13C);
     box-shadow:0 10px 24px rgba(255,177,60,.5);
-    animation:pfFloat 3s ease-in-out infinite;
+    animation:pfBarsFloat 3s ease-in-out infinite;
     flex-shrink:0;
   }
-  @keyframes pfFloat{
+  @keyframes pfBarsFloat{
     0%,100%{transform:translateY(0) rotate(-4deg)}
     50%{transform:translateY(-6px) rotate(4deg)}
   }
-  .pf-chart-head h3{margin:0;color:#3B2E6B;font-size:1.2rem;font-weight:900;}
-  .pf-chart-head p{margin:3px 0 0;color:#7B6EA8;font-size:.85rem;font-weight:700;}
+  .pf-bars-head h3{margin:0;color:#3B2E6B;font-size:1.15rem;font-weight:900;}
+  .pf-bars-head p{margin:3px 0 0;color:#7B6EA8;font-size:.82rem;font-weight:700;}
 
-  .pf-axis{
+  /* المخطط */
+  .pf-bars-chart{
     position:relative;z-index:1;
-    background:#fff;
-    border-radius:22px;
-    padding:14px 16px;
-    margin-bottom:12px;
-    box-shadow:0 8px 22px rgba(108,99,255,.12);
-    border:2px solid #EFE9FF;
-    display:grid;
-    grid-template-columns:auto 1fr;
-    gap:14px;
-    align-items:center;
-    transition:transform .25s,box-shadow .25s;
+    display:flex;
+    justify-content:space-around;
+    align-items:flex-end;
+    gap:8px;
+    padding:14px 6px 0;
+    min-height:210px;
+    border-bottom:3px dashed #D6CCFF;
+    border-radius:0 0 8px 8px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:thin;
   }
-  .pf-axis:hover{
-    transform:translateY(-3px);
-    box-shadow:0 14px 30px rgba(108,99,255,.22);
-  }
-  .pf-axis-icon{
-    width:52px;height:52px;border-radius:16px;
-    display:grid;place-items:center;font-size:28px;
-    background:var(--axis-bg,#EEEBFF);
-    flex-shrink:0;
-    box-shadow:inset 0 -3px 0 rgba(0,0,0,.06);
-  }
-  .pf-axis-info{min-width:0;}
-  .pf-axis-name{
-    display:flex;justify-content:space-between;align-items:center;
-    gap:10px;margin-bottom:8px;
-  }
-  .pf-axis-name b{
-    color:#3B2E6B;font-size:1rem;font-weight:900;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
-  .pf-axis-stars{
-    font-size:.9rem;letter-spacing:1px;white-space:nowrap;
-    flex-shrink:0;
-  }
-  .pf-axis-bar{
-    height:18px;border-radius:999px;
-    background:#EFE9FF;overflow:hidden;position:relative;
-    box-shadow:inset 0 2px 4px rgba(0,0,0,.07);
-  }
-  .pf-axis-fill{
-    height:100%;border-radius:999px;
-    background:linear-gradient(90deg,
-      var(--axis-color,#6C63FF),
-      color-mix(in srgb,var(--axis-color,#6C63FF) 60%,#fff));
-    box-shadow:0 0 12px color-mix(in srgb,var(--axis-color,#6C63FF) 60%,transparent);
-    transition:width 1.3s cubic-bezier(.34,1.56,.64,1);
+  .pf-bars-chart::-webkit-scrollbar{height:6px;}
+  .pf-bars-chart::-webkit-scrollbar-thumb{background:#C9B8FF;border-radius:99px;}
+
+  /* عمود واحد */
+  .pf-bar{
     position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-end;
+    flex:1;
+    min-width:60px;
+    max-width:100px;
+    height:200px;
+    padding:0;
+    background:transparent;
+    border:none;
+    cursor:pointer;
+    font-family:inherit;
+    transition:transform .25s;
   }
-  .pf-axis-fill::after{
-    content:"";position:absolute;inset:0;
+  .pf-bar:hover{transform:translateY(-4px);}
+  .pf-bar:active{transform:translateY(-2px) scale(.98);}
+
+  /* أيقونة فوق */
+  .pf-bar-icon{
+    font-size:1.7rem;
+    line-height:1;
+    margin-bottom:6px;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.15));
+    transition:transform .3s;
+  }
+  .pf-bar:hover .pf-bar-icon{transform:scale(1.2) rotate(-8deg);}
+
+  /* مسار العمود */
+  .pf-bar-track{
+    position:relative;
+    width:100%;
+    flex:1;
+    border-radius:16px 16px 8px 8px;
+    background:var(--bar-bg);
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.08);
+    overflow:hidden;
+    display:flex;
+    align-items:flex-end;
+    min-height:80px;
+  }
+
+  /* تعبئة العمود */
+  .pf-bar-fill{
+    width:100%;
+    border-radius:16px 16px 6px 6px;
+    background:linear-gradient(180deg,
+      color-mix(in srgb,var(--bar-color) 60%,#fff),
+      var(--bar-color));
+    box-shadow:
+      0 -4px 12px color-mix(in srgb,var(--bar-color) 50%,transparent),
+      inset 0 2px 0 rgba(255,255,255,.3);
+    transition:height 1.4s cubic-bezier(.34,1.4,.64,1);
+    position:relative;
+    min-height:8px;
+  }
+  .pf-bar-fill::after{
+    content:"";
+    position:absolute;inset:0;
     background-image:repeating-linear-gradient(
       45deg,
-      rgba(255,255,255,.28) 0 8px,
-      transparent 8px 16px
+      rgba(255,255,255,.22) 0 6px,
+      transparent 6px 12px
     );
-    border-radius:999px;
-    animation:pfStripe 1.6s linear infinite;
+    border-radius:inherit;
+    animation:pfBarsStripe 1.8s linear infinite;
   }
-  @keyframes pfStripe{to{background-position:32px 0;}}
-  .pf-axis-level{
-    margin-top:8px;
-    color:var(--axis-color,#6C63FF);
-    font-size:.82rem;font-weight:900;
-    display:flex;justify-content:space-between;align-items:center;gap:8px;
-  }
-  .pf-axis-num{
-    color:#8E82B8;font-size:.75rem;font-weight:800;
-    background:#F6F3FF;padding:2px 8px;border-radius:999px;
+  @keyframes pfBarsStripe{to{background-position:24px 0;}}
+
+  /* الرقم تحت */
+  .pf-bar-num{
+    margin-top:6px;
+    font-size:.82rem;
+    font-weight:900;
+    color:var(--bar-color);
+    background:#fff;
+    padding:2px 8px;
+    border-radius:99px;
+    box-shadow:0 3px 8px rgba(0,0,0,.08);
   }
 
-  .pf-chart-summary{
+  /* اسم المحور */
+  .pf-bar-name{
+    margin-top:4px;
+    font-size:.68rem;
+    font-weight:800;
+    color:#3B2E6B;
+    text-align:center;
+    line-height:1.2;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
+  }
+
+  /* الأعمدة المختارة */
+  .pf-bar.is-open .pf-bar-icon{transform:scale(1.3) rotate(0);}
+
+  /* التلميح التفاعلي */
+  .pf-bars-tip{
     position:relative;z-index:1;
-    margin-top:18px;
-    padding:16px 18px;
-    border-radius:22px;
+    margin-top:16px;
+    padding:12px 16px;
+    border-radius:18px;
+    background:#fff;
+    border:2px solid #EFE9FF;
+    text-align:center;
+    font-size:.85rem;
+    font-weight:800;
+    color:#7B6EA8;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:wrap;
+    transition:.3s;
+    min-height:56px;
+  }
+  .pf-bars-tip .em{font-size:1.4rem;}
+  .pf-bars-tip b{color:#3B2E6B;}
+  .pf-bars-tip.is-active{
+    background:linear-gradient(135deg,#FFF1D6,#FFE07A);
+    border-color:#FFB13C;
+    color:#3B2E6B;
+    transform:scale(1.02);
+  }
+
+  /* ملخص عام */
+  .pf-bars-summary{
+    position:relative;z-index:1;
+    margin-top:14px;
+    padding:14px 16px;
+    border-radius:20px;
     background:linear-gradient(135deg,#FFE07A,#FFB13C);
     color:#3B2E6B;
     text-align:center;
     box-shadow:0 12px 28px rgba(255,177,60,.45);
   }
-  .pf-chart-summary .big{
-    display:block;font-size:1.15rem;font-weight:900;margin-bottom:4px;
-  }
-  .pf-chart-summary .sub{
-    display:block;font-size:.85rem;font-weight:800;opacity:.85;
-  }
-  .pf-chart-summary b{color:#7B3FAF;}
+  .pf-bars-summary .big{display:block;font-size:1.05rem;font-weight:900;margin-bottom:3px;}
+  .pf-bars-summary .sub{display:block;font-size:.8rem;font-weight:800;opacity:.85;}
+  .pf-bars-summary b{color:#7B3FAF;}
 
-  .pf-chart-empty{
+  /* الفراغ */
+  .pf-bars-empty{
     position:relative;z-index:1;
-    text-align:center;
-    padding:30px 16px;
-    color:#7B6EA8;
-    font-weight:800;
-    font-size:.95rem;
+    text-align:center;padding:30px 16px;
+    color:#7B6EA8;font-weight:800;font-size:.95rem;
   }
-  .pf-chart-empty .em{
-    font-size:3.2rem;display:block;margin-bottom:10px;
-    animation:pfFloat 2.4s ease-in-out infinite;
+  .pf-bars-empty .em{
+    font-size:3rem;display:block;margin-bottom:10px;
+    animation:pfBarsFloat 2.4s ease-in-out infinite;
   }
 
-  @media(max-width:500px){
-    .pf-chart{padding:20px 14px 18px;border-radius:22px;}
-    .pf-axis{padding:12px 12px;gap:10px;border-radius:18px;}
-    .pf-axis-icon{width:44px;height:44px;font-size:24px;border-radius:14px;}
-    .pf-axis-name b{font-size:.9rem;}
-    .pf-axis-stars{font-size:.78rem;}
-    .pf-chart-summary .big{font-size:1rem;}
-    .pf-chart-summary .sub{font-size:.78rem;}
+  /* جوال */
+  @media(max-width:520px){
+    .pf-bars{padding:18px 12px 16px;border-radius:22px;}
+    .pf-bars-chart{min-height:180px;gap:5px;padding:10px 4px 0;}
+    .pf-bar{height:170px;min-width:52px;}
+    .pf-bar-icon{font-size:1.4rem;}
+    .pf-bar-num{font-size:.72rem;padding:2px 6px;}
+    .pf-bar-name{font-size:.6rem;}
+    .pf-bars-head h3{font-size:1rem;}
+    .pf-bars-head p{font-size:.75rem;}
+    .pf-bars-mascot{width:48px;height:48px;font-size:26px;}
   }
 </style>
 <div class="page-body">
@@ -414,17 +488,17 @@ require_once __DIR__ . '/includes/navbar.php';
   <h3 style="margin-top:34px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">🧭 رحلة نموي البطولية</h3>
 
   <?php if (!$axisRows): ?>
-    <div class="pf-chart">
-      <div class="pf-chart-head">
-        <div class="pf-chart-mascot">🧭</div>
+    <div class="pf-bars">
+      <div class="pf-bars-head">
+        <div class="pf-bars-mascot">🧭</div>
         <div>
           <h3>هنا ستكبر قواي!</h3>
           <p>أجب عن أسئلة التحليل لتبدأ الرحلة 🌱</p>
         </div>
       </div>
-      <div class="pf-chart-empty">
+      <div class="pf-bars-empty">
         <span class="em">🌱</span>
-        لا يوجد مخطط بعد — أكمل تحليل السلوك ليظهر نموك!
+        لا يوجد مخطط بعد — أكمل تحليل السلوك!
       </div>
     </div>
   <?php else:
@@ -434,45 +508,47 @@ require_once __DIR__ . '/includes/navbar.php';
     $overallPct = (int)round(($overall / 3) * 100);
     $overallLevel = pf_axis_level($overall);
   ?>
-    <div class="pf-chart">
-      <div class="pf-chart-head">
-        <div class="pf-chart-mascot">🧭</div>
+    <div class="pf-bars">
+      <div class="pf-bars-head">
+        <div class="pf-bars-mascot">🧭</div>
         <div>
-          <h3>رحلة نموي البطولية</h3>
-          <p>كل قوة تكبر معك خطوة بخطوة 🌟</p>
+          <h3>قواي الخارقة 🌟</h3>
+          <p>اضغط على أي عمود لترى المزيد!</p>
         </div>
       </div>
 
-      <?php foreach ($axisRows as $row):
-        $avg  = (float)$row['avg_v'];
-        $pct  = (int)round(($avg / 3) * 100);
-        $st   = pf_axis_style((string)$row['axis']);
-        $full = max(0, min(3, (int)round($avg)));
-        $stars = str_repeat('⭐', $full) . str_repeat('☆', 3 - $full);
-        $level = pf_axis_level($avg);
-      ?>
-        <div class="pf-axis"
-             style="--axis-bg:<?php echo h($st['bg']); ?>;--axis-color:<?php echo h($st['color']); ?>;">
-          <div class="pf-axis-icon"><?php echo $st['icon']; ?></div>
-          <div class="pf-axis-info">
-            <div class="pf-axis-name">
-              <b><?php echo h($row['axis']); ?></b>
-              <span class="pf-axis-stars" aria-label="مستوى <?php echo $full; ?> من 3"><?php echo $stars; ?></span>
-            </div>
-            <div class="pf-axis-bar">
-              <div class="pf-axis-fill" data-pct="<?php echo $pct; ?>" style="width:0%;"></div>
-            </div>
-            <div class="pf-axis-level">
-              <?php echo $level; ?>
-              <span class="pf-axis-num"><?php echo number_format($avg,1); ?> / 3</span>
-            </div>
-          </div>
-        </div>
-      <?php endforeach; ?>
+      <div class="pf-bars-chart" id="pfBarsChart">
+        <?php foreach ($axisRows as $row):
+          $avg  = (float)$row['avg_v'];
+          $pct  = (int)round(($avg / 3) * 100);
+          $st   = pf_axis_style((string)$row['axis']);
+          $level = pf_axis_level($avg);
+        ?>
+          <button type="button"
+                  class="pf-bar"
+                  data-axis="<?php echo h($row['axis']); ?>"
+                  data-value="<?php echo number_format($avg,1); ?>"
+                  data-level="<?php echo h($level); ?>"
+                  style="--bar-color:<?php echo h($st['color']); ?>;--bar-bg:<?php echo h($st['bg']); ?>;">
+            <span class="pf-bar-icon"><?php echo $st['icon']; ?></span>
+            <span class="pf-bar-track">
+              <span class="pf-bar-fill" data-pct="<?php echo $pct; ?>" style="height:0%"></span>
+            </span>
+            <span class="pf-bar-num"><?php echo number_format($avg,1); ?></span>
+            <span class="pf-bar-name"><?php echo h($row['axis']); ?></span>
+          </button>
+        <?php endforeach; ?>
+      </div>
 
-      <div class="pf-chart-summary">
+      <div class="pf-bars-tip" id="pfBarsTip">
+        <span class="em">👆</span>
+        <b>اضغط على عمود!</b>
+        <span>كل عمود يحكي قصة قوة فيك ✨</span>
+      </div>
+
+      <div class="pf-bars-summary">
         <span class="big"><?php echo $overallLevel; ?></span>
-        <span class="sub">أنت في <b><?php echo $overallPct; ?>%</b> من رحلتك — واصل التألق! 🚀</span>
+        <span class="sub">أنت في <b><?php echo $overallPct; ?>%</b> من رحلتك 🚀</span>
       </div>
     </div>
   <?php endif; ?>
@@ -539,14 +615,47 @@ require_once __DIR__ . '/includes/navbar.php';
   if ('speechSynthesis' in window) window.speechSynthesis.addEventListener('voiceschanged', fillVoices);
 
   /* ============================================================
-     تحريك شرائط مخطط السلوك عند الدخول
+     Bar Chart — أنيميشن + تفاعل
      ============================================================ */
   document.addEventListener('DOMContentLoaded', function(){
-    document.querySelectorAll('.pf-axis-fill').forEach(function(el, i){
+    const chart = document.getElementById('pfBarsChart');
+    if (!chart) return;
+
+    // 1) حرّك الأعمدة تصاعدياً
+    chart.querySelectorAll('.pf-bar-fill').forEach(function(el, i){
       const pct = parseInt(el.dataset.pct || '0', 10);
       setTimeout(function(){
-        el.style.width = pct + '%';
-      }, 150 * i + 200);
+        el.style.height = Math.max(pct, 4) + '%';
+      }, 120 * i + 200);
+    });
+
+    // 2) عند الضغط على عمود
+    const tip = document.getElementById('pfBarsTip');
+    chart.querySelectorAll('.pf-bar').forEach(function(bar){
+      bar.addEventListener('click', function(){
+        const axis  = bar.dataset.axis  || '';
+        const value = bar.dataset.value || '0';
+        const level = bar.dataset.level || '';
+
+        // أزل "is-open" من الباقي
+        chart.querySelectorAll('.pf-bar').forEach(b => b.classList.remove('is-open'));
+        bar.classList.add('is-open');
+
+        if (tip){
+          tip.classList.add('is-active');
+          tip.innerHTML = `
+            <span class="em">${bar.querySelector('.pf-bar-icon').textContent}</span>
+            <b>${axis}:</b>
+            <span>${value} / 3 — ${level}</span>
+          `;
+        }
+
+        // حرّك العمود قليلاً كتأكيد
+        bar.animate(
+          [{transform:'translateY(0)'},{transform:'translateY(-6px)'},{transform:'translateY(0)'}],
+          {duration:400, easing:'ease-out'}
+        );
+      });
     });
   });
 
