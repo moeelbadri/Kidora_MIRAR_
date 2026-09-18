@@ -407,11 +407,15 @@ require_once __DIR__ . '/includes/public-nav.php';
     <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
       <div class="public-intro-scrim"></div>
       <div class="public-intro-content">
-        <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
-          <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
-            <span style="--char-color:<?php echo h($introChar['color']); ?>"><?php echo h($introChar['icons'][0] ?? '✨'); ?></span>
-          <?php endforeach; ?>
-        </div>
+      <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
+  <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
+    <span style="--char-color:<?php echo h($introChar['color']); ?>; display:inline-flex; align-items:center; justify-content:center; width:1em; height:1em;">
+      <img src="https://i.ibb.co/Nzr63J7/Screenshot-2026-09-17-131732-removebg-preview.png" 
+           alt="" 
+           style="width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 4px var(--char-color));" />
+    </span>
+  <?php endforeach; ?>
+</div>
         <div class="public-intro-logo">Kidora</div>
         <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
         <div class="public-intro-actions">
