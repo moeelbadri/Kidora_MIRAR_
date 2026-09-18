@@ -3,13 +3,12 @@ $__publicNavCompact = !empty($__publicNavCompact);
 ?>
 <header class="public-nav" id="publicNav">
   <div class="public-nav-inner">
- <a class="public-brand" href="<?php echo h(BASE_PATH . '/index.php'); ?>" aria-label="Kidora — الصفحة الرئيسية">
-  <span class="public-brand-mark" aria-hidden="true">
-    <img src="https://i.ibb.co/Nzr63J7/Screenshot-2026-09-17-131732-removebg-preview.png" 
-         alt="" 
-         style="width:70%;height:70%;object-fit:contain;">
-  </span>
-  <span>Kidora</span>
+  <a class="public-brand" href="<?php echo h(BASE_PATH . '/index.php'); ?>" aria-label="Kidora — الصفحة الرئيسية">
+      <span class="public-brand-mark" aria-hidden="true"><img src="https://i.ibb.co/Nzr63J7/Screenshot-2026-09-17-131732-removebg-preview.png" 
+     alt="Kidora" 
+     style="width:60%;height:60%;object-fit:contain;"></span>
+      <span>Kidora</span>
+    
 </a>
 
     <?php if (!$__publicNavCompact): ?>
