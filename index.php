@@ -218,8 +218,8 @@ require_once __DIR__ . '/includes/public-nav.php';
 
 <style>
   :root{--k-gold:#ffc93c;--k-gold-deep:#f5a623;--k-blue:#5b8def;--k-pink:#ff6fa5;--k-cyan:#2ec4b6;--k-ink:#241645;--k-card:rgba(255,255,255,.07);--k-line:rgba(255,255,255,.14)}
-  .public-page{position:relative;z-index:2;overflow:hidden;color:#f1f5f9}
-  .public-container{width:min(1180px,calc(100% - 32px));margin:0 auto}
+.public-page{position:relative;overflow:hidden;color:#f1f5f9}
+   .public-container{width:min(1180px,calc(100% - 32px));margin:0 auto}
   .public-hero{min-height:clamp(620px,calc(100vh - 72px),820px);display:grid;grid-template-columns:1.1fr .9fr;align-items:center;gap:44px;padding:76px 0 48px}
   .public-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid rgba(255,201,60,.34);border-radius:999px;color:#ffe99a;background:rgba(255,201,60,.1);font-size:13px;font-weight:900}
   .public-hero h1{margin:18px 0 12px;font-family:var(--font-display);font-size:clamp(48px,8vw,92px);line-height:.98;letter-spacing:-1px}
