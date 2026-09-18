@@ -11,21 +11,21 @@ function safe_json($d){
     return $j === false ? '[]' : $j;
 }
 
-/* جلب الدروس المناسبة */
+/* جلب الدروس المناسبة — بدون شرط العمر */
 $stmt = $pdo->prepare("
   SELECT id,type,title,description,youtube_id,game_type,age_min,age_max
   FROM safety_content
-  WHERE age_min <= ? AND age_max >= ? AND (is_premium=0 OR is_premium IS NULL)
+  WHERE (is_premium=0 OR is_premium IS NULL)
   ORDER BY id ASC
 ");
-$stmt->execute([$child['age'], $child['age']]);
+$stmt->execute();
 $lessons = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
 if (!$lessons) {
   $lessons = [[
     'id'=>0,'type'=>'video','title'=>'جسدي ملكي',
     'description'=>'جسمك لك وحدك، وهناك مناطق خاصة لا يجوز لأحد لمسها.',
-    'youtube_id'=>null,'game_type'=>'body'
+    'youtube_id'=>'FUC2yrD2Gz8','game_type'=>'body'
   ]];
 }
 
@@ -324,7 +324,7 @@ const todayLesson = LESSONS[PROG.day % LESSONS.length];
 const STORY_OK = <?= is_premium_active($pdo, (int)$child['id']) ? 'true' : 'false' ?>;
 
 /* المهمة من ثلاث خطوات: 1 القاعدة (+فيديو) → 2 اللعبة → 3 الوسام */
-const SF_MAX_QUIZ = 3, SF_MAX_SCENES = 2; // محرّكات أقصر: طفل 6–12 يحفظ قاعدة واحدة في اليوم
+const SF_MAX_QUIZ = 3, SF_MAX_SCENES = 2;
 let step = 0;
 let gameCompleted = false;
 function checkBothDone(){ if (gameCompleted && step === 2) setTimeout(goStep3, 1400); }
@@ -352,6 +352,8 @@ function say(t, mood){
 /* ---------- الخطوة 1: القاعدة ---------- */
 async function goStep1(){
   const L = todayLesson;
+  console.log('🎬 lesson:', L, '| KidoraYT:', !!window.KidoraYT);
+
   setStep(1);
   const hasYT = L.youtube_id && String(L.youtube_id).trim() !== '';
   await swapView(`
@@ -361,16 +363,29 @@ async function goStep1(){
     <p class="sf-rule">${esc(L.description)}</p>
     ${hasYT ? `<div class="sf-ratio"><div class="yt-host" id="sfVideo"></div></div>` : ''}
     <div class="sf-actions">
-      <button type="button" class="sf-btn sf-btn-lg" id="sfNext1">${hasYT ? '⏭ فهمت، إلى اللعبة' : '🎮 فهمت، إلى اللعبة'}</button>
+      <button type="button" class="sf-btn sf-btn-lg" id="sfNext1">🎮 فهمت، إلى اللعبة</button>
     </div>
   `);
   document.getElementById('sfNext1').onclick = goStep2;
   await say(`${CHILD.name}، قاعدة اليوم: ${cleanEmoji(L.title)}. ${cleanEmoji(L.description)}`, 'talk');
-  if (hasYT && window.KidoraYT){
+
+  if (hasYT){
     await say('شاهد معي هذه القصة القصيرة.', 'cheer');
-    await KidoraYT.play('sfVideo', L.youtube_id, { autoplay: true, skipId: 'sfNext1' });
+    const host = document.getElementById('sfVideo');
+    if (window.KidoraYT){
+      try {
+        await KidoraYT.play('sfVideo', L.youtube_id, { autoplay: true, skipId: 'sfNext1' });
+      } catch(err){
+        console.warn('KidoraYT.play فشل، استخدم iframe مباشر:', err);
+        host.innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(L.youtube_id)}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
+      }
+    } else {
+      /* fallback: iframe مباشر — يشتغل حتى بدون KidoraYT */
+      console.warn('⚠️ KidoraYT غير محمّل — استخدام iframe مباشر');
+      host.innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(L.youtube_id)}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
+    }
     if (step === 1) goStep2();
-  } else if (step === 1) {
+  } else {
     await say('هل أنت مستعد للعبة؟ اضغط الزر الكبير.', 'cheer');
   }
 }
@@ -433,10 +448,6 @@ function confettiBurst(){
 
 /* ============================================================
    عناوين الألعاب
-   قرار تربوي ثابت في هذا القسم: لا يُقال للطفل «خطأ»/«غلط» ولا تظهر
-   علامة X أو نتيجة. الإجابة الآمنة تُكافأ، وغيرها تُقابَل بتشجيع ثم
-   القاعدة الآمنة نفسها — فالهدف طفل واثق يحفظ القاعدة، لا طفل خائف
-   من العلامة. أي محرك جديد يلتزم بـ gentle() أدناه.
    ============================================================ */
 const SF_ENCOURAGE = ['فكرة جيدة! 💙', 'شكراً لأنك فكّرت 🤗', 'قريب جداً! 🌟', 'تفكيرك جميل ✨'];
 function gentle(rule){ return SF_ENCOURAGE[Math.floor(Math.random()*SF_ENCOURAGE.length)] + (rule ? ' الأأمن دائماً: ' + rule : ''); }
@@ -633,7 +644,7 @@ function gameScenario(box, L){
   else if (title.includes('لا'))   qs = noQs();
   else if (title.includes('مشاعر') || title.includes('خائف')) qs = feelingsQs();
   else qs = generalQs();
-  qs = qs.slice(0, SF_MAX_SCENES); // بعثة قصيرة: موقفان يكفيان لتثبيت القاعدة
+  qs = qs.slice(0, SF_MAX_SCENES);
 
   let i = 0;
   function render(){
@@ -652,7 +663,6 @@ function gameScenario(box, L){
         </div>
       </div>
     `;
-    /* 🔊 قراءة السؤال والخيارات تلقائياً */
     const readText = `${cleanEmoji(q.q)}. الخيارات: ` + q.a.map((o,idx)=>`${idx+1}: ${cleanEmoji(o)}`).join('. ');
     setTimeout(()=>speak(readText), 400);
 
@@ -753,14 +763,13 @@ function gameMatch(box){
    محرك 6: QUIZ
    ============================================================ */
 function gameQuiz(box){
-  /* كل سؤال يحمل قاعدته الذهبية (tip): تُقال للطفل بعد أي إجابة غير آمنة، وتُعرض كلها في النهاية */
   const qs = [
     {q:'🔒 هل كلمة السر يجب أن تكون سهلة مثل 1234؟', a:false, tip:'كلمة السر طويلة وسرّية، لا يعرفها إلا أنا وأهلي 🔑'},
     {q:'👤 هل أُبقي اسمي وعنواني سرّاً عن الغرباء على الإنترنت؟', a:true, tip:'معلوماتي الشخصية سرّ لا أعطيه لأي غريب 🔒'},
     {q:'📸 هل من الآمن نشر صوري مع أي شخص؟', a:false, tip:'صوري أشاركها فقط بإذن أهلي ومع من أعرفهم 🖼️'},
     {q:'🚫 إذا أزعجني شخص على الإنترنت، هل أخبر أهلي؟', a:true, tip:'أي شيء يزعجني أخبر به أهلي فوراً — هذا تصرّف الأبطال 💪'},
     {q:'👥 هل من الآمن مقابلة شخص تعرّفت عليه على الإنترنت وحدي؟', a:false, tip:'لا أذهب لأي لقاء لا يعرفه أهلي 🚫🤝'}
-  ].filter((_, k, all) => ((k - PROG.day) % all.length + all.length) % all.length < SF_MAX_QUIZ); // 3 أسئلة تتبدّل بالأيام
+  ].filter((_, k, all) => ((k - PROG.day) % all.length + all.length) % all.length < SF_MAX_QUIZ);
   let i = 0;
   function render(){
     if (i >= qs.length){
@@ -783,7 +792,6 @@ function gameQuiz(box){
         </div>
       </div>
     `;
-    /* 🔊 قراءة السؤال تلقائياً */
     setTimeout(()=>speak(`${cleanEmoji(q.q)} نعم أم لا؟`), 400);
 
     box.querySelectorAll('.qz-btn').forEach(b=>{
