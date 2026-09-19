@@ -223,3 +223,6 @@ const SoundEngine = (function () {
     listVoices, setPreferredVoice, getPreferredVoice
   };
 })();
+
+// ✅ تصدير للـ window عشان Companion يقدر يوصله
+window.SoundEngine = SoundEngine;
