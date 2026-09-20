@@ -21,7 +21,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_companion'])) {
     $pick = (int)($_POST['set_companion'] ?? 0);
     $row = $pick ? get_character($pdo, $pick) : null;
     if ($row && (empty($row['is_premium']) || $premiumUnlocked)) {
-        // الرفيق الجديد يصبح النشط؛ السابق يبقى في الخانة الثانية للتبديل السريع (🔄)
         $prev = (int)($child['active_character'] ?: $child['character_1']);
         $other = $prev && $prev !== $pick ? $prev : (int)($child['character_2'] ?: $child['character_1']);
         if ($other === $pick) {
@@ -66,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_analysis'])) {
     header('Location: profile.php'); exit;
 }
 
-// ---------------- حذف رسمة من معرضي (الطفل يحذف رسوماته هو فقط) ----------------
+// ---------------- حذف رسمة من معرضي ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_drawing'])) {
     $d = $pdo->prepare("SELECT * FROM drawings WHERE id = ? AND child_id = ?");
     $d->execute([(int)$_POST['delete_drawing'], $child['id']]);
@@ -202,7 +201,6 @@ require_once __DIR__ . '/includes/navbar.php';
     pointer-events:none;
   }
 
-  /* رأس المخطط */
   .pf-bars-head{
     display:flex;align-items:center;gap:14px;
     margin-bottom:20px;position:relative;z-index:1;
@@ -222,7 +220,6 @@ require_once __DIR__ . '/includes/navbar.php';
   .pf-bars-head h3{margin:0;color:#3B2E6B;font-size:1.15rem;font-weight:900;}
   .pf-bars-head p{margin:3px 0 0;color:#7B6EA8;font-size:.82rem;font-weight:700;}
 
-  /* المخطط */
   .pf-bars-chart{
     position:relative;z-index:1;
     display:flex;
@@ -240,7 +237,6 @@ require_once __DIR__ . '/includes/navbar.php';
   .pf-bars-chart::-webkit-scrollbar{height:6px;}
   .pf-bars-chart::-webkit-scrollbar-thumb{background:#C9B8FF;border-radius:99px;}
 
-  /* عمود واحد */
   .pf-bar{
     position:relative;
     display:flex;
@@ -261,7 +257,6 @@ require_once __DIR__ . '/includes/navbar.php';
   .pf-bar:hover{transform:translateY(-4px);}
   .pf-bar:active{transform:translateY(-2px) scale(.98);}
 
-  /* أيقونة فوق */
   .pf-bar-icon{
     font-size:1.7rem;
     line-height:1;
@@ -271,7 +266,6 @@ require_once __DIR__ . '/includes/navbar.php';
   }
   .pf-bar:hover .pf-bar-icon{transform:scale(1.2) rotate(-8deg);}
 
-  /* مسار العمود */
   .pf-bar-track{
     position:relative;
     width:100%;
@@ -285,7 +279,6 @@ require_once __DIR__ . '/includes/navbar.php';
     min-height:80px;
   }
 
-  /* تعبئة العمود */
   .pf-bar-fill{
     width:100%;
     border-radius:16px 16px 6px 6px;
@@ -312,7 +305,6 @@ require_once __DIR__ . '/includes/navbar.php';
   }
   @keyframes pfBarsStripe{to{background-position:24px 0;}}
 
-  /* الرقم تحت */
   .pf-bar-num{
     margin-top:6px;
     font-size:.82rem;
@@ -324,7 +316,6 @@ require_once __DIR__ . '/includes/navbar.php';
     box-shadow:0 3px 8px rgba(0,0,0,.08);
   }
 
-  /* اسم المحور */
   .pf-bar-name{
     margin-top:4px;
     font-size:.68rem;
@@ -338,10 +329,8 @@ require_once __DIR__ . '/includes/navbar.php';
     max-width:100%;
   }
 
-  /* الأعمدة المختارة */
   .pf-bar.is-open .pf-bar-icon{transform:scale(1.3) rotate(0);}
 
-  /* التلميح التفاعلي */
   .pf-bars-tip{
     position:relative;z-index:1;
     margin-top:16px;
@@ -370,7 +359,6 @@ require_once __DIR__ . '/includes/navbar.php';
     transform:scale(1.02);
   }
 
-  /* ملخص عام */
   .pf-bars-summary{
     position:relative;z-index:1;
     margin-top:14px;
@@ -385,7 +373,6 @@ require_once __DIR__ . '/includes/navbar.php';
   .pf-bars-summary .sub{display:block;font-size:.8rem;font-weight:800;opacity:.85;}
   .pf-bars-summary b{color:#7B3FAF;}
 
-  /* الفراغ */
   .pf-bars-empty{
     position:relative;z-index:1;
     text-align:center;padding:30px 16px;
@@ -396,7 +383,32 @@ require_once __DIR__ . '/includes/navbar.php';
     animation:pfBarsFloat 2.4s ease-in-out infinite;
   }
 
-  /* جوال */
+  /* ============================================================
+     Voice Picker — تحسينات للجوال
+     ============================================================ */
+  #voicePicker{
+    width:100%;
+    min-height:46px;
+    padding:8px 12px;
+    border-radius:12px;
+    border:2px solid rgba(108,99,255,.25);
+    background:#fff;
+    font:inherit;
+    font-weight:700;
+    color:var(--ink);
+  }
+  #voicePicker:focus{ outline:2px solid var(--violet); outline-offset:1px; }
+  #voiceStatus{
+    display:block;
+    margin-top:6px;
+    font-weight:700;
+    font-size:12px;
+    line-height:1.6;
+    min-height:18px;
+    color:var(--ink-soft);
+  }
+  #voiceStatus b{ color:#3B2E6B; }
+
   @media(max-width:520px){
     .pf-bars{padding:18px 12px 16px;border-radius:22px;}
     .pf-bars-chart{min-height:180px;gap:5px;padding:10px 4px 0;}
@@ -454,16 +466,26 @@ require_once __DIR__ . '/includes/navbar.php';
       <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" value="<?php echo h($child['name']); ?>"></div>
       <div class="field"><label>عمر الطفل</label>
         <select name="child_age">
-          <?php for ($a=6;$a<=12;$a++): ?><option value="<?php echo $a; ?>" <?php echo $a==$child['age']?'selected':''; ?>><?php echo $a; ?> سنوات</option><?php endfor; ?>
+          <?php for ($a=1;$a<=18;$a++): ?><option value="<?php echo $a; ?>" <?php echo $a==$child['age']?'selected':''; ?>><?php echo $a; ?> سنوات</option><?php endfor; ?>
         </select>
       </div>
       <div class="field"><label>اسم ولي الأمر</label><input type="text" name="parent_name" value="<?php echo h($child['parent_name']); ?>"></div>
       <div class="field"><label>رقم واتساب ولي الأمر</label><input type="tel" name="parent_phone" value="<?php echo h($child['parent_phone']); ?>"></div>
-      <div class="field"><label>صوت الرفيق</label>
-        <select id="voicePicker"><option value="">الأفضل تلقائياً</option></select>
-        <small style="color:var(--ink-soft);display:block;margin-top:4px;">الأصوات المتاحة تعتمد على جهازك. اختر ثم اضغط «جرّب».</small>
-        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="testVoice()">🔊 جرّب الصوت</button>
+
+      <div class="field">
+        <label>🎤 صوت الرفيق</label>
+        <select id="voicePicker">
+          <option value="">الأفضل تلقائياً (موصى به)</option>
+        </select>
+        <small id="voiceStatus">
+          جاري تحميل الأصوات...
+        </small>
+        <button type="button"
+                class="btn btn-ghost btn-sm"
+                style="margin-top:8px;"
+                onclick="testVoice()">🔊 جرّب الصوت</button>
       </div>
+
       <button type="submit" name="save_profile" class="btn btn-primary">حفظ التعديلات</button>
     </form>
   </div>
@@ -602,17 +624,172 @@ require_once __DIR__ . '/includes/navbar.php';
   ], $myStories), JSON_UNESCAPED_UNICODE); ?>;
   function viewProfileStory(i){ StoryPlayer.render(PROFILE_STORIES[i], 'profileStoryBox', {}); document.getElementById('profileStoryBox').scrollIntoView({behavior:'smooth'}); }
 
-  // اختيار صوت الرفيق (الأصوات المتاحة على هذا الجهاز)
-  function fillVoices(){
-    const sel = document.getElementById('voicePicker'); if (!sel || !window.SoundEngine) return;
-    const cur = SoundEngine.getPreferredVoice();
-    sel.querySelectorAll('option:not([value=""])').forEach(o => o.remove());
-    SoundEngine.listVoices().forEach(v => { const o = document.createElement('option'); o.value = v.name; o.textContent = v.name + ' (' + v.lang + ')'; if (v.name === cur) o.selected = true; sel.appendChild(o); });
-    sel.onchange = () => SoundEngine.setPreferredVoice(sel.value);
-  }
-  function testVoice(){ if (window.Companion) Companion.say('مرحباً يا <?php echo h($child['name']); ?>! هكذا يبدو صوتي. هل يعجبك؟', { mood: 'wave' }); }
-  document.addEventListener('DOMContentLoaded', fillVoices);
-  if ('speechSynthesis' in window) window.speechSynthesis.addEventListener('voiceschanged', fillVoices);
+  /* ============================================================
+     اختيار صوت الرفيق — نسخة متوافقة مع الجوال بالكامل
+     ============================================================ */
+  (function(){
+    const sel = document.getElementById('voicePicker');
+    const statusEl = document.getElementById('voiceStatus');
+    if (!sel) return;
+
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    const isIOS    = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    let voicesFound = false;
+    let pollCount = 0;
+    const MAX_POLLS = 20; // ~10 ثوانٍ
+
+    /* ---------- ملاحظة توضيحية تحت القائمة ---------- */
+    function setStatus(html, tone){
+      if (!statusEl) return;
+      statusEl.innerHTML = html;
+      statusEl.style.color = tone === 'warn' ? '#f5a623'
+                          : tone === 'ok'   ? '#2ec4b6'
+                          : 'var(--ink-soft)';
+    }
+
+    /* ---------- فلترة الأصوات العربية ---------- */
+    function classifyVoice(v){
+      const lang = (v.lang || '').toLowerCase();
+      const name = (v.name || '').toLowerCase();
+      if (lang.startsWith('ar')) return 'ar';
+      if (/arabic|عربي|ar[-_]/.test(name)) return 'ar';
+      return 'other';
+    }
+
+    /* ---------- بناء القائمة ---------- */
+    function buildVoiceOptions(){
+      if (!window.SoundEngine) return false;
+
+      const allVoices = (typeof SoundEngine.listVoices === 'function')
+        ? SoundEngine.listVoices()
+        : (window.speechSynthesis ? speechSynthesis.getVoices() : []);
+
+      if (!allVoices || !allVoices.length) return false;
+
+      voicesFound = true;
+      const cur = (typeof SoundEngine.getPreferredVoice === 'function')
+        ? SoundEngine.getPreferredVoice()
+        : '';
+
+      // نظّف القائمة (مع إبقاء الخيار الأول)
+      sel.querySelectorAll('option:not([value=""]), optgroup').forEach(o => o.remove());
+
+      // رتّب: العربية أولاً ثم الباقي
+      const sorted = [...allVoices].sort((a, b) => {
+        const ra = classifyVoice(a), rb = classifyVoice(b);
+        if (ra === 'ar' && rb !== 'ar') return -1;
+        if (ra !== 'ar' && rb === 'ar') return 1;
+        return (a.lang || '').localeCompare(b.lang || '');
+      });
+
+      // جمّع حسب اللغة (optgroup)
+      const groups = {};
+      sorted.forEach(v => {
+        const key = v.lang || 'غير معروف';
+        (groups[key] = groups[key] || []).push(v);
+      });
+
+      Object.keys(groups).forEach(lang => {
+        const group = document.createElement('optgroup');
+        group.label = lang + (lang.toLowerCase().startsWith('ar') ? ' — عربي ✅' : '');
+        groups[lang].forEach(v => {
+          const o = document.createElement('option');
+          o.value = v.name;
+          o.textContent = v.name + (v.default ? ' (افتراضي)' : '');
+          if (v.name === cur) o.selected = true;
+          group.appendChild(o);
+        });
+        sel.appendChild(group);
+      });
+
+      // تفعيل التغيير
+      sel.onchange = () => {
+        if (typeof SoundEngine.setPreferredVoice === 'function') {
+          SoundEngine.setPreferredVoice(sel.value);
+        }
+        setStatus('✅ تم اختيار: <b>' + sel.value + '</b>', 'ok');
+      };
+
+      // ملاحظات حسب الجهاز
+      const arabicCount = allVoices.filter(v => classifyVoice(v) === 'ar').length;
+      if (isIOS && allVoices.length <= 2) {
+        setStatus(
+          'ℹ️ جهازك (iPhone/iPad) يوفّر ' + allVoices.length +
+          ' صوت فقط من النظام. لتوسيع الخيارات: <b>الإعدادات → إمكانية الوصول → المحتوى المنطوق → الأصوات → العربية</b>.',
+          'warn'
+        );
+      } else if (arabicCount === 0) {
+        setStatus('⚠️ لا يوجد صوت عربي مثبّت على جهازك. سيعمل التطبيق بالصوت الافتراضي.', 'warn');
+      } else if (arabicCount === 1) {
+        setStatus('ℹ️ صوت عربي واحد متاح على هذا الجهاز. للحصول على أصوات أكثر ثبّت حزمة Google TTS.', 'warn');
+      } else {
+        setStatus('🎤 ' + arabicCount + ' صوت عربي متاح — اختر ما يعجبك.', 'ok');
+      }
+      return true;
+    }
+
+    /* ---------- محاولة مع polling ---------- */
+    function tryFill(){
+      if (buildVoiceOptions()) return;
+      pollCount++;
+      if (pollCount < MAX_POLLS) {
+        setTimeout(tryFill, 500);
+      } else {
+        setStatus(
+          isIOS
+            ? 'ℹ️ iPhone لا يسمح بعرض الأصوات قبل أول لمسة. اضغط زر 🔊 «جرّب الصوت» لتشغيل الصوت الافتراضي.'
+            : 'ℹ️ لم يتم العثور على أصوات مخصّصة. سيُستخدم الصوت الافتراضي للجهاز.',
+          'warn'
+        );
+      }
+    }
+
+    /* ---------- تشغيل أولي ---------- */
+    if ('speechSynthesis' in window) {
+      speechSynthesis.onvoiceschanged = tryFill;
+      tryFill();
+
+      if (isIOS) {
+        const unlockVoices = () => {
+          tryFill();
+          document.removeEventListener('touchstart', unlockVoices);
+          document.removeEventListener('click', unlockVoices);
+        };
+        document.addEventListener('touchstart', unlockVoices, { once: true, passive: true });
+        document.addEventListener('click', unlockVoices, { once: true });
+      }
+    } else {
+      setStatus('⚠️ جهازك لا يدعم النطق الصوتي.', 'warn');
+      if (sel) sel.disabled = true;
+    }
+
+    /* ---------- زر التجربة ---------- */
+    window.testVoice = function(){
+      if (isIOS) tryFill();
+
+      const name = <?php echo json_encode($child['name'], JSON_UNESCAPED_UNICODE); ?>;
+      const msg  = `مرحباً يا ${name}! هكذا يبدو صوتي. هل يعجبك؟`;
+
+      if (window.Companion && typeof Companion.say === 'function') {
+        Companion.say(msg, { mood: 'wave' });
+        setStatus('🔊 يعمل الآن...', 'ok');
+      } else if ('speechSynthesis' in window) {
+        try {
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(msg);
+          u.lang  = 'ar-SA';
+          u.rate  = 1.0;
+          u.pitch = 1.1;
+          const v = speechSynthesis.getVoices().find(x => (x.lang || '').toLowerCase().startsWith('ar'));
+          if (v) u.voice = v;
+          speechSynthesis.speak(u);
+          setStatus('🔊 يعمل الآن...', 'ok');
+        } catch(e) {
+          setStatus('❌ تعذّر تشغيل الصوت.', 'warn');
+        }
+      }
+    };
+  })();
 
   /* ============================================================
      Bar Chart — أنيميشن + تفاعل
@@ -621,7 +798,7 @@ require_once __DIR__ . '/includes/navbar.php';
     const chart = document.getElementById('pfBarsChart');
     if (!chart) return;
 
-    // 1) حرّك الأعمدة تصاعدياً
+    // حرّك الأعمدة تصاعدياً
     chart.querySelectorAll('.pf-bar-fill').forEach(function(el, i){
       const pct = parseInt(el.dataset.pct || '0', 10);
       setTimeout(function(){
@@ -629,7 +806,7 @@ require_once __DIR__ . '/includes/navbar.php';
       }, 120 * i + 200);
     });
 
-    // 2) عند الضغط على عمود
+    // عند الضغط على عمود
     const tip = document.getElementById('pfBarsTip');
     chart.querySelectorAll('.pf-bar').forEach(function(bar){
       bar.addEventListener('click', function(){
@@ -637,7 +814,6 @@ require_once __DIR__ . '/includes/navbar.php';
         const value = bar.dataset.value || '0';
         const level = bar.dataset.level || '';
 
-        // أزل "is-open" من الباقي
         chart.querySelectorAll('.pf-bar').forEach(b => b.classList.remove('is-open'));
         bar.classList.add('is-open');
 
@@ -650,7 +826,6 @@ require_once __DIR__ . '/includes/navbar.php';
           `;
         }
 
-        // حرّك العمود قليلاً كتأكيد
         bar.animate(
           [{transform:'translateY(0)'},{transform:'translateY(-6px)'},{transform:'translateY(0)'}],
           {duration:400, easing:'ease-out'}
