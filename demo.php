@@ -52,459 +52,1345 @@ require_once __DIR__ . '/includes/public-nav.php';
 ?>
 
 <style>
-  :root{--demo-gold:#ffc93c;--demo-pink:#ff6fa5;--demo-blue:#5b8def;--demo-ink:#241645}
-  .demo-page{position:relative;z-index:2;min-height:calc(100vh - 72px);padding:32px 0 90px;color:#f1f5f9}
-  .demo-container{width:min(980px,calc(100% - 28px));margin:0 auto}
-  .demo-head{text-align:center;margin:15px auto 24px}.demo-kicker{color:#ffe99a;font-size:13px;font-weight:900}.demo-head h1{margin:7px 0;font-family:var(--font-display);font-size:clamp(34px,6vw,58px)}.demo-head p{max-width:650px;margin:0 auto;color:#b9abd4;line-height:1.8}
-  .demo-progress{display:flex;gap:8px;max-width:520px;margin:0 auto 24px}.demo-progress span{height:7px;flex:1;border-radius:999px;background:rgba(255,255,255,.14);transition:background .35s ease,box-shadow .35s ease}.demo-progress span.active{background:linear-gradient(90deg,#ffc93c,#ff6fa5);box-shadow:0 0 16px rgba(255,201,60,.3)}
-  .demo-stage{padding:28px;border:1px solid rgba(255,255,255,.15);border-radius:30px;background:rgba(255,255,255,.075);backdrop-filter:blur(14px);box-shadow:0 25px 65px rgba(0,0,0,.2)}.demo-stage[hidden]{display:none}
-  .demo-guide{display:flex;align-items:center;gap:18px;max-width:720px;margin:0 auto 25px;padding:16px;border:1px solid rgba(255,255,255,.13);border-radius:22px;background:rgba(10,6,26,.3)}.demo-guide-avatar{width:78px;height:78px;flex:0 0 78px;display:grid;place-items:center;border:3px solid rgba(255,255,255,.5);border-radius:28px;background:linear-gradient(145deg,var(--guide-color,#6c63ff),rgba(10,6,26,.8));font-size:44px;overflow:hidden}.demo-guide-avatar img{width:100%;height:100%;object-fit:cover}.demo-guide-bubble{flex:1;color:#fff;font-size:15px;font-weight:800;line-height:1.8}.demo-guide-name{display:block;margin-bottom:2px;color:#ffe99a;font-size:13px}
-  .demo-welcome{text-align:center}.demo-welcome h2,.demo-stage h2{margin:0 0 9px;font-family:var(--font-display);font-size:clamp(25px,4vw,37px)}.demo-welcome p,.demo-stage-intro{color:#d9d0ff;line-height:1.9}.demo-chips{display:flex;justify-content:center;flex-wrap:wrap;gap:9px;margin:20px auto 25px}.demo-chip{padding:9px 14px;border:1px solid rgba(255,201,60,.35);border-radius:999px;color:#ffe99a;background:rgba(255,201,60,.1);font-size:13px;font-weight:800}
-  .demo-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:20px}.demo-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:10px 23px;border:1px solid transparent;border-radius:999px;font:inherit;font-weight:900;transition:transform .2s ease,box-shadow .2s ease}.demo-btn:hover{transform:translateY(-2px)}.demo-btn-gold{color:var(--demo-ink);background:linear-gradient(135deg,#ffe99a,#ffc93c);box-shadow:0 12px 28px rgba(255,201,60,.25)}.demo-btn-ghost{color:#fff;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18)}
-  .demo-character-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:20px}.demo-character{position:relative;padding:8px;border:2px solid transparent;border-radius:19px;color:#fff;background:rgba(255,255,255,.065);text-align:center;cursor:pointer;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}.demo-character:hover,.demo-character:focus-visible{transform:translateY(-5px);border-color:var(--char-color);box-shadow:0 14px 25px rgba(0,0,0,.25);outline:none}.demo-character.selected{border-color:#ffc93c;box-shadow:0 0 24px rgba(255,201,60,.25)}.demo-character-media{position:relative;display:grid;place-items:center;aspect-ratio:1;border-radius:13px;overflow:hidden;background:linear-gradient(145deg,var(--char-color),rgba(10,6,26,.8));font-size:42px}.demo-character-media img{width:100%;height:100%;object-fit:cover}.demo-character-name{display:block;margin-top:7px;font-family:var(--font-display);font-size:16px}.demo-character-title{display:block;color:#b9abd4;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.demo-premium{position:absolute;top:5px;right:5px;padding:3px 5px;border-radius:999px;color:#fff;background:rgba(10,6,26,.82);font-size:9px;font-weight:900}
-  .demo-selected-card{max-width:190px;margin:20px auto;text-align:center}.demo-selected-media{display:grid;place-items:center;width:145px;height:145px;margin:0 auto 9px;border:5px solid rgba(255,255,255,.25);border-radius:38%;background:linear-gradient(145deg,var(--selected-color),rgba(10,6,26,.8));font-size:78px;overflow:hidden;box-shadow:0 20px 35px rgba(0,0,0,.25)}.demo-selected-media img{width:100%;height:100%;object-fit:cover}.demo-selected-card strong{font-family:var(--font-display);font-size:24px}.demo-memory-meta{text-align:center;color:#b9abd4;font-size:13px}.demo-memory-meta b{color:#ffe99a}
-  .demo-memory-grid{display:grid;grid-template-columns:repeat(4, minmax(58px,90px));justify-content:center;gap:12px;max-width:430px;margin:23px auto}.demo-memory-card{width:100%;height:84px;perspective:700px;padding:0;background:transparent}.demo-memory-inner{display:block;position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .4s ease}.demo-memory-card.is-open .demo-memory-inner,.demo-memory-card.is-matched .demo-memory-inner{transform:rotateY(180deg)}.demo-memory-face{position:absolute;inset:0;display:grid;place-items:center;border:2px solid rgba(255,201,60,.38);border-radius:16px;backface-visibility:hidden;font-size:31px}.demo-memory-front{color:#ffe99a;background:linear-gradient(145deg,rgba(255,201,60,.25),rgba(91,141,239,.22));font-size:27px}.demo-memory-back{transform:rotateY(180deg);background:linear-gradient(145deg,var(--memory-color,#6c63ff),rgba(10,6,26,.8))}.demo-memory-card.is-matched .demo-memory-back{border-color:#8ff0d4;box-shadow:0 0 20px rgba(46,196,182,.35)}.demo-memory-card:focus-visible{outline:3px solid #fff;outline-offset:3px;border-radius:16px}
-  .demo-name-form{max-width:430px;margin:25px auto}.demo-name-form label{display:block;margin-bottom:8px;color:#ffe99a;font-weight:900}.demo-name-form input{width:100%;min-height:52px;padding:10px 15px;border:1px solid rgba(255,255,255,.18);border-radius:15px;color:#fff;background:rgba(0,0,0,.22);font:inherit;font-size:18px}.demo-name-form input:focus{outline:2px solid #ffc93c}.demo-error{min-height:25px;color:#fecaca;font-size:13px;font-weight:800}
-  .demo-story-player{max-width:700px;margin:10px auto}.demo-story-scene{position:relative;min-height:365px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-radius:25px;background:linear-gradient(135deg,#6c63ff,#241645);box-shadow:0 20px 50px rgba(0,0,0,.3);transition:background .6s ease}.demo-story-sprite{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);width:128px;height:128px;display:grid;place-items:center;border:5px solid rgba(255,255,255,.3);border-radius:38%;background:linear-gradient(145deg,var(--story-color),rgba(10,6,26,.8));font-size:70px;overflow:hidden;animation:demoSpriteFloat 2.8s ease-in-out infinite}.demo-story-sprite img{width:100%;height:100%;object-fit:cover}@keyframes demoSpriteFloat{0%,100%{margin-top:0;transform:translate(-50%,-50%) rotate(-3deg)}50%{margin-top:-13px;transform:translate(-50%,-50%) rotate(3deg)}}.demo-story-chapter{position:absolute;top:8%;inset-inline:0;text-align:center;color:#ffe99a;font-family:var(--font-display);font-size:22px;font-weight:900}.demo-story-chapter-icon{display:block;margin-bottom:3px;font-size:48px}.demo-story-caption{width:100%;padding:75px 24px 23px;background:linear-gradient(0deg,rgba(0,0,0,.78),transparent);color:#fff;text-align:center;font-family:var(--font-display);font-size:21px;line-height:1.7;transition:opacity .25s ease,transform .25s ease}.demo-story-caption.is-out{opacity:0;transform:translateY(12px)}.demo-story-controls{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:14px}.demo-story-controls button{min-height:43px;padding:9px 16px;border:1px solid rgba(255,255,255,.2);border-radius:999px;color:#fff;background:rgba(255,255,255,.08);font:inherit;font-weight:800}
-  .demo-finale{text-align:center}.demo-finale-icon{font-size:75px;animation:demoFinalePop 1.8s ease-in-out infinite}@keyframes demoFinalePop{0%,100%{transform:scale(1)}50%{transform:scale(1.12) rotate(3deg)}}.demo-finale p{max-width:560px;margin:10px auto;color:#d9d0ff;line-height:1.9}.demo-particles{position:fixed;inset:0;z-index:380;pointer-events:none;overflow:hidden}.demo-particle{position:absolute;font-size:25px;animation:demoParticle 1.5s ease-out forwards}@keyframes demoParticle{from{opacity:1;transform:translate(0,0) scale(.5)}to{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.2) rotate(180deg)}}
-  /* CHANGE: New styles for animated story text */
-  .demo-story-caption .highlight{color:#ffc93c;font-weight:900}
-  .demo-story-caption .typing-cursor{display:inline-block;width:2px;height:1em;background:#ffc93c;margin-left:3px;vertical-align:text-bottom;animation:blink 0.8s step-end infinite}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-  .demo-story-scene .scene-transition{animation:sceneFlash 0.6s ease}
-  @keyframes sceneFlash{0%{opacity:0.4}50%{opacity:1}100%{opacity:1}}
-  @media(max-width:800px){.demo-character-grid{grid-template-columns:repeat(3,1fr)}.demo-story-scene{min-height:320px}}
-  @media(max-width:520px){.demo-page{padding-top:20px}.demo-stage{padding:19px 13px;border-radius:23px}.demo-guide{align-items:flex-start;gap:10px;padding:12px}.demo-guide-avatar{width:58px;height:58px;flex-basis:58px;font-size:32px;border-radius:20px}.demo-guide-bubble{font-size:13px}.demo-memory-grid{gap:8px}.demo-memory-card{height:69px}.demo-memory-face{border-radius:12px;font-size:25px}.demo-story-scene{min-height:280px}.demo-story-sprite{width:94px;height:94px;font-size:53px}.demo-story-caption{padding:65px 13px 17px;font-size:17px}.demo-story-chapter{font-size:17px}.demo-story-chapter-icon{font-size:36px}}
-  @media(prefers-reduced-motion:reduce){.demo-story-sprite,.demo-finale-icon{animation:none}}
+/* =========================================================
+   Kidora Demo — تصميم متجاوب نظيف
+   ========================================================= */
+:root{
+  --demo-gold:#ffc93c;
+  --demo-gold-2:#f5a623;
+  --demo-pink:#ff6fa5;
+  --demo-blue:#5b8def;
+  --demo-teal:#2ec4b6;
+  --demo-ink:#241645;
+  --demo-bg-card:rgba(255,255,255,.075);
+  --demo-bg-line:rgba(255,255,255,.14);
+}
+
+/* إعادة ضبط شاملة لمنع أي تجاوز أفقي */
+.demo-page,
+.demo-page *,
+.demo-page *::before,
+.demo-page *::after{ box-sizing:border-box; }
+
+html, body{ overflow-x:hidden; max-width:100%; }
+
+.demo-page{
+  position:relative;
+  z-index:2;
+  min-height:calc(100vh - 72px);
+  padding:26px 0 80px;
+  color:#f1f5f9;
+}
+.demo-container{
+  width:min(980px, calc(100% - 28px));
+  margin:0 auto;
+  max-width:100%;
+}
+
+/* ====== العنوان الرئيسي ====== */
+.demo-head{ text-align:center; margin:8px auto 22px; }
+.demo-kicker{
+  display:inline-block;
+  padding:.3rem .85rem;
+  border-radius:999px;
+  background:rgba(255,201,60,.14);
+  color:#ffe99a;
+  font-size:.78rem;
+  font-weight:900;
+  letter-spacing:.3px;
+}
+.demo-head h1{
+  margin:.5rem 0 .4rem;
+  font-family:var(--font-display, inherit);
+  font-size:clamp(1.7rem, 5vw, 2.7rem);
+  line-height:1.25;
+  background:linear-gradient(135deg,#fff,#ffe99a 60%,#ffc93c);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+}
+.demo-head p{
+  max-width:620px;
+  margin:0 auto;
+  color:#b9abd4;
+  font-size:.95rem;
+  line-height:1.75;
+}
+
+/* ====== شريط التقدم ====== */
+.demo-progress{
+  display:flex;
+  gap:6px;
+  max-width:520px;
+  margin:0 auto 22px;
+  padding:0 4px;
+}
+.demo-progress span{
+  height:6px;
+  flex:1;
+  border-radius:999px;
+  background:rgba(255,255,255,.12);
+  transition:background .35s ease, box-shadow .35s ease;
+}
+.demo-progress span.active{
+  background:linear-gradient(90deg, #ffc93c, #ff6fa5);
+  box-shadow:0 0 14px rgba(255,201,60,.45);
+}
+.demo-progress span.done{
+  background:linear-gradient(90deg, #2ec4b6, #5b8def);
+}
+
+/* ====== البطاقة الرئيسية ====== */
+.demo-stage{
+  padding:22px 18px;
+  border:1px solid var(--demo-bg-line);
+  border-radius:26px;
+  background:var(--demo-bg-card);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 24px 60px rgba(0,0,0,.22);
+  animation:stageFadeIn .45s ease both;
+  max-width:100%;
+  overflow-x:clip;
+}
+.demo-stage[hidden]{ display:none; }
+@keyframes stageFadeIn{
+  from{ opacity:0; transform:translateY(14px); }
+  to  { opacity:1; transform:translateY(0); }
+}
+
+.demo-stage h2{
+  margin:0 0 8px;
+  font-family:var(--font-display, inherit);
+  font-size:clamp(1.25rem, 3.4vw, 1.75rem);
+  text-align:center;
+  color:#fff;
+}
+.demo-stage-intro{
+  color:#d9d0ff;
+  line-height:1.85;
+  text-align:center;
+  font-size:.92rem;
+  margin:0 0 16px;
+}
+
+/* ====== بطاقة الرفيق ====== */
+.demo-guide{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  max-width:640px;
+  margin:0 auto 20px;
+  padding:12px 14px;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:20px;
+  background:rgba(10,6,26,.32);
+}
+.demo-guide-avatar{
+  width:64px;
+  height:64px;
+  flex:0 0 64px;
+  display:grid;
+  place-items:center;
+  border:3px solid rgba(255,255,255,.45);
+  border-radius:22px;
+  background:linear-gradient(145deg, var(--guide-color, #6c63ff), rgba(10,6,26,.8));
+  font-size:36px;
+  overflow:hidden;
+}
+.demo-guide-avatar img{ width:100%; height:100%; object-fit:cover; }
+.demo-guide-bubble{
+  flex:1;
+  min-width:0;
+  color:#fff;
+  font-size:.95rem;
+  font-weight:800;
+  line-height:1.7;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.demo-guide-name{
+  display:block;
+  margin-bottom:2px;
+  color:#ffe99a;
+  font-size:.78rem;
+  letter-spacing:.2px;
+}
+
+/* ====== شارات المراحل ====== */
+.demo-chips{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:16px auto 20px;
+}
+.demo-chip{
+  padding:.5rem .9rem;
+  border:1px solid rgba(255,201,60,.35);
+  border-radius:999px;
+  color:#ffe99a;
+  background:rgba(255,201,60,.08);
+  font-size:.78rem;
+  font-weight:800;
+}
+
+/* ====== الأزرار ====== */
+.demo-actions{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:16px;
+}
+.demo-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.45rem;
+  min-height:50px;
+  padding:.7rem 1.5rem;
+  border:1px solid transparent;
+  border-radius:999px;
+  font:inherit;
+  font-size:.95rem;
+  font-weight:900;
+  cursor:pointer;
+  text-decoration:none;
+  transition:transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.demo-btn:hover{ transform:translateY(-2px); }
+.demo-btn:active{ transform:translateY(0); }
+.demo-btn-gold{
+  color:var(--demo-ink);
+  background:linear-gradient(135deg,#ffe99a,#ffc93c);
+  box-shadow:0 12px 28px rgba(255,201,60,.28);
+}
+.demo-btn-gold:hover{ box-shadow:0 16px 34px rgba(255,201,60,.42); }
+.demo-btn-ghost{
+  color:#fff;
+  background:rgba(255,255,255,.08);
+  border-color:rgba(255,255,255,.18);
+}
+.demo-btn-teal{
+  color:#fff;
+  background:linear-gradient(135deg,#2ec4b6,#1a9e93);
+  box-shadow:0 12px 28px rgba(46,196,182,.28);
+}
+.demo-btn-pulse{ animation:btnPulse 1.8s ease infinite; }
+@keyframes btnPulse{
+  0%,100%{ box-shadow:0 12px 28px rgba(255,201,60,.28); }
+  50%    { box-shadow:0 12px 40px rgba(255,201,60,.7), 0 0 0 8px rgba(255,201,60,.12); }
+}
+
+/* ====== شبكة الشخصيات ====== */
+.demo-character-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(120px, 1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.demo-character-grid > *{ min-width:0; }
+
+.demo-character{
+  position:relative;
+  padding:8px;
+  border:2px solid transparent;
+  border-radius:18px;
+  color:#fff;
+  background:rgba(255,255,255,.06);
+  text-align:center;
+  cursor:pointer;
+  transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  font-family:inherit;
+  min-width:0;
+}
+.demo-character:hover,
+.demo-character:focus-visible{
+  transform:translateY(-4px);
+  border-color:var(--char-color);
+  box-shadow:0 14px 24px rgba(0,0,0,.28);
+  outline:none;
+}
+.demo-character.selected{
+  border-color:#ffc93c;
+  box-shadow:0 0 0 3px rgba(255,201,60,.25), 0 14px 24px rgba(255,201,60,.3);
+}
+.demo-character-media{
+  position:relative;
+  display:grid;
+  place-items:center;
+  aspect-ratio:1;
+  border-radius:14px;
+  overflow:hidden;
+  background:linear-gradient(145deg, var(--char-color), rgba(10,6,26,.8));
+  font-size:38px;
+}
+.demo-character-media img{ width:100%; height:100%; object-fit:cover; }
+.demo-character-name{
+  display:block;
+  margin-top:6px;
+  font-family:var(--font-display, inherit);
+  font-size:.92rem;
+  font-weight:900;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  max-width:100%;
+}
+.demo-character-title{
+  display:block;
+  color:#b9abd4;
+  font-size:.68rem;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  margin-top:1px;
+}
+.demo-premium{
+  position:absolute;
+  top:5px;
+  right:5px;
+  padding:2px 6px;
+  border-radius:999px;
+  color:#ffe99a;
+  background:rgba(10,6,26,.85);
+  font-size:.6rem;
+  font-weight:900;
+  border:1px solid rgba(255,201,60,.4);
+}
+
+/* ====== بطاقة الشخصية المختارة ====== */
+.demo-selected-card{
+  text-align:center;
+  margin:16px auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+}
+.demo-selected-media{
+  display:grid;
+  place-items:center;
+  width:110px;
+  height:110px;
+  border:4px solid rgba(255,255,255,.22);
+  border-radius:36%;
+  background:linear-gradient(145deg, var(--selected-color, #6c63ff), rgba(10,6,26,.8));
+  font-size:58px;
+  overflow:hidden;
+  box-shadow:0 18px 30px rgba(0,0,0,.28);
+}
+.demo-selected-media img{ width:100%; height:100%; object-fit:cover; }
+.demo-selected-card strong{
+  font-family:var(--font-display, inherit);
+  font-size:1.25rem;
+}
+
+/* ====== لعبة الذاكرة ====== */
+.demo-memory-meta{
+  text-align:center;
+  color:#b9abd4;
+  font-size:.85rem;
+  margin:6px 0;
+}
+.demo-memory-meta b{ color:#ffe99a; }
+.demo-memory-grid{
+  display:grid;
+  grid-template-columns:repeat(4, minmax(56px, 84px));
+  justify-content:center;
+  gap:10px;
+  max-width:400px;
+  margin:16px auto;
+  padding:0 4px;
+}
+.demo-memory-card{
+  width:100%;
+  height:76px;
+  perspective:700px;
+  padding:0;
+  background:transparent;
+  border:0;
+  cursor:pointer;
+}
+.demo-memory-inner{
+  display:block;
+  position:relative;
+  width:100%;
+  height:100%;
+  transform-style:preserve-3d;
+  transition:transform .4s ease;
+}
+.demo-memory-card.is-open .demo-memory-inner,
+.demo-memory-card.is-matched .demo-memory-inner{
+  transform:rotateY(180deg);
+}
+.demo-memory-face{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  border:2px solid rgba(255,201,60,.4);
+  border-radius:14px;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  font-size:28px;
+}
+.demo-memory-front{
+  color:#ffe99a;
+  background:linear-gradient(145deg, rgba(255,201,60,.28), rgba(91,141,239,.24));
+  font-size:24px;
+}
+.demo-memory-back{
+  transform:rotateY(180deg);
+  background:linear-gradient(145deg, var(--memory-color, #6c63ff), rgba(10,6,26,.8));
+}
+.demo-memory-card.is-matched .demo-memory-back{
+  border-color:#8ff0d4;
+  box-shadow:0 0 20px rgba(46,196,182,.45);
+}
+.demo-memory-card:focus-visible{ outline:3px solid #fff; outline-offset:3px; border-radius:14px; }
+
+/* ====== نموذج الاسم ====== */
+.demo-name-form{ max-width:420px; margin:16px auto 0; }
+.demo-name-form label{
+  display:block;
+  margin-bottom:6px;
+  color:#ffe99a;
+  font-weight:900;
+  font-size:.9rem;
+}
+.demo-name-form input{
+  width:100%;
+  min-height:52px;
+  padding:.65rem 1rem;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:14px;
+  color:#fff;
+  background:rgba(0,0,0,.22);
+  font:inherit;
+  font-size:1.05rem;
+  text-align:center;
+}
+.demo-name-form input:focus{ outline:2px solid #ffc93c; outline-offset:1px; }
+.demo-error{
+  min-height:22px;
+  color:#fecaca;
+  font-size:.82rem;
+  font-weight:800;
+  text-align:center;
+  margin-top:6px;
+}
+
+/* ====== القصة ====== */
+.demo-story-player{ max-width:680px; margin:6px auto 0; }
+.demo-story-scene{
+  position:relative;
+  min-height:340px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:hidden;
+  border-radius:22px;
+  background:linear-gradient(135deg, var(--story-color, #6c63ff), #241645);
+  box-shadow:0 22px 50px rgba(0,0,0,.32);
+  transition:background .6s ease;
+}
+.demo-story-sprite{
+  position:absolute;
+  top:30%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  width:110px;
+  height:110px;
+  display:grid;
+  place-items:center;
+  border:4px solid rgba(255,255,255,.3);
+  border-radius:38%;
+  background:linear-gradient(145deg, var(--story-color, #6c63ff), rgba(10,6,26,.8));
+  font-size:58px;
+  overflow:hidden;
+  animation:spriteFloat 2.8s ease-in-out infinite;
+}
+.demo-story-sprite img{ width:100%; height:100%; object-fit:cover; }
+@keyframes spriteFloat{
+  0%,100%{ margin-top:0; transform:translate(-50%,-50%) rotate(-3deg); }
+  50%    { margin-top:-12px; transform:translate(-50%,-50%) rotate(3deg); }
+}
+.demo-story-chapter{
+  position:absolute;
+  top:7%;
+  inset-inline:0;
+  text-align:center;
+  color:#ffe99a;
+  font-family:var(--font-display, inherit);
+  font-size:1.05rem;
+  font-weight:900;
+  text-shadow:0 2px 8px rgba(0,0,0,.4);
+}
+.demo-story-chapter-icon{
+  display:block;
+  margin-bottom:2px;
+  font-size:38px;
+}
+.demo-story-caption{
+  width:100%;
+  padding:70px 20px 20px;
+  background:linear-gradient(0deg, rgba(0,0,0,.82), rgba(0,0,0,.5) 55%, transparent);
+  color:#fff;
+  text-align:center;
+  font-family:var(--font-display, inherit);
+  font-size:1rem;
+  line-height:1.75;
+  min-height:130px;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.demo-story-caption .typing-cursor{
+  display:inline-block;
+  width:2px;
+  height:1em;
+  background:#ffc93c;
+  margin-inline-start:3px;
+  vertical-align:text-bottom;
+  animation:blink .8s step-end infinite;
+}
+@keyframes blink{
+  0%,100%{ opacity:1; }
+  50%    { opacity:0; }
+}
+.demo-story-controls{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+
+/* ====== النهاية ====== */
+.demo-finale{ text-align:center; }
+.demo-finale-icon{
+  font-size:64px;
+  animation:finalePop 1.8s ease-in-out infinite;
+  display:inline-block;
+}
+@keyframes finalePop{
+  0%,100%{ transform:scale(1); }
+  50%    { transform:scale(1.12) rotate(4deg); }
+}
+.demo-finale p{
+  max-width:520px;
+  margin:10px auto 0;
+  color:#d9d0ff;
+  line-height:1.85;
+  font-size:.95rem;
+}
+.demo-finale-rewards{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:16px 0 4px;
+}
+.demo-finale-rewards span{
+  padding:.4rem .85rem;
+  border-radius:999px;
+  background:rgba(46,196,182,.15);
+  border:1px solid rgba(46,196,182,.35);
+  color:#c8fff6;
+  font-size:.8rem;
+  font-weight:800;
+}
+
+/* ====== الجزيئات ====== */
+.demo-particles{
+  position:fixed;
+  inset:0;
+  z-index:380;
+  pointer-events:none;
+  overflow:hidden;
+}
+.demo-particle{
+  position:absolute;
+  font-size:22px;
+  animation:demoParticle 1.6s ease-out forwards;
+}
+@keyframes demoParticle{
+  from{ opacity:1; transform:translate(0,0) scale(.5); }
+  to  { opacity:0; transform:translate(var(--dx), var(--dy)) scale(1.25) rotate(200deg); }
+}
+
+/* ====== الاستجابة ====== */
+@media (max-width: 640px){
+  .demo-page{ padding:16px 0 60px; }
+  .demo-container{ width:calc(100% - 20px); }
+  .demo-stage{ padding:18px 12px; border-radius:22px; }
+  .demo-head h1{ font-size:1.55rem; }
+  .demo-head p{ font-size:.88rem; }
+  .demo-guide{
+    padding:10px 11px;
+    gap:10px;
+    border-radius:16px;
+  }
+  .demo-guide-avatar{
+    width:52px; height:52px; flex-basis:52px;
+    font-size:28px; border-radius:16px;
+  }
+  .demo-guide-bubble{ font-size:.86rem; }
+  .demo-chip{ font-size:.72rem; padding:.4rem .7rem; }
+  .demo-character-grid{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:8px;
+  }
+  .demo-character-media{ font-size:32px; }
+  .demo-character-name{ font-size:.85rem; }
+  .demo-memory-grid{
+    grid-template-columns:repeat(4, minmax(52px, 1fr));
+    gap:7px;
+    max-width:100%;
+  }
+  .demo-memory-card{ height:66px; }
+  .demo-memory-face{ font-size:24px; border-radius:12px; }
+  .demo-memory-front{ font-size:20px; }
+  .demo-story-scene{ min-height:290px; }
+  .demo-story-sprite{ width:88px; height:88px; font-size:46px; }
+  .demo-story-caption{ padding:60px 14px 16px; font-size:.92rem; }
+  .demo-story-chapter{ font-size:.95rem; }
+  .demo-story-chapter-icon{ font-size:32px; }
+  .demo-btn{ font-size:.88rem; padding:.62rem 1.2rem; min-height:46px; }
+}
+
+@media (max-width: 380px){
+  .demo-stage{ padding:14px 10px; }
+  .demo-character-grid{ gap:6px; }
+  .demo-character-media{ font-size:28px; }
+  .demo-memory-grid{ gap:5px; }
+  .demo-memory-card{ height:58px; }
+  .demo-memory-face{ font-size:20px; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .demo-story-sprite,
+  .demo-finale-icon,
+  .demo-btn-pulse{ animation:none; }
+  .demo-stage{ animation:none; }
+}
 </style>
 
 <main class="demo-page">
   <div class="demo-container">
     <div class="demo-head">
-      <span class="demo-kicker">تجربة Kidora القصيرة</span>
+      <span class="demo-kicker">🎈 تجربة Kidora القصيرة</span>
       <h1>ثلاث محطات... وقصة باسمك</h1>
       <p>جرّب عالم الشخصيات والألعاب والصوت في دقائق، ثم قرر إن كانت هذه بداية مغامرتك.</p>
     </div>
-    <div class="demo-progress" id="demoProgress" aria-label="تقدم التجربة"><span class="active"></span><span></span><span></span></div>
 
+    <div class="demo-progress" id="demoProgress" aria-label="تقدم التجربة">
+      <span class="active"></span><span></span><span></span>
+    </div>
+
+    <!-- ========== 1. الترحيب ========== -->
     <section class="demo-stage demo-welcome" id="demoWelcome">
-      <div class="demo-guide" id="demoGuide">
-        <div class="demo-guide-avatar" id="guideAvatar" style="--guide-color:<?php echo h($guideData['color']); ?>">
-          <?php if (!empty($guideData['image'])): ?><img src="<?php echo h($guideData['image']); ?>" alt="<?php echo h($guideData['name']); ?>"><?php else: ?><?php echo h($guideData['icons'][0] ?? '✨'); ?><?php endif; ?>
+      <div class="demo-guide">
+        <div class="demo-guide-avatar" id="welcomeGuideAvatar"
+             style="--guide-color:<?php echo h($guideData['color']); ?>">
+          <?php if (!empty($guideData['image'])): ?>
+            <img src="<?php echo h($guideData['image']); ?>" alt="<?php echo h($guideData['name']); ?>">
+          <?php else: ?>
+            <?php echo h($guideData['icons'][0] ?? '✨'); ?>
+          <?php endif; ?>
         </div>
-        <div class="demo-guide-bubble"><span class="demo-guide-name" id="guideName"><?php echo h($guideData['name']); ?></span><span id="guideBubble"><?php echo h($guideLines['welcome']); ?></span></div>
+        <div class="demo-guide-bubble">
+          <span class="demo-guide-name" id="welcomeGuideName"><?php echo h($guideData['name']); ?></span>
+          <span class="js-guide-text" id="welcomeGuideText"><?php echo h($guideLines['welcome']); ?></span>
+        </div>
       </div>
+
       <h2>أهلاً بك في عالم Kidora ✨</h2>
-      <p>رفيقك سيقودك في اختيار شخصية، لعبة ذاكرة قصيرة، ثم قصة صغيرة تُروى بصوته.</p>
-      <div class="demo-chips"><span class="demo-chip">1. اختر رفيقاً</span><span class="demo-chip">2. طابق الأزواج</span><span class="demo-chip">3. اسمع قصتك</span></div>
-      <div class="demo-actions"><button type="button" class="demo-btn demo-btn-gold" id="demoStart">🚀 ابدأ التجربة</button><a class="demo-btn demo-btn-ghost" href="<?php echo h(BASE_PATH . '/index.php'); ?>">العودة للرئيسية</a></div>
+      <p class="demo-stage-intro">رفيقك سيقودك في اختيار شخصية، لعبة ذاكرة قصيرة، ثم قصة صغيرة تُروى بصوته.</p>
+
+      <div class="demo-chips">
+        <span class="demo-chip">1. اختر رفيقاً</span>
+        <span class="demo-chip">2. طابق الأزواج</span>
+        <span class="demo-chip">3. اسمع قصتك</span>
+      </div>
+
+      <div class="demo-actions">
+        <button type="button" class="demo-btn demo-btn-gold demo-btn-pulse" id="demoStart">
+          🚀 ابدأ التجربة
+        </button>
+        <a class="demo-btn demo-btn-ghost" href="<?php echo h(BASE_PATH . '/index.php'); ?>">
+          العودة للرئيسية
+        </a>
+      </div>
     </section>
 
+    <!-- ========== 2. اختيار الشخصية ========== -->
     <section class="demo-stage" id="demoPick" hidden>
-      <div class="demo-guide"><div class="demo-guide-avatar" id="pickGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="pickGuideName"></span><span id="pickGuideText"><?php echo h($guideLines['pick']); ?></span></div></div>
+      <div class="demo-guide">
+        <div class="demo-guide-avatar" id="pickGuideAvatar"></div>
+        <div class="demo-guide-bubble">
+          <span class="demo-guide-name" id="pickGuideName"></span>
+          <span class="js-guide-text" id="pickGuideText"><?php echo h($guideLines['pick']); ?></span>
+        </div>
+      </div>
+
       <h2>اختر الشخصية التي تحبها</h2>
       <p class="demo-stage-intro">الشخصيات المدفوعة متاحة للتجربة هنا، أما التسجيل فيبدأ بشخصيتين مجانيتين.</p>
+
       <div class="demo-character-grid" id="demoCharacterGrid"></div>
     </section>
 
+    <!-- ========== 3. لعبة الذاكرة ========== -->
     <section class="demo-stage" id="demoMemory" hidden>
-      <div class="demo-guide"><div class="demo-guide-avatar" id="memoryGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="memoryGuideName"></span><span id="memoryGuideText">أربع أزواج تنتظر ذاكرتك. خذ وقتك ولا تقلق من الخطأ.</span></div></div>
+      <div class="demo-guide">
+        <div class="demo-guide-avatar" id="memoryGuideAvatar"></div>
+        <div class="demo-guide-bubble">
+          <span class="demo-guide-name" id="memoryGuideName"></span>
+          <span class="js-guide-text" id="memoryGuideText">أربع أزواج تنتظر ذاكرتك. خذ وقتك ولا تقلق من الخطأ.</span>
+        </div>
+      </div>
+
       <div class="demo-selected-card" id="memorySelectedCard"></div>
-      <h2 style="text-align:center;">لعبة الذاكرة</h2>
-      <p class="demo-memory-meta">الأزواج المكتملة: <b id="memoryScore">0</b> / 4 &nbsp; · &nbsp; المحاولات: <b id="memoryMoves">0</b></p>
+      <h2>لعبة الذاكرة</h2>
+      <p class="demo-memory-meta">
+        الأزواج المكتملة: <b id="memoryScore">0</b> / 4 &nbsp;·&nbsp; المحاولات: <b id="memoryMoves">0</b>
+      </p>
+
       <div class="demo-memory-grid" id="memoryGrid" aria-label="بطاقات لعبة الذاكرة"></div>
       <p class="demo-memory-meta" id="memoryMessage" aria-live="polite">اقلب بطاقتين متشابهتين.</p>
     </section>
 
+    <!-- ========== 4. الاسم ========== -->
     <section class="demo-stage" id="demoName" hidden>
-      <div class="demo-guide"><div class="demo-guide-avatar" id="nameGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="nameGuideName"></span><span id="nameGuideText">بقيت لمسة واحدة: ما الاسم الذي أضعه في القصة؟</span></div></div>
-      <h2 style="text-align:center;">اسم بطل القصة</h2>
-      <p class="demo-stage-intro" style="text-align:center;">اكتب الاسم الذي تحب سماعه في المغامرة.</p>
-      <form class="demo-name-form" id="demoNameForm">
+      <div class="demo-guide">
+        <div class="demo-guide-avatar" id="nameGuideAvatar"></div>
+        <div class="demo-guide-bubble">
+          <span class="demo-guide-name" id="nameGuideName"></span>
+          <span class="js-guide-text" id="nameGuideText">بقيت لمسة واحدة: ما الاسم الذي أضعه في القصة؟</span>
+        </div>
+      </div>
+
+      <h2>اسم بطل القصة</h2>
+      <p class="demo-stage-intro">اكتب الاسم الذي تحب سماعه في المغامرة.</p>
+
+      <form class="demo-name-form" id="demoNameForm" novalidate>
         <label for="demoChildName">ما اسمك؟</label>
-        <input id="demoChildName" type="text" maxlength="30" autocomplete="off" required>
+        <input id="demoChildName" type="text" maxlength="30" autocomplete="off"
+               inputmode="text" placeholder="مثال: سارة" required>
         <div class="demo-error" id="demoNameError" aria-live="polite"></div>
-        <div class="demo-actions"><button type="submit" class="demo-btn demo-btn-gold">📖 افتح قصتي</button></div>
+        <div class="demo-actions">
+          <button type="submit" class="demo-btn demo-btn-gold demo-btn-pulse">
+            📖 افتح قصتي
+          </button>
+        </div>
       </form>
     </section>
 
+    <!-- ========== 5. القصة ========== -->
     <section class="demo-stage" id="demoStory" hidden>
-      <div class="demo-guide"><div class="demo-guide-avatar" id="storyGuideAvatar"></div><div class="demo-guide-bubble"><span class="demo-guide-name" id="storyGuideName"></span><span id="storyGuideText"><?php echo h($guideLines['story']); ?></span></div></div>
-      <h2 style="text-align:center;">قصتك بدأت ✨</h2>
-      <div class="demo-story-player" id="demoStoryPlayer">
-        <!-- سيتم ملؤه بواسطة JS -->
+      <div class="demo-guide">
+        <div class="demo-guide-avatar" id="storyGuideAvatar"></div>
+        <div class="demo-guide-bubble">
+          <span class="demo-guide-name" id="storyGuideName"></span>
+          <span class="js-guide-text" id="storyGuideText"><?php echo h($guideLines['story']); ?></span>
+        </div>
+      </div>
+
+      <h2>قصتك بدأت ✨</h2>
+      <div class="demo-story-player" id="demoStoryPlayer"></div>
+
+      <div class="demo-actions" id="storyActions" style="display:none">
+        <button type="button" class="demo-btn demo-btn-teal" id="storyNext">
+          🏆 أنهيت القصة
+        </button>
+        <button type="button" class="demo-btn demo-btn-ghost" id="storyReplay">
+          🔁 أعد القراءة
+        </button>
       </div>
     </section>
 
+    <!-- ========== 6. النهاية ========== -->
     <section class="demo-stage demo-finale" id="demoFinale" hidden>
       <div class="demo-finale-icon">🏆</div>
       <h2>وصلت إلى نهاية التجربة!</h2>
-      <p id="finaleText">هذه ليست نهاية الرحلة، بل أول فصل فيها. سجّل الآن ليصبح لكل يوم قصة ومهمة ورفيق.</p>
-      <div class="demo-actions"><a class="demo-btn demo-btn-gold" id="demoRegister">🚀 سجل الآن</a><button type="button" class="demo-btn demo-btn-ghost" id="demoTryAgain">🔁 جرّب شخصية أخرى</button></div>
+      <div class="demo-finale-rewards">
+        <span>⭐ اخترت رفيقك</span>
+        <span>⭐ أنهيت اللعبة</span>
+        <span>⭐ سمعت قصتك</span>
+      </div>
+      <p id="finaleText">
+        هذه ليست نهاية الرحلة، بل أول فصل فيها. سجّل الآن ليصبح لكل يوم قصة ومهمة ورفيق.
+      </p>
+
+      <div class="demo-actions">
+        <a class="demo-btn demo-btn-gold demo-btn-pulse" id="demoRegister"
+           href="<?php echo h(BASE_PATH . '/index.php?register=1'); ?>">
+          🚀 سجل الآن مجاناً
+        </a>
+        <button type="button" class="demo-btn demo-btn-ghost" id="demoTryAgain">
+          🔁 جرّب شخصية أخرى
+        </button>
+      </div>
     </section>
+
   </div>
 </main>
+
 <div class="demo-particles" id="demoParticles" aria-hidden="true"></div>
 
-<!-- CHANGE: Improved JavaScript with speech synthesis, auto-reading, and animated story -->
 <script>
-// ===== الأساسيات =====
-window.KIDORA_DEMO = <?php echo json_encode([
-    'base' => BASE_PATH,
-    'characters' => $demoChars,
-    'stories' => $demoStories,
-    'guide' => $guideData,
-    'lines' => $guideLines,
-    'selectedSlug' => $selectedChar['slug'] ?? '',
-    'loggedIn' => !empty($_SESSION['child_id']),
-], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+/* ============================================================
+   Kidora Demo — نظام تجربة نظيف، بدون تعارض
+   ============================================================ */
+(function(){
+  'use strict';
 
-// ===== وظيفة النطق =====
-function speakText(text, rate = 1.2, lang = 'ar-SA') {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel(); // إيقاف أي نطق سابق
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = rate;
-    utterance.pitch = 1.1;
-    // البحث عن صوت عربي إن وجد
-    const voices = speechSynthesis.getVoices();
-    const arabicVoice = voices.find(v => v.lang.startsWith('ar'));
-    if (arabicVoice) utterance.voice = arabicVoice;
-    speechSynthesis.speak(utterance);
-}
+  const DATA = <?php echo json_encode([
+      'base'       => BASE_PATH,
+      'characters' => $demoChars,
+      'stories'    => $demoStories,
+      'guide'      => $guideData,
+      'lines'      => $guideLines,
+      'selectedSlug' => $selectedChar['slug'] ?? '',
+  ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
-// ===== مراقبة ظهور الأقسام وقراءة النصوص =====
-function readGuideText(container) {
-    const bubble = container?.querySelector('.demo-guide-bubble span:last-child');
-    if (bubble) speakText(bubble.textContent.trim(), 1.2);
-}
+  /* ================= أدوات ================= */
+  const $  = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-// مراقبة التغييرات في خاصية hidden للأقسام
-const observer = new MutationObserver(() => {
-    document.querySelectorAll('.demo-stage:not([hidden])').forEach(section => {
-        const id = section.id;
-        if (id === 'demoWelcome') {
-            readGuideText(section);
-        } else if (id === 'demoPick') {
-            readGuideText(section);
-        } else if (id === 'demoMemory') {
-            readGuideText(section);
-            // قراءة رسالة اللعبة بعد تأخير بسيط
-            setTimeout(() => {
-                const msg = document.getElementById('memoryMessage');
-                if (msg) speakText(msg.textContent, 1.1);
-            }, 500);
-        } else if (id === 'demoName') {
-            readGuideText(section);
-        } else if (id === 'demoStory') {
-            // سيتم التعامل مع القصة بشكل خاص
-        } else if (id === 'demoFinale') {
-            const finaleText = document.getElementById('finaleText');
-            if (finaleText) speakText(finaleText.textContent, 1.3);
-        }
-    });
-});
+  /* ================= النطق ================= */
+  const Speech = (() => {
+    let currentUtt = null;
+    let voicesLoaded = false;
 
-// بدء المراقبة بعد تحميل الصفحة
-document.addEventListener('DOMContentLoaded', () => {
-    // تحميل الأصوات مسبقاً (للتأكد من جاهزيتها)
-    if (window.speechSynthesis) {
-        speechSynthesis.getVoices();
-        speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+    function loadVoices(){
+      if (!window.speechSynthesis) return;
+      speechSynthesis.getVoices();
+      voicesLoaded = true;
     }
-    // مراقبة الأقسام
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
-    // قراءة الترحيب الأولي
-    const welcome = document.getElementById('demoWelcome');
-    if (welcome && !welcome.hidden) readGuideText(welcome);
-});
+    if (window.speechSynthesis) {
+      loadVoices();
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
 
-// ===== عرض القصة مع تأثير كتابة ونطق تلقائي =====
-function renderStoryWithTyping(storyHtml, charColor, charName, childName) {
-    const player = document.getElementById('demoStoryPlayer');
+    function speak(text, opts = {}){
+      if (!window.speechSynthesis || !text) return;
+      // أوقف أي نطق سابق
+      try { speechSynthesis.cancel(); } catch(e){}
+
+      const u = new SpeechSynthesisUtterance(String(text).trim());
+      u.lang  = opts.lang  || 'ar-SA';
+      u.rate  = opts.rate  || 1.05;
+      u.pitch = opts.pitch || 1.1;
+
+      const voices = speechSynthesis.getVoices() || [];
+      const ar = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ar'));
+      if (ar) u.voice = ar;
+
+      currentUtt = u;
+      speechSynthesis.speak(u);
+    }
+
+    function stop(){
+      if (!window.speechSynthesis) return;
+      try { speechSynthesis.cancel(); } catch(e){}
+      currentUtt = null;
+    }
+
+    return { speak, stop };
+  })();
+
+  /* ================= إدارة المراحل ================= */
+  const SECTIONS = ['demoWelcome','demoPick','demoMemory','demoName','demoStory','demoFinale'];
+  let currentSection = 'demoWelcome';
+
+  function showSection(id){
+    SECTIONS.forEach(s => {
+      const el = document.getElementById(s);
+      if (el) el.hidden = (s !== id);
+    });
+    currentSection = id;
+    // scroll للأعلى
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){ window.scrollTo(0,0); }
+  }
+
+  function updateProgress(step){
+    // step: 0..3
+    const bars = $$('#demoProgress span');
+    bars.forEach((b, i) => {
+      b.classList.toggle('active', i === Math.min(step, 2));
+      b.classList.toggle('done', i < step);
+    });
+  }
+
+  /* ================= قراءة مرشد القسم ================= */
+  function speakGuideOf(sectionId){
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    const txt = $('.js-guide-text', section);
+    if (txt && txt.textContent.trim()) {
+      Speech.speak(txt.textContent.trim(), { rate: 1.1 });
+    }
+  }
+
+  /* ================= تهيئة بطاقة المرشد لأي قسم ================= */
+  function setupGuideAvatar(sectionId, char){
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    const avatar = $('.demo-guide-avatar', section);
+    const nameEl = $('.demo-guide-name', section);
+    if (avatar) {
+      avatar.style.setProperty('--guide-color', char.color || '#6c63ff');
+      if (char.image) {
+        avatar.innerHTML = `<img src="${escapeAttr(char.image)}" alt="${escapeAttr(char.name)}">`;
+      } else {
+        avatar.textContent = (char.icons && char.icons[0]) || '✨';
+      }
+    }
+    if (nameEl) nameEl.textContent = char.name || 'رفيقك';
+  }
+
+  /* ================= أدوات نص ================= */
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  /* ============================================================
+     (1) الترحيب
+     ============================================================ */
+  function initWelcome(){
+    setupGuideAvatar('demoWelcome', DATA.guide);
+    // قراءة الرسالة بعد تحميل الأصوات
+    setTimeout(() => speakGuideOf('demoWelcome'), 600);
+
+    const btn = $('#demoStart');
+    if (btn) btn.addEventListener('click', () => {
+      Speech.stop();
+      showSection('demoPick');
+      updateProgress(1);
+      buildCharacterGrid();
+      setTimeout(() => speakGuideOf('demoPick'), 350);
+    });
+  }
+
+  /* ============================================================
+     (2) اختيار الشخصية
+     ============================================================ */
+  let selectedChar = null;
+
+  function buildCharacterGrid(){
+    const grid = $('#demoCharacterGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    DATA.characters.forEach(c => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'demo-character';
+      btn.style.setProperty('--char-color', c.color || '#6c63ff');
+      btn.dataset.slug = c.slug;
+      if (c.slug === DATA.selectedSlug) btn.classList.add('selected');
+
+      btn.innerHTML = `
+        ${c.is_premium ? '<span class="demo-premium">🔒 مدفوعة</span>' : ''}
+        <span class="demo-character-media">
+          ${c.image
+            ? `<img src="${escapeAttr(c.image)}" alt="${escapeAttr(c.name)}">`
+            : escapeHtml((c.icons && c.icons[0]) || '✨')}
+        </span>
+        <span class="demo-character-name" title="${escapeAttr(c.name)}">${escapeHtml(c.name)}</span>
+        <span class="demo-character-title" title="${escapeAttr(c.title)}">${escapeHtml(c.title)}</span>
+      `;
+
+      btn.addEventListener('click', () => onCharacterChosen(c, grid));
+      grid.appendChild(btn);
+    });
+  }
+
+  function onCharacterChosen(c, grid){
+    // تحديد بصري
+    $$('.demo-character', grid).forEach(b => b.classList.remove('selected'));
+    const target = grid.querySelector(`.demo-character[data-slug="${c.slug}"]`);
+    if (target) target.classList.add('selected');
+
+    selectedChar = c;
+    Speech.speak(`اخترت ${c.name}. ${c.trait || ''}`, { rate: 1.1 });
+
+    // انتقال بعد لحظة بسيطة
+    setTimeout(() => startMemoryGame(), 900);
+  }
+
+  /* ============================================================
+     (3) لعبة الذاكرة
+     ============================================================ */
+  const MEMORY_PAIRS = [
+    { id: 1, ico: '🦁', color: '#f5a623' },
+    { id: 2, ico: '🚀', color: '#5b8def' },
+    { id: 3, ico: '🐢', color: '#2ec4b6' },
+    { id: 4, ico: '⭐', color: '#ff6fa5' },
+  ];
+
+  let memoryState = null;
+
+  function startMemoryGame(){
+    if (!selectedChar) return;
+    showSection('demoMemory');
+    updateProgress(2);
+
+    // بطاقة الشخصية المختارة
+    const card = $('#memorySelectedCard');
+    if (card) {
+      card.innerHTML = `
+        <div class="demo-selected-media" style="--selected-color:${escapeAttr(selectedChar.color)}">
+          ${selectedChar.image
+            ? `<img src="${escapeAttr(selectedChar.image)}" alt="${escapeAttr(selectedChar.name)}">`
+            : escapeHtml((selectedChar.icons && selectedChar.icons[0]) || '✨')}
+        </div>
+        <strong>${escapeHtml(selectedChar.name)}</strong>
+        <span style="color:#b9abd4;font-size:.82rem">${escapeHtml(selectedChar.title)}</span>
+      `;
+    }
+    setupGuideAvatar('demoMemory', selectedChar);
+
+    buildMemoryBoard();
+    setTimeout(() => speakGuideOf('demoMemory'), 300);
+  }
+
+  function buildMemoryBoard(){
+    const grid = $('#memoryGrid');
+    const scoreEl = $('#memoryScore');
+    const movesEl = $('#memoryMoves');
+    const msgEl = $('#memoryMessage');
+    if (!grid) return;
+
+    // إعادة تهيئة الحالة
+    memoryState = {
+      deck: [],
+      flipped: [],
+      matched: 0,
+      moves: 0,
+      lock: false,
+      win: false,
+    };
+
+    if (scoreEl) scoreEl.textContent = '0';
+    if (movesEl) movesEl.textContent = '0';
+    if (msgEl) msgEl.textContent = 'اقلب بطاقتين متشابهتين.';
+
+    // بناء أزواج مضاعفة ومخلوطة
+    const deck = [];
+    MEMORY_PAIRS.forEach(p => {
+      deck.push({ pairId: p.id, ico: p.ico, color: p.color });
+      deck.push({ pairId: p.id, ico: p.ico, color: p.color });
+    });
+    shuffle(deck);
+    memoryState.deck = deck;
+
+    grid.innerHTML = '';
+    deck.forEach((card, index) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'demo-memory-card';
+      btn.dataset.index = index;
+      btn.setAttribute('aria-label', 'بطاقة');
+      btn.innerHTML = `
+        <span class="demo-memory-inner">
+          <span class="demo-memory-face demo-memory-front">❓</span>
+          <span class="demo-memory-face demo-memory-back"
+                style="--memory-color:${escapeAttr(card.color)}">${escapeHtml(card.ico)}</span>
+        </span>
+      `;
+      btn.addEventListener('click', () => onMemoryCardClick(btn, index));
+      grid.appendChild(btn);
+    });
+  }
+
+  function onMemoryCardClick(btn, index){
+    const s = memoryState;
+    if (!s || s.lock || s.win) return;
+    if (btn.classList.contains('is-open') || btn.classList.contains('is-matched')) return;
+    if (s.flipped.length >= 2) return;
+
+    btn.classList.add('is-open');
+    s.flipped.push({ btn, index });
+
+    if (s.flipped.length === 2) {
+      s.moves++;
+      const movesEl = $('#memoryMoves');
+      if (movesEl) movesEl.textContent = String(s.moves);
+
+      const [a, b] = s.flipped;
+      const cardA = s.deck[a.index];
+      const cardB = s.deck[b.index];
+
+      if (cardA.pairId === cardB.pairId) {
+        // تطابق
+        setTimeout(() => {
+          a.btn.classList.add('is-matched');
+          b.btn.classList.add('is-matched');
+          a.btn.classList.remove('is-open');
+          b.btn.classList.remove('is-open');
+          s.matched++;
+          const scoreEl = $('#memoryScore');
+          if (scoreEl) scoreEl.textContent = String(s.matched);
+          s.flipped = [];
+
+          if (s.matched === MEMORY_PAIRS.length) onMemoryWin();
+        }, 350);
+      } else {
+        // لا تطابق
+        s.lock = true;
+        setTimeout(() => {
+          a.btn.classList.remove('is-open');
+          b.btn.classList.remove('is-open');
+          s.flipped = [];
+          s.lock = false;
+        }, 850);
+      }
+    }
+  }
+
+  function onMemoryWin(){
+    const s = memoryState;
+    s.win = true;
+    const msgEl = $('#memoryMessage');
+    if (msgEl) msgEl.textContent = '🎉 أحسنت! أنهيت اللعبة.';
+
+    Speech.speak('أحسنت! لقد أنهيت اللعبة. الآن اختر اسم بطل القصة.', { rate: 1.1 });
+    spawnParticles(18);
+
+    setTimeout(() => {
+      showSection('demoName');
+      updateProgress(3);
+      setupGuideAvatar('demoName', selectedChar);
+      setTimeout(() => speakGuideOf('demoName'), 300);
+      focusNameInput();
+    }, 1800);
+  }
+
+  function shuffle(arr){
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  function focusNameInput(){
+    const inp = $('#demoChildName');
+    if (inp) setTimeout(() => inp.focus(), 400);
+  }
+
+  /* ============================================================
+     (4) الاسم
+     ============================================================ */
+  function initNameForm(){
+    const form = $('#demoNameForm');
+    if (!form) return;
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const input = $('#demoChildName');
+      const errEl = $('#demoNameError');
+      const name = (input?.value || '').trim();
+
+      if (!name || name.length < 2) {
+        if (errEl) errEl.textContent = 'اكتب اسماً صحيحاً من حرفين على الأقل.';
+        Speech.speak('اكتب اسمك أولاً.');
+        return;
+      }
+      if (errEl) errEl.textContent = '';
+      openStory(name);
+    });
+  }
+
+  /* ============================================================
+     (5) القصة
+     ============================================================ */
+  let storyTypingTimer = null;
+
+  function openStory(childName){
+    if (!selectedChar) return;
+
+    showSection('demoStory');
+    updateProgress(3);
+    setupGuideAvatar('demoStory', selectedChar);
+
+    const guideText = $('#storyGuideText');
+    if (guideText) guideText.textContent = 'استمع إلى قصتك الآن!';
+
+    const rawHtml = DATA.stories[selectedChar.slug] || 'مرحباً بك في مغامرتك!';
+    // إزالة الوسوم لأخذ النص فقط
+    const tmp = document.createElement('div');
+    tmp.innerHTML = rawHtml;
+    let fullText = (tmp.textContent || '').trim();
+    // استبدال كلمة "الاسم" بالاسم الفعلي
+    fullText = fullText.replace(/الاسم/g, childName);
+
+    renderStoryScene({
+      color: selectedChar.color || '#6c63ff',
+      image: selectedChar.image,
+      icon: (selectedChar.icons && selectedChar.icons[0]) || '✨',
+      name: selectedChar.name,
+      childName: childName,
+      text: fullText,
+    });
+  }
+
+  function renderStoryScene(opts){
+    const player = $('#demoStoryPlayer');
     if (!player) return;
 
-    // إنشاء مشهد القصة
-    const scene = document.createElement('div');
-    scene.className = 'demo-story-scene';
-    scene.style.setProperty('--story-color', charColor || '#6C63FF');
+    player.innerHTML = `
+      <div class="demo-story-scene" style="--story-color:${escapeAttr(opts.color)}">
+        <div class="demo-story-sprite" style="--story-color:${escapeAttr(opts.color)}">
+          ${opts.image
+            ? `<img src="${escapeAttr(opts.image)}" alt="${escapeAttr(opts.name)}">`
+            : escapeHtml(opts.icon)}
+        </div>
+        <div class="demo-story-chapter">
+          <span class="demo-story-chapter-icon">📖</span>
+          مغامرة ${escapeHtml(opts.childName)}
+        </div>
+        <div class="demo-story-caption" id="storyCaption" aria-live="polite"></div>
+      </div>
+    `;
 
-    // إضافة الشخصية
-    const sprite = document.createElement('div');
-    sprite.className = 'demo-story-sprite';
-    sprite.style.setProperty('--story-color', charColor || '#6C63FF');
-    // نحاول الحصول على صورة الشخصية أو الأيقونة
-    const charData = window.KIDORA_DEMO.characters.find(c => c.color === charColor) || {};
-    if (charData.image) {
-        sprite.innerHTML = `<img src="${charData.image}" alt="${charName || 'رفيق'}">`;
-    } else {
-        sprite.textContent = (charData.icons && charData.icons[0]) || '✨';
-    }
-    scene.appendChild(sprite);
+    // إظهار الأزرار
+    const actions = $('#storyActions');
+    if (actions) actions.style.display = 'flex';
 
-    // عنوان الفصل
-    const chapter = document.createElement('div');
-    chapter.className = 'demo-story-chapter';
-    chapter.innerHTML = `<span class="demo-story-chapter-icon">📖</span> مغامرة ${childName || 'البطل'}`;
-    scene.appendChild(chapter);
+    // بدء الكتابة
+    typeStoryText(opts.text);
+  }
 
-    // النص (caption)
-    const caption = document.createElement('div');
-    caption.className = 'demo-story-caption';
-    caption.setAttribute('aria-live', 'polite');
-    scene.appendChild(caption);
+  function typeStoryText(text){
+    const caption = $('#storyCaption');
+    if (!caption) return;
 
-    // أزرار التحكم (مخفية لأننا سنقرأ تلقائياً)
-    const controls = document.createElement('div');
-    controls.className = 'demo-story-controls';
-    controls.style.display = 'none'; // إخفاء الأزرار (يمكن إظهارها اختيارياً)
-    scene.appendChild(controls);
-
-    player.innerHTML = '';
-    player.appendChild(scene);
-
-    // استخراج النص من الـ HTML الوارد (نأخذ النص الداخلي بدون وسم)
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = storyHtml;
-    const fullText = tempDiv.textContent.trim();
-
-    // كتابة متدرجة مع قراءة النص كاملاً بعد بدء الكتابة
-    let index = 0;
-    let typingInterval;
-    const typeSpeed = 50; // مللي لكل حرف
-
-    function typeNextChar() {
-        if (index < fullText.length) {
-            // إضافة الحرف التالي مع إبقاء المؤشر
-            const displayed = fullText.substring(0, index + 1);
-            // نعرض النص مع تلوين بعض الكلمات (اختياري)
-            let formatted = displayed;
-            // يمكن إضافة تمييز للكلمات المهمة هنا
-            caption.innerHTML = formatted + '<span class="typing-cursor"></span>';
-            index++;
-            // التمرير إلى الأسفل تلقائياً
-            scene.scrollTop = scene.scrollHeight;
-        } else {
-            clearInterval(typingInterval);
-            // إزالة المؤشر
-            caption.innerHTML = fullText;
-            // قراءة النص كاملاً
-            speakText(fullText, 1.1);
-        }
+    if (storyTypingTimer) {
+      clearInterval(storyTypingTimer);
+      storyTypingTimer = null;
     }
 
-    // بدء الكتابة بعد تأخير قصير
-    setTimeout(() => {
-        // نقرأ النص كاملاً أولاً ثم نبدأ الكتابة (لكننا نفضل قراءة النص عند الانتهاء)
-        // لذا نبدأ الكتابة فوراً ونقرأ عند الانتهاء
-        typingInterval = setInterval(typeNextChar, typeSpeed);
-    }, 300);
+    // اقرأ النص بصوت كامل (بحيث لا ينقطع)
+    Speech.speak(text, { rate: 1.0 });
 
-    // إضافة تأثير انتقالي للخلفية
-    scene.classList.add('scene-transition');
-    setTimeout(() => scene.classList.remove('scene-transition'), 600);
-}
+    let i = 0;
+    const speed = Math.max(18, Math.min(45, Math.floor(2400 / Math.max(text.length, 1))));
 
-// ===== ربط زر "افتح قصتي" =====
-document.addEventListener('DOMContentLoaded', () => {
-    const nameForm = document.getElementById('demoNameForm');
-    if (nameForm) {
-        nameForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const input = document.getElementById('demoChildName');
-            const name = input.value.trim();
-            if (!name) {
-                document.getElementById('demoNameError').textContent = 'الرجاء كتابة اسمك';
-                return;
-            }
-            document.getElementById('demoNameError').textContent = '';
-            // الحصول على الشخصية المختارة
-            const selectedChar = window.KIDORA_DEMO.characters.find(c => c.slug === (window._selectedCharSlug || window.KIDORA_DEMO.selectedSlug));
-            if (!selectedChar) {
-                alert('لم تختر شخصية بعد!');
-                return;
-            }
-            // الحصول على القصة
-            const storyHtml = window.KIDORA_DEMO.stories[selectedChar.slug] || 'مرحباً بك في مغامرتك الخاصة!';
-            // استبدال الاسم في القصة (إذا كان النص يحتوي على "الاسم")
-            const personalizedStory = storyHtml.replace(/الاسم/g, name);
-            // عرض القصة مع تأثير الكتابة والنطق
-            const storySection = document.getElementById('demoStory');
-            storySection.hidden = false;
-            // إخفاء قسم الاسم
-            document.getElementById('demoName').hidden = true;
-            // تقدم المرحلة
-            updateProgress(3);
-            // عرض القصة
-            renderStoryWithTyping(personalizedStory, selectedChar.color, selectedChar.name, name);
-            // تحديث المرشد في قسم القصة
-            const guideAvatar = document.getElementById('storyGuideAvatar');
-            const guideName = document.getElementById('storyGuideName');
-            const guideText = document.getElementById('storyGuideText');
-            if (guideAvatar) {
-                guideAvatar.style.setProperty('--guide-color', selectedChar.color);
-                if (selectedChar.image) {
-                    guideAvatar.innerHTML = `<img src="${selectedChar.image}" alt="${selectedChar.name}">`;
-                } else {
-                    guideAvatar.textContent = (selectedChar.icons && selectedChar.icons[0]) || '✨';
-                }
-            }
-            if (guideName) guideName.textContent = selectedChar.name;
-            if (guideText) guideText.textContent = 'استمع إلى قصتك الآن!';
-            // قراءة رسالة المرشد
-            speakText('استمع إلى قصتك الآن!', 1.2);
-            // بعد انتهاء القصة (بعد زمن معين)، ننتقل إلى النهاية
-            // لكننا سنترك المستخدم يضغط على زر "التالي" إن وجد، وإلا نضيف مؤقتاً
-            // بما أن الأزرار مخفية، سنضيف زر "الانتقال إلى النهاية" بعد فترة
-            setTimeout(() => {
-                const finaleSection = document.getElementById('demoFinale');
-                finaleSection.hidden = false;
-                // قراءة نص النهاية
-                const finaleText = document.getElementById('finaleText');
-                if (finaleText) speakText(finaleText.textContent, 1.3);
-                // إخفاء القصة بعد ظهور النهاية (اختياري)
-                document.getElementById('demoStory').hidden = true;
-                updateProgress(4); // اكتمال
-            }, 8000); // بعد 8 ثوانٍ (يمكن تعديلها حسب طول القصة)
-        });
-    }
-});
+    caption.textContent = '';
+    storyTypingTimer = setInterval(() => {
+      if (i >= text.length) {
+        clearInterval(storyTypingTimer);
+        storyTypingTimer = null;
+        return;
+      }
+      // اكتب دفعة من الحروف لتسريع الكتابة للنصوص الطويلة
+      const batch = text.length > 200 ? 2 : 1;
+      const slice = text.slice(i, i + batch);
+      caption.textContent += slice;
+      i += batch;
+    }, speed);
+  }
 
-// ===== دالة لتحديث شريط التقدم =====
-function updateProgress(step) {
-    const spans = document.querySelectorAll('#demoProgress span');
-    spans.forEach((span, i) => {
-        span.classList.toggle('active', i < step);
+  function initStoryActions(){
+    const next = $('#storyNext');
+    const replay = $('#storyReplay');
+
+    if (next) next.addEventListener('click', () => {
+      Speech.stop();
+      if (storyTypingTimer) { clearInterval(storyTypingTimer); storyTypingTimer = null; }
+      showFinale();
     });
-}
 
-// ===== ربط زر "ابدأ التجربة" =====
-document.addEventListener('DOMContentLoaded', () => {
-    const startBtn = document.getElementById('demoStart');
-    if (startBtn) {
-        startBtn.addEventListener('click', function() {
-            document.getElementById('demoWelcome').hidden = true;
-            document.getElementById('demoPick').hidden = false;
-            updateProgress(1);
-            // قراءة رسالة الاختيار
-            setTimeout(() => {
-                const pickGuideText = document.getElementById('pickGuideText');
-                if (pickGuideText) speakText(pickGuideText.textContent, 1.2);
-            }, 300);
-        });
-    }
-});
-
-// ===== تجهيز شبكة الشخصيات =====
-document.addEventListener('DOMContentLoaded', () => {
-    const grid = document.getElementById('demoCharacterGrid');
-    if (!grid) return;
-    const chars = window.KIDORA_DEMO.characters;
-    grid.innerHTML = '';
-    chars.forEach(c => {
-        const btn = document.createElement('button');
-        btn.className = 'demo-character';
-        btn.style.setProperty('--char-color', c.color);
-        btn.dataset.slug = c.slug;
-        if (c.slug === window.KIDORA_DEMO.selectedSlug) btn.classList.add('selected');
-        btn.innerHTML = `
-            ${c.is_premium ? '<span class="demo-premium">🔒 مدفوعة</span>' : ''}
-            <span class="demo-character-media">
-                ${c.image ? `<img src="${c.image}" alt="${c.name}">` : (c.icons[0] || '✨')}
-            </span>
-            <span class="demo-character-name">${c.name}</span>
-            <span class="demo-character-title">${c.title}</span>
-        `;
-        btn.addEventListener('click', function() {
-            // إزالة التحديد من الكل
-            grid.querySelectorAll('.demo-character').forEach(b => b.classList.remove('selected'));
-            this.classList.add('selected');
-            window._selectedCharSlug = this.dataset.slug;
-            // قراءة اسم الشخصية
-            speakText(`اخترت ${c.name}`, 1.2);
-            // تأكيد الانتقال إلى لعبة الذاكرة
-            setTimeout(() => {
-                document.getElementById('demoPick').hidden = true;
-                document.getElementById('demoMemory').hidden = false;
-                updateProgress(2);
-                // تهيئة لعبة الذاكرة
-                initMemoryGame(c);
-            }, 500);
-        });
-        grid.appendChild(btn);
+    if (replay) replay.addEventListener('click', () => {
+      if (!selectedChar) return;
+      const nameInput = $('#demoChildName');
+      const childName = (nameInput?.value || '').trim() || 'البطل';
+      const rawHtml = DATA.stories[selectedChar.slug] || '';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = rawHtml;
+      let fullText = (tmp.textContent || '').trim().replace(/الاسم/g, childName);
+      typeStoryText(fullText);
     });
-});
+  }
 
-// ===== لعبة الذاكرة (مختصرة) =====
-function initMemoryGame(char) {
-    const grid = document.getElementById('memoryGrid');
-    const scoreSpan = document.getElementById('memoryScore');
-    const movesSpan = document.getElementById('memoryMoves');
-    const message = document.getElementById('memoryMessage');
-    // ... سيتم تنفيذها بواسطة demo.js الأصلي، لكننا نضيف هنا قراءة الرسائل
-    // بما أن demo.js موجود، سنكتفي بتعيين مراقب للتحديثات
-    // لكننا نضيف قراءة عند الفوز
-    const originalMessage = message.textContent;
-    // مراقبة التغييرات في النص لتقرأ تلقائياً
-    const msgObserver = new MutationObserver(() => {
-        const newMsg = message.textContent;
-        if (newMsg && !newMsg.includes('اقلب')) {
-            speakText(newMsg, 1.1);
-        }
+  /* ============================================================
+     (6) النهاية
+     ============================================================ */
+  function showFinale(){
+    showSection('demoFinale');
+    updateProgress(4);
+
+    const text = $('#finaleText');
+    if (text) {
+      setTimeout(() => {
+        Speech.speak(
+          'مبروك! أنهيت التجربة. سجل الآن ليصبح لكل يوم قصة ومهمة ورفيق.',
+          { rate: 1.05 }
+        );
+      }, 400);
+    }
+
+    spawnParticles(30);
+  }
+
+  function initFinaleActions(){
+    const tryAgain = $('#demoTryAgain');
+    if (tryAgain) tryAgain.addEventListener('click', () => {
+      Speech.stop();
+      // إعادة الضبط
+      selectedChar = null;
+      const nameInput = $('#demoChildName');
+      if (nameInput) nameInput.value = '';
+      showSection('demoWelcome');
+      updateProgress(0);
+      setTimeout(() => speakGuideOf('demoWelcome'), 400);
     });
-    msgObserver.observe(message, { childList: true, subtree: true, characterData: true });
-    // عند الفوز (سيتم الكشف بواسطة demo.js)، يمكننا إضافة حدث
-    // ولكننا نضيف مؤقتاً للتحقق من الفوز
-    const checkWin = setInterval(() => {
-        const score = parseInt(scoreSpan.textContent);
-        if (score === 4) {
-            clearInterval(checkWin);
-            speakText('أحسنت! لقد أنهيت اللعبة، الآن اذهب إلى الخطوة التالية.', 1.2);
-            setTimeout(() => {
-                document.getElementById('demoMemory').hidden = true;
-                document.getElementById('demoName').hidden = false;
-                updateProgress(3);
-                const nameGuideText = document.getElementById('nameGuideText');
-                if (nameGuideText) speakText(nameGuideText.textContent, 1.2);
-            }, 1500);
-        }
-    }, 1000);
-}
+  }
 
-// ===== ربط أزرار النهاية =====
-document.addEventListener('DOMContentLoaded', () => {
-    const registerBtn = document.getElementById('demoRegister');
-    if (registerBtn) {
-        registerBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.location.href = window.KIDORA_DEMO.base + '/index.php?register=1';
-        });
+  /* ============================================================
+     الجزيئات
+     ============================================================ */
+  function spawnParticles(count){
+    const host = $('#demoParticles');
+    if (!host) return;
+    const icons = ['⭐','✨','🎉','💫','🌟','🎊','🏆'];
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('span');
+      p.className = 'demo-particle';
+      p.textContent = icons[Math.floor(Math.random() * icons.length)];
+      p.style.left = (10 + Math.random() * 80) + '%';
+      p.style.top  = (20 + Math.random() * 50) + '%';
+      p.style.setProperty('--dx', (Math.random() * 200 - 100) + 'px');
+      p.style.setProperty('--dy', (-Math.random() * 220 - 60) + 'px');
+      p.style.animationDelay = (Math.random() * 0.5) + 's';
+      host.appendChild(p);
+      setTimeout(() => p.remove(), 2200);
     }
-    const tryAgainBtn = document.getElementById('demoTryAgain');
-    if (tryAgainBtn) {
-        tryAgainBtn.addEventListener('click', function() {
-            // إعادة تعيين التجربة
-            document.querySelectorAll('.demo-stage').forEach(s => s.hidden = true);
-            document.getElementById('demoWelcome').hidden = false;
-            updateProgress(0);
-            // إلغاء النطق
-            if (window.speechSynthesis) window.speechSynthesis.cancel();
-            // إعادة تعيين الشخصية المختارة
-            window._selectedCharSlug = null;
-            // إعادة تحميل الصفحة أو إعادة ضبط الحالة
-            location.reload();
-        });
-    }
-});
+  }
 
-// ===== التكامل مع كود demo.js الأصلي (إذا كان موجوداً) =====
-// نضع هذا الكود في الأعلى ليتم تنفيذه بعد تحميل demo.js
-// لكننا لا نملك demo.js، لذا سنقوم بتعريف دوال بديلة
-// نضيف مرونة للتعامل مع وجود demo.js أو عدمه
-console.log('تم تحسين تجربة الديمو مع الصوت والكتابة المتدرجة.');
+  /* ============================================================
+     تشغيل عند الجاهزية
+     ============================================================ */
+  function init(){
+    initWelcome();
+    initNameForm();
+    initStoryActions();
+    initFinaleActions();
+    updateProgress(0);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
 </script>
-<script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/gsap.min.js'); ?>"></script>
-<script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/ScrollTrigger.min.js'); ?>"></script>
-<script src="<?php echo h(BASE_PATH . '/assets/js/demo.js'); ?>"></script>
+
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
