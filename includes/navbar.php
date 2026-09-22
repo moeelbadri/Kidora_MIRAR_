@@ -251,6 +251,26 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     font-family: 'Tajawal', sans-serif;
   }
 
+  /* ======================================================
+     ارتفاع الهيدر والإزاحة العلوية العامة لمنع تداخل المحتوى
+     ====================================================== */
+  :root {
+    --app-header-h: 64px;
+  }
+  @media (min-width: 1024px) {
+    :root {
+      --app-header-h: 72px;
+    }
+  }
+  @media (max-width: 600px) {
+    :root {
+      --app-header-h: 56px;
+    }
+  }
+  body {
+    padding-top: var(--app-header-h, 64px);
+  }
+
   /* ===== الهيدر الثابت ===== */
   .app-header {
     position: fixed;
@@ -264,7 +284,7 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
     padding: 8px 20px;
-    height: 64px;
+    height: var(--app-header-h, 64px);
     display: flex;
     align-items: center;
   }

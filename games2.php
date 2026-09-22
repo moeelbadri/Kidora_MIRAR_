@@ -24,46 +24,68 @@ require_once __DIR__ . '/includes/navbar.php';
 ?>
 
 <style>
-.eg-hero{ text-align:center; padding:2rem 1rem 1rem; }
-.eg-hero h1{ margin:0; font-family:var(--font-display); font-size:clamp(30px,6vw,46px); color:#fff; }
+.eg-hero{ text-align:center; padding:1.2rem 1rem 1.4rem; }
+.eg-hero h1{ margin:0; font-family:var(--font-display); font-size:clamp(26px,4.5vw,42px); color:#fff; }
 .eg-hero h1 span{ background-image:linear-gradient(135deg,#fff,#ffc93c); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-.eg-hero p{ color:#d9d0ff; font-size:1.1rem; margin:.4rem 0 0; }
-.eg-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:20px; margin-top:20px; }
-.eg-card{ position:relative; background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.1); border-radius:28px; padding:26px 20px 22px; text-align:center; cursor:pointer; transition:.25s; min-height:250px; }
+.eg-hero p{ color:#d9d0ff; font-size:clamp(.95rem,2vw,1.1rem); margin:.4rem 0 0; }
+.eg-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:20px; margin-top:16px; }
+.eg-card{ position:relative; background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.1); border-radius:28px; padding:24px 20px 20px; text-align:center; cursor:pointer; transition:.25s; min-height:240px; }
 .eg-card:hover{ transform:translateY(-6px); border-color:var(--c); background:rgba(255,255,255,.1); box-shadow:0 18px 44px color-mix(in srgb,var(--c) 35%,transparent); }
-.eg-card .ic{ font-size:4.2rem; line-height:1; display:inline-block; animation:companionFloat 3s ease-in-out infinite; }
-.eg-card h3{ color:#fff; margin:12px 0 4px; font-size:1.4rem; }
-.eg-card p{ color:#c9bfe6; font-size:.95rem; line-height:1.7; margin:0 0 12px; min-height:2.6em; }
+.eg-card .ic{ font-size:4rem; line-height:1; display:inline-block; animation:companionFloat 3s ease-in-out infinite; }
+.eg-card h3{ color:#fff; margin:10px 0 4px; font-size:1.35rem; }
+.eg-card p{ color:#c9bfe6; font-size:.92rem; line-height:1.65; margin:0 0 12px; min-height:2.6em; }
 .eg-card .skill{ display:inline-block; background:color-mix(in srgb,var(--c) 30%,transparent); color:#fff; border:1px solid var(--c); font-weight:900; font-size:.8rem; padding:.25rem .8rem; border-radius:30px; margin-bottom:12px; }
-.eg-play{ display:block; width:100%; min-height:56px; border:none; border-radius:60px; background:var(--c); color:#1a1040; font-weight:900; font-size:1.1rem; cursor:pointer; font-family:inherit; transition:.2s; }
+.eg-play{ display:block; width:100%; min-height:52px; border:none; border-radius:60px; background:var(--c); color:#1a1040; font-weight:900; font-size:1.05rem; cursor:pointer; font-family:inherit; transition:.2s; }
 .eg-play:hover{ transform:scale(1.03); }
 
-.eg-modal{ position:fixed; inset:0; background:rgba(5,3,20,.9); backdrop-filter:blur(10px); display:none; align-items:center; justify-content:center; z-index:99999; padding:14px; }
+.eg-modal{ position:fixed; inset:0; background:rgba(5,3,20,.9); backdrop-filter:blur(10px); display:none; align-items:center; justify-content:center; z-index:99999; padding:16px 14px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .eg-modal.open{ display:flex; }
-.eg-box{ background:#140c33; border-radius:34px; max-width:860px; width:100%; padding:16px; border:1px solid rgba(255,255,255,.1); position:relative; }
-.eg-close{ position:absolute; top:12px; left:14px; background:rgba(255,255,255,.08); border:none; color:#fff; font-size:26px; width:50px; height:50px; border-radius:50%; cursor:pointer; z-index:10; }
-.eg-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 64px 12px 12px; color:#fff; font-weight:900; }
-.eg-top .t{ font-size:1.25rem; }
+.eg-box{ background:#140c33; border-radius:30px; max-width:860px; width:100%; padding:16px 18px; border:1px solid rgba(255,255,255,.1); position:relative; margin:auto; box-shadow:0 24px 60px rgba(0,0,0,.5); }
+.eg-close{ position:absolute; top:12px; left:14px; background:rgba(255,255,255,.08); border:none; color:#fff; font-size:24px; width:46px; height:46px; border-radius:50%; cursor:pointer; z-index:10; display:grid; place-items:center; transition:.2s; }
+.eg-close:hover{ background:rgba(255,255,255,.18); transform:scale(1.05); }
+.eg-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:4px 56px 8px 12px; color:#fff; font-weight:900; }
+.eg-top .t{ font-size:clamp(1.1rem,2.5vw,1.25rem); }
 .eg-prog{ display:flex; gap:6px; }
-.eg-prog i{ width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,.15); display:block; transition:.3s; }
+.eg-prog i{ width:12px; height:12px; border-radius:50%; background:rgba(255,255,255,.15); display:block; transition:.3s; }
 .eg-prog i.on{ background:#ffc93c; box-shadow:0 0 12px #ffc93c; transform:scale(1.15); }
-.eg-q{ text-align:center; color:#fff; font-size:clamp(1.3rem,4vw,2rem); font-weight:900; min-height:2.6rem; padding:0 12px 10px; direction:rtl; }
-.eg-canvas-wrap{ background:#0b0722; border-radius:24px; overflow:hidden; width:100%; aspect-ratio:16/9; min-height:320px; position:relative; }
+.eg-q{ text-align:center; color:#fff; font-size:clamp(1.15rem,3.2vw,1.75rem); font-weight:900; min-height:2.2rem; padding:0 12px 8px; direction:rtl; line-height:1.4; }
+.eg-canvas-wrap{ background:#0b0722; border-radius:22px; overflow:hidden; width:100%; aspect-ratio:16/9; max-height:min(50vh, 420px); position:relative; margin:0 auto; }
 .eg-canvas-wrap canvas{ display:block; width:100%!important; height:100%!important; touch-action:none; }
-.eg-fb{ min-height:2.6rem; text-align:center; color:#ffe99a; font-weight:800; font-size:1.05rem; padding:10px 8px 0; }
-.eg-ctrl{ display:flex; justify-content:center; gap:12px; padding-top:12px; flex-wrap:wrap; }
-.eg-btn{ min-height:54px; padding:0 28px; border-radius:60px; font-weight:900; font-size:1.05rem; cursor:pointer; font-family:inherit; border:2px solid rgba(255,255,255,.14); background:rgba(255,255,255,.07); color:#fff; }
+.eg-fb{ min-height:2.2rem; text-align:center; color:#ffe99a; font-weight:800; font-size:1rem; padding:6px 8px 0; }
+.eg-ctrl{ display:flex; justify-content:center; gap:10px; padding-top:8px; flex-wrap:wrap; }
+.eg-btn{ min-height:48px; padding:0 24px; border-radius:60px; font-weight:900; font-size:1rem; cursor:pointer; font-family:inherit; border:2px solid rgba(255,255,255,.14); background:rgba(255,255,255,.07); color:#fff; transition:.2s; }
+.eg-btn:hover{ transform:translateY(-2px); }
 .eg-btn.gold{ background:linear-gradient(135deg,#ffe99a,#ffc93c); color:#241645; border-color:#ffc93c; }
-.eg-win{ position:absolute; inset:0; display:none; place-items:center; background:rgba(11,7,34,.9); text-align:center; color:#fff; padding:20px; }
+.eg-win{ position:absolute; inset:0; display:none; place-items:center; background:rgba(11,7,34,.92); text-align:center; color:#fff; padding:20px; border-radius:22px; }
 .eg-win.open{ display:grid; }
-.eg-win .medal{ font-size:5rem; animation:egPop .8s cubic-bezier(.34,1.56,.64,1) both; }
+.eg-win .medal{ font-size:4.5rem; animation:egPop .8s cubic-bezier(.34,1.56,.64,1) both; }
 @keyframes egPop{ from{ transform:scale(.2) rotate(-20deg); opacity:0 } to{ transform:scale(1) rotate(0); opacity:1 } }
-.eg-win h3{ margin:.3rem 0; font-family:var(--font-display); font-size:2rem; }
-.eg-win p{ color:#d9d0ff; margin:0 0 14px; }
-@media(max-width:640px){ .eg-canvas-wrap{ aspect-ratio:4/5; min-height:300px; } .eg-top{ padding-right:56px; } }
+.eg-win h3{ margin:.3rem 0; font-family:var(--font-display); font-size:1.8rem; }
+.eg-win p{ color:#d9d0ff; margin:0 0 14px; font-size:1rem; }
+
+/* تجاوب خاص لشاشات اللابتوب بارتفاع منخفض أو شاشات مدمجة */
+@media (max-height: 820px) {
+  .eg-modal{ align-items:flex-start; padding:12px 14px; }
+  .eg-box{ padding:12px 16px; border-radius:24px; }
+  .eg-hero{ padding:.6rem 1rem 1rem; }
+  .eg-hero h1{ font-size:clamp(24px, 4vw, 34px); }
+  .eg-hero p{ margin:.2rem 0 0; font-size:.95rem; }
+  .eg-canvas-wrap{ max-height:min(44vh, 320px); aspect-ratio:16/9; }
+  .eg-q{ font-size:clamp(1.05rem, 2.8vw, 1.4rem); min-height:1.8rem; padding:0 8px 4px; }
+  .eg-top{ padding:2px 50px 4px 8px; }
+  .eg-fb{ min-height:1.8rem; font-size:.92rem; padding:4px 8px 0; }
+  .eg-ctrl{ padding-top:6px; }
+  .eg-btn{ min-height:42px; padding:0 18px; font-size:.92rem; }
+}
+
+@media(max-width:640px){
+  .eg-canvas-wrap{ aspect-ratio:4/5; max-height:none; min-height:280px; }
+  .eg-top{ padding-right:52px; }
+}
 </style>
 
-<main class="container" style="padding:10px 15px 50px;">
+<div class="page-body">
+<main class="container" style="padding-top:14px; padding-bottom:50px;">
   <div class="eg-hero">
     <h1>🧠 ألعاب <span>الذكاء</span></h1>
     <p>كل لعبة لها هدف واضح — أكملها واحصل على وسامك</p>
@@ -96,6 +118,7 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
   </div>
 </main>
+</div>
 
 <div class="eg-modal" id="egModal" role="dialog" aria-modal="true">
   <div class="eg-box">

@@ -92,6 +92,21 @@ const SoundEngine = (function () {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }
 
+  function ensureVoice(cb) {
+    const v = pickBestVoice();
+    if (v) { cb(v); return; }
+    if (!("speechSynthesis" in window)) { cb(null); return; }
+    let handled = false;
+    const onVoices = () => {
+      if (handled) return;
+      handled = true;
+      cachedVoice = null;
+      cb(pickBestVoice());
+    };
+    try { window.speechSynthesis.addEventListener("voiceschanged", onVoices, { once: true }); } catch (e) {}
+    setTimeout(() => { if (!handled) { handled = true; cb(pickBestVoice()); } }, 350);
+  }
+
   function speak(text, charData, opts) {
     opts = opts || {};
     const clean = cleanSpeech(text);
@@ -107,25 +122,35 @@ const SoundEngine = (function () {
     if (!voiceEnabled || !clean) { done(); return false; }
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) { done(); return false; }
 
-    window.speechSynthesis.cancel();
+    try {
+      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+    } catch (e) {}
+
     // لا تداخل بين الموسيقى وصوت الرفيق: تتوقف الآن وتعود بعد آخر كلمة
     if (musicTimer) { stopMusic(); musicPausedForSpeech = true; }
 
-    const u = new SpeechSynthesisUtterance(clean);
-    u.lang = "ar-SA";
-    u.rate = opts.rate || 0.95;   // إيقاع سرد هادئ يناسب 6–12 سنة
-    u.pitch = opts.pitch || 1.05;
-    u.volume = 1;
-    const voice = pickBestVoice();
-    if (voice) { u.voice = voice; u.lang = voice.lang; }
-    u.onstart = () => { speaking = true; emit("start", clean); };
-    u.onend = done;
-    u.onerror = done;
-    if (!opts.silentChime) playChime();
-    window.speechSynthesis.speak(u);
-    // حارس: بعض المتصفحات لا تطلق onend إذا أُلغي الكلام من الخارج
-    const est = Math.min(60000, 1500 + clean.length * 95);
-    setTimeout(() => { if (!ended && !window.speechSynthesis.speaking) done(); }, est);
+    ensureVoice(voice => {
+      if (ended) return;
+      const u = new SpeechSynthesisUtterance(clean);
+      u.lang = "ar-SA";
+      u.rate = opts.rate || 0.95;   // إيقاع سرد هادئ يناسب 6–12 سنة
+      u.pitch = opts.pitch || (charData && charData.slug === "spongebob" ? 1.15 : 1.05);
+      u.volume = 1;
+      if (voice) { u.voice = voice; u.lang = voice.lang; }
+      u.onstart = () => { speaking = true; emit("start", clean); };
+      u.onend = done;
+      u.onerror = done;
+      if (!opts.silentChime) playChime();
+      try {
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+        window.speechSynthesis.speak(u);
+      } catch (e) { done(); }
+      // حارس: بعض المتصفحات لا تطلق onend إذا أُلغي الكلام من الخارج
+      const est = Math.min(60000, 1500 + clean.length * 95);
+      setTimeout(() => { if (!ended && !window.speechSynthesis.speaking) done(); }, est);
+    });
+
     return true;
   }
 
