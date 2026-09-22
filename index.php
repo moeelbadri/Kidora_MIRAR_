@@ -194,7 +194,8 @@ $introVideo = [
     'poster' => is_file(__DIR__ . '/assets/video/intro-poster.webp'),
     'posterPath' => 'assets/video/intro-poster.webp',
 ];
-$remoteVideoId = 'XIQBQk6F-ok';
+// $remoteVideoId = 'XIQBQk6F-ok';
+$remoteVideoId = '9yJF1CReRCQ';
 $shouldOpenRegister = isset($_GET['register']) || (bool)$registerError;
 $__pageTitle = 'Kidora — حيث تبدأ المغامرة';
 require_once __DIR__ . '/includes/header.php';
