@@ -4,10 +4,7 @@ require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 $progress = ensure_daily_progress($pdo, $child['id']);
 
-$stmt = $pdo->prepare("SELECT * FROM games WHERE age_min <= ? AND age_max >= ? ORDER BY category, id");
-$stmt->execute([$child['age'], $child['age']]);
-$games = $stmt->fetchAll();
-if (!$games) $games = $pdo->query("SELECT * FROM games ORDER BY category, id")->fetchAll();
+$games = $pdo->query("SELECT * FROM games ORDER BY category, id")->fetchAll();
 
 // غير المشترك يرى عيّنة من المكتبة فقط. اللعبة التالية لكل مهمة تبقى مجانية.
 $isPremium = is_premium_active($pdo, (int)$child['id']);
@@ -43,7 +40,7 @@ require_once __DIR__ . '/includes/navbar.php';
 <main class="container" style="padding-top:26px;">
   <div class="section-head">
     <div class="eyebrow">مكتبة الألعاب</div>
-    <h2 class="section-title">ألعاب مناسبة لعمرك (<?php echo (int)$child['age']; ?> سنوات)</h2>
+    <h2 class="section-title">كل الألعاب</h2>
     <p class="section-sub">
       <?php if ($isPremium): ?>
         ألعاب متنوعة تربوية وعلمية واجتماعية وسلوكية وثقافية — العب واحدة على الأقل لتفتح قصتك اليومية لاحقاً!
@@ -51,9 +48,7 @@ require_once __DIR__ . '/includes/navbar.php';
         هاتان لعبتاك المجانيتان لليوم. مع الاشتراك تُفتح المكتبة كاملة 🎮
       <?php endif; ?>
     </p>
-    <?php if (game_is_calm_age((int)$child['age'])): ?>
-      <p class="section-sub" style="color:var(--mint);">ألعابك بلا مؤقّت، وبتنقرأ عليك بصوت صاحبك 🔊</p>
-    <?php endif; ?>
+    <p class="section-sub" style="color:var(--mint);">ألعابك بلا مؤقّت، وبتنقرأ عليك بصوت صاحبك 🔊</p>
   </div>
 
   <p style="text-align:center;font-weight:800;color:var(--gold);">ألعاب اليوم: <span id="gamesPlayedLabel"><?php echo (int)$progress['games_played']; ?></span> 🎮</p>

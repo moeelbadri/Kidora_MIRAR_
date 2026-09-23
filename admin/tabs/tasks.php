@@ -7,12 +7,15 @@ function admin_task_from_post(array $post): array {
     $title = trim($post['title'] ?? '');
     $youtubeRaw = trim($post['youtube_id'] ?? '');
     $youtube = youtube_id_from_input($youtubeRaw);
+    $ageMin = clamp_content_age($post['age_min'] ?? 0, 6);
+    $ageMax = clamp_content_age($post['age_max'] ?? 0, 12);
+    if ($ageMin > $ageMax) { $swap = $ageMin; $ageMin = $ageMax; $ageMax = $swap; }
     return [
         'title'       => $title,
         'description' => trim($post['description'] ?? ''),
         'category'    => trim($post['category'] ?? '') ?: 'عام',
-        'age_min'     => (int)($post['age_min'] ?? 0) ?: 6,
-        'age_max'     => (int)($post['age_max'] ?? 0) ?: 12,
+        'age_min'     => $ageMin,
+        'age_max'     => $ageMax,
         // جملة اسمية: سطر القصة يظهر بجوار اسم الطفل، والتطبيق لا يسجّل جنسه
         'story_line'  => trim($post['story_line'] ?? '') ?: ($title !== '' ? "مهمة «{$title}» منجزة بنجاح! ✨" : ''),
         'youtube_raw' => $youtubeRaw,
@@ -101,8 +104,8 @@ $missingVideo = count(array_filter($tasks, fn($row) => empty($row['youtube_id'])
     <div class="row">
       <input name="title" placeholder="عنوان المهمة" required value="<?php echo h((string)$form['title']); ?>">
       <input name="category" placeholder="التصنيف (تعلّم/صحة/إبداع..)" value="<?php echo h((string)$form['category']); ?>">
-      <input name="age_min" type="number" placeholder="أصغر عمر" min="6" max="12" value="<?php echo h((string)$form['age_min']); ?>">
-      <input name="age_max" type="number" placeholder="أكبر عمر" min="6" max="12" value="<?php echo h((string)$form['age_max']); ?>">
+      <input name="age_min" type="number" placeholder="أصغر عمر" min="<?php echo CHILD_AGE_MIN; ?>" max="<?php echo CHILD_AGE_MAX; ?>" value="<?php echo h((string)$form['age_min']); ?>">
+      <input name="age_max" type="number" placeholder="أكبر عمر" min="<?php echo CHILD_AGE_MIN; ?>" max="<?php echo CHILD_AGE_MAX; ?>" value="<?php echo h((string)$form['age_max']); ?>">
     </div>
     <div class="row">
       <input name="description" placeholder="وصف المهمة (سيُقرأ بصوت الشخصية)" style="grid-column:span 2;" required value="<?php echo h((string)$form['description']); ?>">

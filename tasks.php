@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 $progress = ensure_daily_progress($pdo, $child['id']);
 
-// ---------------- باكج اليوم: 4 مهام حسب عمر الطفل ----------------
+// ---------------- باكج اليوم: حتى 4 مهام نشطة، بلا فلتر عمر ----------------
 $taskPool = daily_task_pool($pdo, $child, $progress);
 $completedIds = array_map('intval', json_decode_safe($progress['completed_task_ids'], []));
 $doneCount = count($completedIds);
@@ -31,7 +31,8 @@ $companion = active_character($pdo, $child);
 $theme = character_theme($companion);
 
 $__pageTitle = 'مهامي اليومية — Kidora';
-$__pageLine = $currentTask ? "يلا يا {$child['name']}! المهمة رقم " . ($doneCount + 1) . " من أربع. أنا أقرأها لك." : "لا توجد مهام لعمرك اليوم — سنضيف المزيد قريباً!";
+$poolCount = count($taskPool);
+$__pageLine = $currentTask ? "يلا يا {$child['name']}! المهمة رقم " . ($doneCount + 1) . " من {$poolCount}. أنا أقرأها لك." : "لا توجد مهام اليوم — سنضيف المزيد قريباً!";
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
@@ -63,7 +64,7 @@ require_once __DIR__ . '/includes/navbar.php';
 <div class="page-body">
 <main class="container" style="padding-top:26px;">
   <div class="section-head">
-    <div class="eyebrow">باكج اليوم: 4 مهام</div>
+    <div class="eyebrow">باكج اليوم<?php if ($poolCount): ?>: <?php echo (int)$poolCount; ?> مهام<?php endif; ?></div>
     <h2 class="section-title">مهامي اليومية</h2>
   </div>
 

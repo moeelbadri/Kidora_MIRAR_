@@ -11,7 +11,7 @@ function safe_json($d){
     return $j === false ? '[]' : $j;
 }
 
-/* جلب الدروس المناسبة — بدون شرط العمر */
+/* كل الدروس المجانية. عمر الطفل لا يخفي درساً. */
 $stmt = $pdo->prepare("
   SELECT id,type,title,description,youtube_id,game_type,age_min,age_max
   FROM safety_content

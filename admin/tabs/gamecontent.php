@@ -14,7 +14,7 @@ $sel = $_POST['topic'] ?? $_GET['topic'] ?? '';
 if (!in_array($sel, $topicKeys, true)) $sel = $topicKeys[0] ?? 'general';
 $redirect = '?tab=gamecontent&topic=' . urlencode($sel);
 
-$clampAge = fn($v, $d) => max(6, min(12, (int)$v ?: $d));
+$clampAge = fn($v, $d) => clamp_content_age($v, $d);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_question'])) {
@@ -130,8 +130,8 @@ $totalPending = (int)$pdo->query("SELECT (SELECT COUNT(*) FROM game_questions WH
       </select>
     </div>
     <div class="row">
-      <input name="age_min" type="number" placeholder="أصغر عمر (6)" min="6" max="12">
-      <input name="age_max" type="number" placeholder="أكبر عمر (12)" min="6" max="12">
+      <input name="age_min" type="number" placeholder="أصغر عمر (6)" min="<?php echo CHILD_AGE_MIN; ?>" max="<?php echo CHILD_AGE_MAX; ?>">
+      <input name="age_max" type="number" placeholder="أكبر عمر (12)" min="<?php echo CHILD_AGE_MIN; ?>" max="<?php echo CHILD_AGE_MAX; ?>">
     </div>
     <p style="margin:0 0 10px;color:#667;font-size:13px;">
       صياغة النفي («هل من الصواب أن أكذب؟») تربك عمر 4-6 — اجعل أصغر عمر 7 لمثل هذه الأسئلة.
@@ -178,8 +178,8 @@ $totalPending = (int)$pdo->query("SELECT (SELECT COUNT(*) FROM game_questions WH
         <option value="1">الخيار الصائب: الأول</option>
         <option value="2">الخيار الصائب: الثاني</option>
       </select>
-      <input name="age_min" type="number" placeholder="أصغر عمر (6)" min="6" max="12">
-      <input name="age_max" type="number" placeholder="أكبر عمر (12)" min="6" max="12">
+      <input name="age_min" type="number" placeholder="أصغر عمر (6)" min="<?php echo CHILD_AGE_MIN; ?>" max="<?php echo CHILD_AGE_MAX; ?>">
+      <input name="age_max" type="number" placeholder="أكبر عمر (12)" min="<?php echo CHILD_AGE_MIN; ?>" max="<?php echo CHILD_AGE_MAX; ?>">
     </div>
     <p style="margin:0 0 10px;color:#667;font-size:13px;">
       نتيجة الخيار الخاطئ تشرح ما فات ولا تعاقب — الطفل يجرّب مرة أخرى بلا خوف.

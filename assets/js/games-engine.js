@@ -14,9 +14,8 @@
    هنا — يأتي من api/game-content.php حسب تصنيف المهمة أو اللعبة، فيُحرَّر
    من لوحة التحكم ويتوسّع بلا نشر جديد.
 
-   العمر يقرّر شكل اللعب، والخادم هو من يحسمه (لا الرابط):
-     10 سنوات وأكثر → مؤقّت في طريق البطل، شبكات أكبر، حركة أسرع.
-     أقل من 10       → بلا أي مؤقّت، النص يُقرأ صوتياً، شبكات أصغر وأبطأ.
+   بلا مؤقّتات: الخادم يُرسل calm=true دائماً — شبكات أصغر، حركة أبطأ،
+   والنص يُقرأ صوتياً في طريق البطل والمغامرة.
 
    لا توجد خسارة في أي لعبة: الطفل يكمل دائماً، والتغذية الراجعة تشجيع فقط
    (لا «خطأ» ولا «غلط»). هذا قرار تربوي لا تفصيل واجهة.
@@ -28,7 +27,7 @@ const GamesEngine = (function () {
   /* شبكة أمان فقط: إن تعذّر جلب المحتوى (انقطاع/خطأ) لا نُظهر للطفل شاشة
      معطوبة. ليست بنك محتوى — البنك الحقيقي في القاعدة. */
   const FALLBACK = {
-    topic: 'general', label: 'عام', calm: false,
+    topic: 'general', label: 'عام', calm: true,
     icons: ["⭐","🌙","🎈","🍎","🐱","🌸","🎵","🚗"],
     quiz: [
       { q: "هل غسل اليدين قبل الأكل مهم لصحتي؟", a: true },
@@ -58,7 +57,7 @@ const GamesEngine = (function () {
       .then(d => {
         if (!d || !d.ok) return Promise.reject();
         const topic = {
-          topic: d.topic, label: d.label, calm: !!d.calm,
+          topic: d.topic, label: d.label, calm: true,
           icons: (d.icons && d.icons.length) ? d.icons : FALLBACK.icons,
           quiz: d.quiz || [],
           adventure: d.adventure || [],
@@ -73,11 +72,19 @@ const GamesEngine = (function () {
 
   function shuffled(arr) { return arr.slice().sort(() => Math.random() - 0.5); }
 
-  /** القراءة الصوتية للصغار فقط، وتحترم زرّ كتم الصوت داخل SoundEngine */
+  /** يظهر الرفيق فوق شاشة اللعب ويثبّته حتى لا يغطيه المحتوى */
+  function pinCompanion(on) {
+    document.body.classList.toggle('kidora-game-open', !!on);
+    if (window.Companion && typeof Companion.pin === 'function') Companion.pin(!!on);
+  }
+
+  /** يقرأ الرفيق النص لكل الأعمار. SoundEngine احتياط فقط إن غاب Companion */
   function say(topic, text) {
-    if (!topic || !topic.calm || !text) return;
-    if (typeof SoundEngine === 'undefined') return;
-    SoundEngine.speak(String(text).replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, ''), window.KIDAURA_ACTIVE_CHARACTER);
+    if (!text) return;
+    const clean = String(text).replace(/<[^>]+>/g, ' ').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim();
+    if (!clean) return;
+    if (window.Companion) return Companion.say(clean, { mood: 'talk' });
+    if (typeof SoundEngine !== 'undefined') SoundEngine.speak(clean, window.KIDAURA_ACTIVE_CHARACTER);
   }
 
   /** مؤثّر صوتي قصير عبر SoundEngine.sfx (tap→flip، good→match، win→win) */
@@ -144,6 +151,7 @@ const GamesEngine = (function () {
   }
 
   function run(type, host, title, color, onDone, opts) {
+    pinCompanion(true);
     loading(host);
     fetchContent(opts && opts.category).then(topic => {
       switch (type) {
@@ -283,17 +291,15 @@ const GamesEngine = (function () {
   function runQuiz(host, title, color, onDone, topic) {
     const TOTAL = 5;
     const questions = topic.quiz.slice(0, TOTAL);
-    // الصغار: بلا مؤقّت إطلاقاً، والسؤال يُقرأ عليهم بصوت الشخصية
-    const timed = !topic.calm;
-    let idx = 0, stars = 0, timeLeft = 12 * questions.length, timer = null, finished = false;
+    let idx = 0, stars = 0, finished = false;
 
     const stations = questions.map((_, i) => `<span class="ge-station" data-i="${i}">${i + 1}</span>`).join('<span class="ge-road"></span>');
-    shell(host, title + ' 🛤️', `أسئلة عن ${topic.label} — ${timed ? 'اختر بسرعة وامشِ على الطريق!' : 'خذ وقتك، لا يوجد مؤقّت'}`, `
+    shell(host, title + ' 🛤️', `أسئلة عن ${topic.label} — خذ وقتك، لا يوجد مؤقّت`, `
       <div class="ge-path" style="--ge-color:${color};">
         <div class="ge-walker" id="ge_walker">${companionHtml(44)}</div>
         <div class="ge-stations" id="ge_stations">${stations}<span class="ge-road"></span><span class="ge-station ge-goal">🏁</span></div>
       </div>
-      <p class="ge-meta">${timed ? `⏱️ <b id="ge_quizTimer" style="color:${color};">${timeLeft}</b> ث · ` : ''}⭐ <b id="ge_quizScore">0</b></p>
+      <p class="ge-meta">⭐ <b id="ge_quizScore">0</b></p>
       <div id="ge_quizBody" class="ge-quiz-body"></div>`, topic);
 
     const walker = document.getElementById('ge_walker');
@@ -308,15 +314,6 @@ const GamesEngine = (function () {
       stationEls.forEach((s, k) => s.classList.toggle('done', k < i));
     }
     setTimeout(() => moveWalker(0), 50);
-
-    if (timed) {
-      timer = setInterval(() => {
-        timeLeft--;
-        const t = document.getElementById('ge_quizTimer');
-        if (t) t.textContent = timeLeft;
-        if (timeLeft <= 0) end();
-      }, 1000);
-    }
 
     function render(){
       if (idx >= questions.length) { end(); return; }
@@ -349,7 +346,6 @@ const GamesEngine = (function () {
     function end(){
       if (finished) return;
       finished = true;
-      if (timer) clearInterval(timer);
       moveWalker(stationEls.length - 1);
       const body = document.getElementById('ge_quizBody');
       const line = stars === questions.length

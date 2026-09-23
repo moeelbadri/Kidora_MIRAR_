@@ -38,7 +38,7 @@ require_once __DIR__ . '/includes/navbar.php';
 .eg-play{ display:block; width:100%; min-height:52px; border:none; border-radius:60px; background:var(--c); color:#1a1040; font-weight:900; font-size:1.05rem; cursor:pointer; font-family:inherit; transition:.2s; }
 .eg-play:hover{ transform:scale(1.03); }
 
-.eg-modal{ position:fixed; inset:0; background:rgba(5,3,20,.9); backdrop-filter:blur(10px); display:none; align-items:center; justify-content:center; z-index:99999; padding:16px 14px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.eg-modal{ position:fixed; inset:0; background:rgba(5,3,20,.9); backdrop-filter:blur(10px); display:none; align-items:center; justify-content:center; z-index:99999; padding:16px 14px 128px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 .eg-modal.open{ display:flex; }
 .eg-box{ background:#140c33; border-radius:30px; max-width:860px; width:100%; padding:16px 18px; border:1px solid rgba(255,255,255,.1); position:relative; margin:auto; box-shadow:0 24px 60px rgba(0,0,0,.5); }
 .eg-close{ position:absolute; top:12px; left:14px; background:rgba(255,255,255,.08); border:none; color:#fff; font-size:24px; width:46px; height:46px; border-radius:50%; cursor:pointer; z-index:10; display:grid; place-items:center; transition:.2s; }
@@ -162,9 +162,19 @@ const EG = (function () {
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(0, i); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const ar = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[+d]);
-  function say(t, mood) { if (window.Companion) return Companion.say(t, { mood: mood || 'talk' }); return Promise.resolve(); }
+  function say(t, mood) {
+    const clean = String(t || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim();
+    if (!clean) return Promise.resolve();
+    if (window.Companion) return Companion.say(clean, { mood: mood || 'talk' });
+    if (window.SoundEngine) SoundEngine.speak(clean, window.KIDAURA_ACTIVE_CHARACTER);
+    return Promise.resolve();
+  }
   function ask(t) { lastQ = t; $('egQ').textContent = t; return say(t); }
   function fb(t, good) { $('egFb').textContent = t; $('egFb').style.color = good ? '#8ff5e6' : '#ffe99a'; }
+  function showCompanion(on) {
+    document.body.classList.toggle('kidora-game-open', !!on);
+    if (window.Companion) Companion.pin(!!on);
+  }
   const PRAISE = ['أحسنت!', 'ممتاز!', 'رائع!', 'صحيح تماماً!', 'عقل ذكي!'];
   const GENTLE = ['قريب! جرّب مرة أخرى.', 'فكرة جيدة… حاول من جديد.', 'ركّز جيداً وجرّب ثانية.'];
   const praise = () => PRAISE[rnd(0, PRAISE.length - 1)], gentle = () => GENTLE[rnd(0, GENTLE.length - 1)];
@@ -204,7 +214,7 @@ const EG = (function () {
       const hit = this.bubbles.find(b => Math.hypot(b.x - p.x, b.y - p.y) <= b.r + 10);
       if (!hit) return;
       if (hit.v === this.ans) { this.score++; setProg(this.score, this.total); pop(hit.x, hit.y, '#8ff5e6'); fb(praise(), true); say(praise(), 'cheer'); if (this.score >= this.total) return win(this, 'أكملت عشر معادلات صحيحة!'); setTimeout(() => this.newRound(), 700); this.bubbles = []; }
-      else { pop(hit.x, hit.y, '#ffe99a'); fb(gentle(), false); hit.y += 40; }
+      else { pop(hit.x, hit.y, '#ffe99a'); const line = gentle(); fb(line, false); say(line); hit.y += 40; }
     },
     update() { this.bubbles.forEach(b => { b.y -= b.sp; if (b.y < -b.r) b.y = H + b.r; }); },
     draw() {
@@ -226,7 +236,7 @@ const EG = (function () {
     init() { this.score = 0; this.fx = []; this.pool = shuffle([...(LEVEL === 1 ? LETTERS1 : LETTERS2)]); this.drawing = false; this.newRound(); },
     newRound() {
       const [ch, word, emoji] = this.pool.pop(); this.ch = ch; this.word = word; this.emoji = emoji; this.done = false;
-      this.strokes = []; this.cur = null; this.buildMask(); this.covered = new Set(); this.pct = 0;
+      this.strokes = []; this.cur = null; this.hinted = false; this.buildMask(); this.covered = new Set(); this.pct = 0;
       ask(`حرف ${ch}، مثل ${word} ${emoji}. ارسم الحرف بإصبعك فوق شكله.`);
       $('egQ').textContent = `${emoji}  ${word}  —  حرف «${ch}»`;
     },
@@ -262,7 +272,14 @@ const EG = (function () {
     },
     down(p) { if (this.done) return; this.drawing = true; this.cur = [p]; this.strokes.push(this.cur); this.paint(p); },
     move(p) { if (this.drawing) this.paint(p); },
-    up() { this.drawing = false; this.cur = null; if (!this.done && this.pct > 0 && this.pct < this.need) fb(`أكمل الحرف… ${Math.round(this.pct * 100)}٪`, true); },
+    up() {
+      this.drawing = false; this.cur = null;
+      if (!this.done && !this.hinted && this.pct > 0 && this.pct < this.need) {
+        this.hinted = true;
+        const line = 'أكمل رسم الحرف فوق الشكل';
+        fb(line, true); say(line);
+      }
+    },
     tap() {},
     update() {},
     draw() {
@@ -342,7 +359,7 @@ const EG = (function () {
       const it = this.item; if (!it) return;
       if (k === it.k) { this.score++; this.queue.shift(); setProg(this.score, this.total); pop(it.x, it.y, '#8ff5e6'); fb(praise(), true); say(praise(), 'cheer'); this.item = null;
         if (this.score >= this.total) return win(this, 'فرزت عشرة أشياء في سلّتها الصحيحة!'); setTimeout(() => this.next(), 700); }
-      else { pop(it.x, it.y, '#ffe99a'); fb(`${gentle()} فكّر: ${it.icon} — ${this.set.q}`, false); it.x = W / 2; it.y = H * .3; }
+      else { pop(it.x, it.y, '#ffe99a'); const line = `${gentle()} فكّر أين يذهب هذا الشيء`; fb(line, false); say(line); it.x = W / 2; it.y = H * .3; }
     },
     inBasket(p) { return this.baskets().find(b => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h); },
     down(p) { const it = this.item; if (!it) return; if (Math.hypot(it.x - p.x, it.y - p.y) <= it.r + 14) { this.drag = { dx: it.x - p.x, dy: it.y - p.y }; return; } const b = this.inBasket(p); if (b) this.drop(b.k); },
@@ -381,6 +398,7 @@ const EG = (function () {
   function loop() { if (!game) return; game.update(); game.draw(); anim = requestAnimationFrame(loop); }
   function open(k) {
     key = k; game = GAMES[k]; if (!game) return;
+    showCompanion(true);
     modal.classList.add('open'); resize(); $('egTitle').textContent = game.title; restart();
   }
   function restart() {
@@ -389,6 +407,7 @@ const EG = (function () {
   }
   function close() {
     if (anim) cancelAnimationFrame(anim); anim = null; game = null; modal.classList.remove('open');
+    showCompanion(false);
     if (window.Companion) Companion.stop();
   }
   canvas.addEventListener('pointerdown', e => { if (!game || game.won) return; e.preventDefault(); canvas.setPointerCapture(e.pointerId); if (game.down) game.down(pos(e)); else game.tap(pos(e)); });

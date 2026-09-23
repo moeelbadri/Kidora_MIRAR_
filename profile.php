@@ -6,8 +6,8 @@ $child = require_login();
 // ---------------- تعديل البيانات ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_profile'])) {
     $name = trim($_POST['child_name'] ?? $child['name']);
-    $age = (int)($_POST['child_age'] ?? $child['age']);
-    if ($age < 1 || $age > 60) $age = (int)$child['age'];
+    $age = normalize_child_age($_POST['child_age'] ?? $child['age']);
+    if ($age === null) $age = (int)$child['age'];
     $parentName = trim($_POST['parent_name'] ?? '');
     $parentPhone = trim($_POST['parent_phone'] ?? '');
     $pdo->prepare("UPDATE children SET name=?, age=?, parent_name=?, parent_phone=? WHERE id=?")
@@ -114,40 +114,6 @@ if (!empty($axisRows)) {
 
 $badges = json_decode_safe($child['badges_json'], []);
 
-/* ============================================================
-   مخطط السلوك الطفولي — أيقونات وألوان ومستويات
-   ============================================================ */
-if (!function_exists('pf_axis_style')) {
-    function pf_axis_style(string $axis): array {
-        $map = [
-            'التعاطف'   => ['icon'=>'❤️','bg'=>'#FFE4EC','color'=>'#FF6FA5'],
-            'الثقة'     => ['icon'=>'💪','bg'=>'#E3FBF8','color'=>'#2EC4B6'],
-            'الأمان'    => ['icon'=>'🛡️','bg'=>'#E6F0FF','color'=>'#5B8DEF'],
-            'الشجاعة'   => ['icon'=>'🦁','bg'=>'#FFF1D6','color'=>'#F5A623'],
-            'الصدق'     => ['icon'=>'⭐','bg'=>'#FFF7D6','color'=>'#FFB13C'],
-            'التعاون'   => ['icon'=>'🤝','bg'=>'#EEF7E5','color'=>'#7BC043'],
-            'الصبر'     => ['icon'=>'🐢','bg'=>'#E3FBF8','color'=>'#3EB8A4'],
-            'الإبداع'   => ['icon'=>'🎨','bg'=>'#F3E9FF','color'=>'#9B7BFF'],
-            'المسؤولية' => ['icon'=>'🌟','bg'=>'#FFF7D6','color'=>'#FFB13C'],
-            'الحدود'    => ['icon'=>'🚧','bg'=>'#FFEAD6','color'=>'#FF7A45'],
-            'المشاعر'   => ['icon'=>'🌈','bg'=>'#F3E9FF','color'=>'#9B7BFF'],
-            'الاحترام'  => ['icon'=>'🙏','bg'=>'#E6F0FF','color'=>'#5B8DEF'],
-            'النظام'    => ['icon'=>'📋','bg'=>'#F3E9FF','color'=>'#7B6EFF'],
-        ];
-        foreach ($map as $k=>$v) { if (mb_strpos($axis, $k) !== false) return $v; }
-        return ['icon'=>'✨','bg'=>'#EEEBFF','color'=>'#6C63FF'];
-    }
-}
-if (!function_exists('pf_axis_level')) {
-    function pf_axis_level(float $avg): string {
-        if ($avg >= 2.5) return 'بطل خارق! 🦸';
-        if ($avg >= 2.0) return 'رائع جداً! 🌟';
-        if ($avg >= 1.5) return 'في تقدّم جميل! 🚀';
-        if ($avg >= 1.0) return 'بداية الرحلة! 🌱';
-        return 'خطوة أولى! 💫';
-    }
-}
-
 $__pageTitle = 'ملفي الشخصي — Kidora';
 $__pageLine = $flashProfile ?: "هذا ملفك يا {$child['name']}… انظر كل ما حققناه معاً! ⭐";
 require_once __DIR__ . '/includes/header.php';
@@ -232,159 +198,7 @@ require_once __DIR__ . '/includes/navbar.php';
   }
   .pf-bars-head h3{margin:0;color:#3B2E6B;font-size:1.15rem;font-weight:900;}
   .pf-bars-head p{margin:3px 0 0;color:#7B6EA8;font-size:.82rem;font-weight:700;}
-
-  .pf-bars-chart{
-    position:relative;z-index:1;
-    display:flex;
-    justify-content:space-around;
-    align-items:flex-end;
-    gap:8px;
-    padding:14px 6px 0;
-    min-height:210px;
-    border-bottom:3px dashed #D6CCFF;
-    border-radius:0 0 8px 8px;
-    overflow-x:auto;
-    overflow-y:hidden;
-    scrollbar-width:thin;
-  }
-  .pf-bars-chart::-webkit-scrollbar{height:6px;}
-  .pf-bars-chart::-webkit-scrollbar-thumb{background:#C9B8FF;border-radius:99px;}
-
-  .pf-bar{
-    position:relative;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:flex-end;
-    flex:1;
-    min-width:60px;
-    max-width:100px;
-    height:200px;
-    padding:0;
-    background:transparent;
-    border:none;
-    cursor:pointer;
-    font-family:inherit;
-    transition:transform .25s;
-  }
-  .pf-bar:hover{transform:translateY(-4px);}
-  .pf-bar:active{transform:translateY(-2px) scale(.98);}
-
-  .pf-bar-icon{
-    font-size:1.7rem;
-    line-height:1;
-    margin-bottom:6px;
-    filter:drop-shadow(0 3px 6px rgba(0,0,0,.15));
-    transition:transform .3s;
-  }
-  .pf-bar:hover .pf-bar-icon{transform:scale(1.2) rotate(-8deg);}
-
-  .pf-bar-track{
-    position:relative;
-    width:100%;
-    flex:1;
-    border-radius:16px 16px 8px 8px;
-    background:var(--bar-bg);
-    box-shadow:inset 0 2px 6px rgba(0,0,0,.08);
-    overflow:hidden;
-    display:flex;
-    align-items:flex-end;
-    min-height:80px;
-  }
-
-  .pf-bar-fill{
-    width:100%;
-    border-radius:16px 16px 6px 6px;
-    background:linear-gradient(180deg,
-      color-mix(in srgb,var(--bar-color) 60%,#fff),
-      var(--bar-color));
-    box-shadow:
-      0 -4px 12px color-mix(in srgb,var(--bar-color) 50%,transparent),
-      inset 0 2px 0 rgba(255,255,255,.3);
-    transition:height 1.4s cubic-bezier(.34,1.4,.64,1);
-    position:relative;
-    min-height:8px;
-  }
-  .pf-bar-fill::after{
-    content:"";
-    position:absolute;inset:0;
-    background-image:repeating-linear-gradient(
-      45deg,
-      rgba(255,255,255,.22) 0 6px,
-      transparent 6px 12px
-    );
-    border-radius:inherit;
-    animation:pfBarsStripe 1.8s linear infinite;
-  }
-  @keyframes pfBarsStripe{to{background-position:24px 0;}}
-
-  .pf-bar-num{
-    margin-top:6px;
-    font-size:.82rem;
-    font-weight:900;
-    color:var(--bar-color);
-    background:#fff;
-    padding:2px 8px;
-    border-radius:99px;
-    box-shadow:0 3px 8px rgba(0,0,0,.08);
-  }
-
-  .pf-bar-name{
-    margin-top:4px;
-    font-size:.68rem;
-    font-weight:800;
-    color:#3B2E6B;
-    text-align:center;
-    line-height:1.2;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    max-width:100%;
-  }
-
-  .pf-bar.is-open .pf-bar-icon{transform:scale(1.3) rotate(0);}
-
-  .pf-bars-tip{
-    position:relative;z-index:1;
-    margin-top:16px;
-    padding:12px 16px;
-    border-radius:18px;
-    background:#fff;
-    border:2px solid #EFE9FF;
-    text-align:center;
-    font-size:.85rem;
-    font-weight:800;
-    color:#7B6EA8;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    flex-wrap:wrap;
-    transition:.3s;
-    min-height:56px;
-  }
-  .pf-bars-tip .em{font-size:1.4rem;}
-  .pf-bars-tip b{color:#3B2E6B;}
-  .pf-bars-tip.is-active{
-    background:linear-gradient(135deg,#FFF1D6,#FFE07A);
-    border-color:#FFB13C;
-    color:#3B2E6B;
-    transform:scale(1.02);
-  }
-
-  .pf-bars-summary{
-    position:relative;z-index:1;
-    margin-top:14px;
-    padding:14px 16px;
-    border-radius:20px;
-    background:linear-gradient(135deg,#FFE07A,#FFB13C);
-    color:#3B2E6B;
-    text-align:center;
-    box-shadow:0 12px 28px rgba(255,177,60,.45);
-  }
-  .pf-bars-summary .big{display:block;font-size:1.05rem;font-weight:900;margin-bottom:3px;}
-  .pf-bars-summary .sub{display:block;font-size:.8rem;font-weight:800;opacity:.85;}
-  .pf-bars-summary b{color:#7B3FAF;}
+  .pf-bars .behavior-radar{ position:relative; z-index:1; }
 
   .pf-bars-empty{
     position:relative;z-index:1;
@@ -424,11 +238,6 @@ require_once __DIR__ . '/includes/navbar.php';
 
   @media(max-width:520px){
     .pf-bars{padding:18px 12px 16px;border-radius:22px;}
-    .pf-bars-chart{min-height:180px;gap:5px;padding:10px 4px 0;}
-    .pf-bar{height:170px;min-width:52px;}
-    .pf-bar-icon{font-size:1.4rem;}
-    .pf-bar-num{font-size:.72rem;padding:2px 6px;}
-    .pf-bar-name{font-size:.6rem;}
     .pf-bars-head h3{font-size:1rem;}
     .pf-bars-head p{font-size:.75rem;}
     .pf-bars-mascot{width:48px;height:48px;font-size:26px;}
@@ -479,9 +288,8 @@ require_once __DIR__ . '/includes/navbar.php';
       <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" value="<?php echo h($child['name']); ?>"></div>
       <div class="field"><label>عمر الطفل</label>
         <select name="child_age">
-          <?php for ($a=1;$a<=60;$a++):
-            $unit = ($a === 2) ? 'سنتان' : (($a >= 3 && $a <= 10) ? 'سنوات' : 'سنة');
-          ?><option value="<?php echo $a; ?>" <?php echo $a==(int)$child['age']?'selected':''; ?>><?php echo $a; ?> <?php echo $unit; ?></option><?php endfor; ?>
+          <?php for ($a = CHILD_AGE_MIN; $a <= CHILD_AGE_MAX; $a++): ?>
+          <option value="<?php echo $a; ?>" <?php echo $a==(int)$child['age']?'selected':''; ?>><?php echo $a; ?> <?php echo h(child_age_label($a)); ?></option><?php endfor; ?>
         </select>
       </div>
       <div class="field"><label>اسم ولي الأمر</label><input type="text" name="parent_name" value="<?php echo h($child['parent_name']); ?>"></div>
@@ -538,55 +346,16 @@ require_once __DIR__ . '/includes/navbar.php';
         لا يوجد مخطط بعد — أكمل تحليل السلوك!
       </div>
     </div>
-  <?php else:
-    $sum = 0; $cnt = 0;
-    foreach ($axisRows as $r) { $sum += (float)$r['avg_v']; $cnt++; }
-    $overall = $cnt ? ($sum / $cnt) : 0;
-    $overallPct = (int)round(($overall / 3) * 100);
-    $overallLevel = pf_axis_level($overall);
-  ?>
+  <?php else: ?>
     <div class="pf-bars">
       <div class="pf-bars-head">
         <div class="pf-bars-mascot">🧭</div>
         <div>
-          <h3>قواي الخارقة 🌟</h3>
-          <p>اضغط على أي عمود لترى المزيد!</p>
+          <h3>تحليل سلوكي</h3>
+          <p>رسمة محاورك من ١ إلى ٣</p>
         </div>
       </div>
-
-      <div class="pf-bars-chart" id="pfBarsChart">
-        <?php foreach ($axisRows as $row):
-          $avg  = (float)$row['avg_v'];
-          $pct  = (int)round(($avg / 3) * 100);
-          $st   = pf_axis_style((string)$row['axis']);
-          $level = pf_axis_level($avg);
-        ?>
-          <button type="button"
-                  class="pf-bar"
-                  data-axis="<?php echo h($row['axis']); ?>"
-                  data-value="<?php echo number_format($avg,1); ?>"
-                  data-level="<?php echo h($level); ?>"
-                  style="--bar-color:<?php echo h($st['color']); ?>;--bar-bg:<?php echo h($st['bg']); ?>;">
-            <span class="pf-bar-icon"><?php echo $st['icon']; ?></span>
-            <span class="pf-bar-track">
-              <span class="pf-bar-fill" data-pct="<?php echo $pct; ?>" style="height:0%"></span>
-            </span>
-            <span class="pf-bar-num"><?php echo number_format($avg,1); ?></span>
-            <span class="pf-bar-name"><?php echo h($row['axis']); ?></span>
-          </button>
-        <?php endforeach; ?>
-      </div>
-
-      <div class="pf-bars-tip" id="pfBarsTip">
-        <span class="em">👆</span>
-        <b>اضغط على عمود!</b>
-        <span>كل عمود يحكي قصة قوة فيك ✨</span>
-      </div>
-
-      <div class="pf-bars-summary">
-        <span class="big"><?php echo $overallLevel; ?></span>
-        <span class="sub">أنت في <b><?php echo $overallPct; ?>%</b> من رحلتك 🚀</span>
-      </div>
+      <?php echo behavior_radar_svg($axisRows); ?>
     </div>
   <?php endif; ?>
 
@@ -830,49 +599,6 @@ require_once __DIR__ . '/includes/navbar.php';
       }
     };
   })();
-
-  /* ============================================================
-     Bar Chart — أنيميشن + تفاعل
-     ============================================================ */
-  document.addEventListener('DOMContentLoaded', function(){
-    const chart = document.getElementById('pfBarsChart');
-    if (!chart) return;
-
-    // حرّك الأعمدة تصاعدياً
-    chart.querySelectorAll('.pf-bar-fill').forEach(function(el, i){
-      const pct = parseInt(el.dataset.pct || '0', 10);
-      setTimeout(function(){
-        el.style.height = Math.max(pct, 4) + '%';
-      }, 120 * i + 200);
-    });
-
-    // عند الضغط على عمود
-    const tip = document.getElementById('pfBarsTip');
-    chart.querySelectorAll('.pf-bar').forEach(function(bar){
-      bar.addEventListener('click', function(){
-        const axis  = bar.dataset.axis  || '';
-        const value = bar.dataset.value || '0';
-        const level = bar.dataset.level || '';
-
-        chart.querySelectorAll('.pf-bar').forEach(b => b.classList.remove('is-open'));
-        bar.classList.add('is-open');
-
-        if (tip){
-          tip.classList.add('is-active');
-          tip.innerHTML = `
-            <span class="em">${bar.querySelector('.pf-bar-icon').textContent}</span>
-            <b>${axis}:</b>
-            <span>${value} / 3 — ${level}</span>
-          `;
-        }
-
-        bar.animate(
-          [{transform:'translateY(0)'},{transform:'translateY(-6px)'},{transform:'translateY(0)'}],
-          {duration:400, easing:'ease-out'}
-        );
-      });
-    });
-  });
 
   <?php if ($flashWaLink): ?>
     try { window.open(<?php echo json_encode($flashWaLink); ?>, '_blank'); } catch (e) {}

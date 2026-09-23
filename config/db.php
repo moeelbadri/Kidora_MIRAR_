@@ -113,11 +113,6 @@ function kidora_migrate(PDO $pdo): void {
     // الشخصيات الجديدة (سبتمبر 2026): تحلّ محلّ ميمو/زيزو/… وتعيد ربط الأطفال بها.
     kidora_migrate_characters_v2($pdo);
 
-    // الفئة المستهدفة 6–12: بذور كُتبت لعمر 4 تُرفَع إلى 6 (ما عدّله الأدمن فوق 4 لا يُلمَس)
-    foreach (['tasks', 'games', 'game_questions', 'game_scenarios', 'safety_content'] as $t) {
-        if (kidora_table_exists($pdo, $t)) $pdo->exec("UPDATE `{$t}` SET age_min = 6 WHERE age_min < 6");
-    }
-
     // محتوى الألعاب انتقل من games-engine.js إلى القاعدة. الثلاثة تُنشأ معاً،
     // فوجود game_topics كافٍ للحكم — استعلام واحد لكل طلب بدل ثلاثة.
     if (!kidora_table_exists($pdo, 'game_topics')) {

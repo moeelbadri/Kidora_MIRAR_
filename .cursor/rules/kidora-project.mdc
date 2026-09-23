@@ -82,9 +82,9 @@ Things future work keeps getting wrong:
   scenarios live in `game_questions` / `game_scenarios` and reach the engine through
   `api/game-content.php`. The `FALLBACK` object in `games-engine.js` exists only for a
   failed request — do not grow it back into a content bank.
-- **Age is a server decision.** Under `GAME_TIMER_MIN_AGE` (10) games drop their
-  timers, read themselves aloud via `SoundEngine`, and `reaction` is swapped for
-  `match`. The age comes from the `children` row in the API, never from the client.
+- **Games have no countdown timers.** `game_is_calm_age()` is always true; mission
+  and library games use the calm pace and read-aloud. Age on the `children` row is
+  for the account only (returned in `api/game-content.php`), never from the client.
 - **Copy next to the child's name must be gender-neutral.** `children` has no gender
   column. Task `story_line`, figure `story_line`, and story captions are nominal
   sentences on purpose; a bound verb ("أنجز"/"أنجزت") is wrong half the time.
@@ -115,6 +115,6 @@ just hide the button. `STORY_MIN_GAMES = 1` (the game of the day unlocks it).
  conan premium) carry `theme_json` (world, sidekick, motif). The names are third-party
  IP: keep the placeholder SVGs generic; real art comes through the admin upload.
  Registration picks **one** character; the server fills `character_2`.
-- **Age is 6–12** everywhere (registration, seed `age_min`, admin forms).
+- **Age is chosen by the family, from 1 to 60** (`CHILD_AGE_MIN` / `CHILD_AGE_MAX`). Registration and the profile use the same list. The stored age does not hide content and does not enable game timers. Admin age fields stay on content rows as labels only.
 - **No `mb_*`** (no mbstring on the runtime) — `preg_*` with `/u`; never `rtrim()` with a
  multibyte delimiter. **No 🌈** anywhere in the product.

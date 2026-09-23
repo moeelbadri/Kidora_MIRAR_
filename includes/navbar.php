@@ -112,6 +112,7 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
       </a>
     </div>
 
+    <button class="voice-btn on header-voice-mobile" id="voiceToggleMobile" type="button" title="صوت الرفيق">🗣️</button>
     <a href="<?php echo BASE_PATH; ?>/profile.php" class="header-avatar header-avatar-mobile" title="ملفي الشخصي">
       <?php if ($__navPhoto): ?><img src="<?php echo h($__navPhoto); ?>" alt=""><?php else: ?><span>👤</span><?php endif; ?>
     </a>
@@ -682,19 +683,38 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
   }
 
   /* ===== السايد بار (الجوال) ===== */
+  .header-voice-mobile {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+  }
+  .header-voice-mobile.on {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.15);
+  }
+
   .app-sidebar {
     position: fixed;
     top: 0;
     right: 0;
     width: 300px;
-    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     background: rgba(10, 18, 35, 0.95);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-left: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 24px 18px 20px;
+    padding: 24px 18px calc(20px + env(safe-area-inset-bottom));
     z-index: 9998;
-    overflow-y: auto;
+    overflow: hidden;
     transform: translateX(100%);
     transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.5s ease;
     display: flex;
@@ -777,7 +797,9 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     padding: 0;
     margin: 0;
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .sidebar-nav li {
@@ -856,6 +878,7 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     flex-direction: column;
     gap: 12px;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .sidebar-footer .premium-badge,
@@ -942,7 +965,8 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
       display: flex;
     }
 
-    .sidebar-toggle-btn {
+    .sidebar-toggle-btn,
+    .header-voice-mobile {
       display: none !important;
     }
     .app-sidebar {

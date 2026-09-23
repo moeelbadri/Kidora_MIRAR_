@@ -3,8 +3,8 @@
  * محتوى لعبة واحدة (أيقونات + بنك صح/خطأ + سيناريوهات مغامرة) حسب تصنيف
  * المهمة أو اللعبة. كان هذا المحتوى ثوابت داخل games-engine.js.
  *
- * العمر يُقرأ من سجل الطفل لا من الرابط — العميل لا يُصدَّق في تحديد
- * النسخة الهادئة (بلا مؤقّت) لأنها قرار حماية لا تفضيل واجهة.
+ * العمر يُقرأ من سجل الطفل لا من الرابط (للعرض فقط). calm دائماً true —
+ * بلا مؤقّت. أسئلة اللعبة ومشاهدها لا تُصفّى بالعمر.
  */
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../config/db.php';
@@ -19,7 +19,7 @@ $child = $stmt->fetch();
 if (!$child) { echo json_encode(['ok' => false]); exit; }
 
 $age     = (int)$child['age'];
-$content = game_content_for($pdo, $_GET['category'] ?? null, $age);
+$content = game_content_for($pdo, $_GET['category'] ?? null);
 
 echo json_encode([
     'ok'   => true,

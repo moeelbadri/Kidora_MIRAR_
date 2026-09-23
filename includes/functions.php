@@ -39,8 +39,39 @@ function ensure_daily_progress(PDO $pdo, int $childId): array {
     return $stmt->fetch();
 }
 
+/** العمر الذي يختاره الطفل أو ولي الأمر عند التسجيل وفي الملف الشخصي. */
+const CHILD_AGE_MIN = 1;
+const CHILD_AGE_MAX = 60;
+
+/** تسمية السنة بالعربية بجانب الرقم في قوائم العمر. */
+function child_age_label(int $age): string {
+    if ($age === 2) return 'سنتان';
+    if ($age >= 3 && $age <= 10) return 'سنوات';
+    return 'سنة';
+}
+
+/** عمر مقبول من النموذج، أو null إن كان خارج 1–60. */
+function normalize_child_age($age): ?int {
+    $age = (int)$age;
+    if ($age < CHILD_AGE_MIN || $age > CHILD_AGE_MAX) return null;
+    return $age;
+}
+
 /**
- * باكج اليوم: 4 مهام من كل المهام النشطة، بلا فلتر عمر.
+ * حدّ عمر المحتوى في لوحة التحكم. القيمة الفارغة أو الصفر تأخذ الافتراضي،
+ * وما فوق السقف يُقصّ إلى أقصى عمر يمكن تسجيله.
+ */
+function clamp_content_age($value, int $fallback): int {
+    $n = (int)$value;
+    if ($n < CHILD_AGE_MIN) $n = $fallback;
+    if ($n > CHILD_AGE_MAX) $n = CHILD_AGE_MAX;
+    if ($n < CHILD_AGE_MIN) $n = CHILD_AGE_MIN;
+    return $n;
+}
+
+/**
+ * باكج اليوم: حتى 4 مهام من كل المهام النشطة، بلا فلتر عمر.
+ * العمر الذي يختاره الطفل يُحفظ في حسابه ولا يُخفي محتوى.
  * تُثبَّت في daily_progress.task_pool_ids أول مرة.
  * يُستخدم من tasks.php و api/complete-task.php حتى يبقى المصدر واحداً.
  */
@@ -51,7 +82,7 @@ function daily_task_pool(PDO $pdo, array $child, array $progress): array {
         $eligible = array_column($stmt->fetchAll(), 'id');
         shuffle($eligible);
         $pool = array_slice($eligible, 0, min(4, count($eligible)));
-        $pdo->prepare("UPDATE daily_progress SET task_pool_ids = ? WHERE id = ?")->execute([json_encode($pool), $progress['id']]);
+        $pdo->prepare("UPDATE daily_progress SET task_pool_ids = ? WHERE id = ?")->execute([json_encode(array_values($pool)), $progress['id']]);
     }
     return array_map('intval', $pool);
 }
@@ -320,6 +351,83 @@ function assessment_axis_summary(PDO $pdo, int $childId): array {
     return $stmt->fetchAll();
 }
 
+/** تسمية قصيرة على شعاع الرسمة؛ الاسم الكامل يبقى في القائمة تحتها */
+function behavior_radar_short(string $axis): string {
+    static $map = [
+        'الثقة بالنفس'       => 'ثقة',
+        'المهارات الاجتماعية' => 'اجتماع',
+        'الذكاء العاطفي'     => 'مشاعر',
+        'الإبداع'            => 'إبداع',
+        'التركيز'            => 'تركيز',
+        'الأمان الشخصي'      => 'أمان',
+        'الاستقلالية'        => 'استقلال',
+        'الانتماء الثقافي'   => 'تراث',
+        'المثابرة'           => 'مثابرة',
+        'التعاون'            => 'تعاون',
+        'حل المشكلات'        => 'حل',
+        'التعبير عن الذات'   => 'تعبير',
+    ];
+    if (isset($map[$axis])) return $map[$axis];
+    $parts = preg_split('/\s+/u', trim($axis), 2);
+    $word = ($parts && $parts[0] !== '') ? $parts[0] : $axis;
+    return preg_match('/^(.{1,6})/u', $word, $m) ? $m[1] : $word;
+}
+
+/**
+ * رسمة عنكبوتية لمحاور التحليل. المقياس ١–٣: الحلقة الداخلية = ١ والخارجية = ٣.
+ * تُعاد HTML جاهزة (SVG + قائمة). البطاقة التي تحتويها يجب أن تبقى فاتحة.
+ */
+function behavior_radar_svg(array $rows): string {
+    $pts = [];
+    foreach ($rows as $r) {
+        $axis = trim((string)($r['axis'] ?? ''));
+        if ($axis === '') continue;
+        $avg = (float)($r['avg_v'] ?? 0);
+        if ($avg < 0) $avg = 0;
+        if ($avg > 3) $avg = 3;
+        $pts[] = ['axis' => $axis, 'avg' => $avg];
+    }
+    $n = count($pts);
+    if ($n === 0) return '';
+
+    $cx = 180; $cy = 176; $R = 112;
+    $rings = '';
+    for ($k = 1; $k <= 3; $k++) {
+        $rr = $R * $k / 3;
+        $rings .= '<circle cx="'.$cx.'" cy="'.$cy.'" r="'.round($rr, 2).'" class="br-ring"/>';
+        $rings .= '<text x="'.($cx + 5).'" y="'.round($cy - $rr - 2, 2).'" class="br-tick">'.$k.'</text>';
+    }
+
+    $spokes = '';
+    $labels = '';
+    $poly = [];
+    $legend = '';
+    for ($i = 0; $i < $n; $i++) {
+        $ang = -M_PI_2 + (2 * M_PI * $i / $n);
+        $cos = cos($ang); $sin = sin($ang);
+        $x2 = $cx + $R * $cos; $y2 = $cy + $R * $sin;
+        $spokes .= '<line x1="'.$cx.'" y1="'.$cy.'" x2="'.round($x2, 2).'" y2="'.round($y2, 2).'" class="br-spoke"/>';
+        $pr = $R * ($pts[$i]['avg'] / 3);
+        $poly[] = round($cx + $pr * $cos, 2).','.round($cy + $pr * $sin, 2);
+        $lx = $cx + ($R + 22) * $cos;
+        $ly = $cy + ($R + 18) * $sin;
+        $anchor = $cos > 0.35 ? 'start' : ($cos < -0.35 ? 'end' : 'middle');
+        $short = behavior_radar_short($pts[$i]['axis']);
+        $labels .= '<text x="'.round($lx, 2).'" y="'.round($ly, 2).'" text-anchor="'.$anchor.'" class="br-label">'.h($short).'</text>';
+        $legend .= '<li><span>'.h($pts[$i]['axis']).'</span><b>'.h(number_format($pts[$i]['avg'], 1)).' / 3</b></li>';
+    }
+
+    return '<div class="behavior-radar">'
+        .'<svg viewBox="0 0 360 352" role="img" aria-label="رسمة تحليل السلوك">'
+        .$rings.$spokes
+        .'<polygon points="'.implode(' ', $poly).'" class="br-shape"/>'
+        .$labels
+        .'</svg>'
+        .'<ul class="behavior-radar-legend">'.$legend.'</ul>'
+        .'<p class="behavior-radar-note">كل محور من ١ إلى ٣. الشكل الأكبر يعني مهارة أوضح.</p>'
+        .'</div>';
+}
+
 /**
  * آليات اللعب المدعومة فعلياً في assets/js/games-engine.js.
  * أي قيمة خارج هذه القائمة ستسقط إلى catch، فاحصر إدخال الأدمن بها.
@@ -340,15 +448,9 @@ function sql_random(): string {
     return DB_DRIVER === 'mysql' ? 'RAND()' : 'RANDOM()';
 }
 
-/**
- * سنّ التحوّل بين نسختَي اللعب. من هذا العمر وما فوق: مؤقّتات وسرعة بديهة.
- * تحته: بلا مؤقّت، والنص يُقرأ صوتياً، وسرعة البديهة تُستبدل بآلية بلا ضغط وقت.
- */
-const GAME_TIMER_MIN_AGE = 10;
-
-/** هل يلعب هذا العمر النسخة الهادئة (بلا مؤقّت + قراءة صوتية)؟ */
+/** كل الألعاب بلا مؤقّت — المحرّك يستخدم دائماً النسخة الهادئة (calm). */
 function game_is_calm_age(?int $age): bool {
-    return $age !== null && $age < GAME_TIMER_MIN_AGE;
+    return true;
 }
 
 /**
@@ -403,8 +505,8 @@ function youtube_id_from_input(?string $raw): ?string {
 
 /**
  * طول الجولة كما يستهلكها GamesEngine: خمسة أسئلة، وأربعة مشاهد مغامرة.
- * القيمتان مرآة لـ TOTAL في runQuiz وslice في runAdventure — إن تغيّرت هناك
- * فلتتغيّر هنا، وإلا صار العمر يُجوّع اللعبة بلا أن يشتكي أحد.
+ * القيمتان مرآة لـ TOTAL في runQuiz وslice في runAdventure. المحرّك يقصّ
+ * القائمة العشوائية، والعمر لا يدخل في اختيار الصفوف.
  */
 const GAME_QUIZ_ROUND      = 5;
 const GAME_ADVENTURE_SCENES = 4;
@@ -432,17 +534,11 @@ function game_topic_for_category(PDO $pdo, ?string $category): ?array {
 }
 
 /**
- * صفوف محتوى موضوع واحد مرتّبة عشوائياً: المناسبة للعمر أولاً، ثم — إن قلّ
- * عددها عن جولة كاملة — بقيةُ صفوف الموضوع لتكملة العدد.
- *
- * أي أن العمر تفضيلٌ لا شرط. الأصل كان شرطاً، فموضوعٌ لم يُكتب له محتوى
- * لعمر 4 كان يعيد قائمة فارغة واللعبة تُفتح بلا أسئلة. المحرّك يأخذ أول
- * GAME_QUIZ_ROUND عنصراً، فالتكملة لا تُستهلك إلا عند الحاجة فعلاً.
- *
- * غياب العمر يعني «كل المحتوى» — تستخدمه لوحة التحكم للعرض والتحرير.
- * $table ثابت في الكود ومحصور بقائمة، ولا يأتي من المستخدم أبداً.
+ * صفوف محتوى موضوع واحد، مرتّبة عشوائياً، بلا فلتر عمر.
+ * المحرّك يأخذ أول جولة فقط. $table ثابت في الكود ومحصور بقائمة،
+ * ولا يأتي من المستخدم أبداً.
  */
-function game_topic_rows(PDO $pdo, string $table, string $key, ?int $age, int $need): array {
+function game_topic_rows(PDO $pdo, string $table, string $key): array {
     $cols = [
         'game_questions' => 'question, answer',
         'game_scenarios' => 'prompt, choices_json',
@@ -450,46 +546,32 @@ function game_topic_rows(PDO $pdo, string $table, string $key, ?int $age, int $n
     if ($cols === null) return [];
 
     $rand = sql_random();
-    $fits = 'age_min <= :age AND age_max >= :age';
-
-    if ($age === null) {
-        $st = $pdo->prepare("SELECT {$cols} FROM {$table} WHERE topic_key = ? AND active = 1 ORDER BY {$rand}");
-        $st->execute([$key]);
-        return $st->fetchAll();
-    }
-
-    $st = $pdo->prepare("SELECT {$cols} FROM {$table} WHERE topic_key = :k AND active = 1 AND {$fits} ORDER BY {$rand}");
-    $st->execute(['k' => $key, 'age' => $age]);
-    $rows = $st->fetchAll();
-    if (count($rows) >= $need) return $rows;
-
-    $st = $pdo->prepare("SELECT {$cols} FROM {$table} WHERE topic_key = :k AND active = 1 AND NOT ({$fits}) ORDER BY {$rand}");
-    $st->execute(['k' => $key, 'age' => $age]);
-    return array_merge($rows, $st->fetchAll());
+    $st = $pdo->prepare("SELECT {$cols} FROM {$table} WHERE topic_key = ? AND active = 1 ORDER BY {$rand}");
+    $st->execute([$key]);
+    return $st->fetchAll();
 }
 
 /**
  * محتوى اللعبة كما يستهلكه GamesEngine: الأيقونات + بنك صح/خطأ +
- * سيناريوهات المغامرة، مفلترة بعمر الطفل ومرتّبة عشوائياً.
+ * سيناريوهات المغامرة، من كل صفوف الموضوع النشطة وبترتيب عشوائي.
  *
  * أشكال البيانات (q/a للسؤال، t/c/l/g/r للمغامرة) هي نفسها التي كان المحرّك
  * يقرأها من الثوابت، فعقد الاستهلاك لم يتغيّر — تغيّر المصدر فقط.
  * الترتيب العشوائي هو ما يجعل إعادة اللعب مختلفة (كانت متطابقة كل مرة).
  */
-function game_content_for(PDO $pdo, ?string $category, ?int $age = null): array {
+function game_content_for(PDO $pdo, ?string $category): array {
     $topic = game_topic_for_category($pdo, $category);
     if (!$topic) return ['topic' => 'general', 'label' => 'عام', 'icons' => [], 'quiz' => [], 'adventure' => []];
 
     $key = $topic['topic_key'];
-    $age = $age !== null ? max(1, min(18, (int)$age)) : null;
 
     $quiz = array_map(
         fn($r) => ['q' => $r['question'], 'a' => (bool)(int)$r['answer']],
-        game_topic_rows($pdo, 'game_questions', $key, $age, GAME_QUIZ_ROUND)
+        game_topic_rows($pdo, 'game_questions', $key)
     );
 
     $adventure = [];
-    foreach (game_topic_rows($pdo, 'game_scenarios', $key, $age, GAME_ADVENTURE_SCENES) as $r) {
+    foreach (game_topic_rows($pdo, 'game_scenarios', $key) as $r) {
         $choices = json_decode_safe($r['choices_json'], []);
         if ($choices) $adventure[] = ['t' => $r['prompt'], 'c' => $choices];
     }

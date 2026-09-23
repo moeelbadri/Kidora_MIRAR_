@@ -11,7 +11,7 @@ Repo: `https://github.com/moeelbadri/Kidora_MIRAR_.git` (branch `main`)
 ## 1. What this is
 
 **Kidora is an Arabic-language (RTL) gamified behaviour-and-skills platform for
-children aged 6–12** (registration enforces 6–12; all seed content is `age_min >= 6`). Hero tagline: *"حيث يتحول التعلم إلى مغامرة بطولية"*
+children of any age the family chooses, 1–60** (`CHILD_AGE_MIN` / `CHILD_AGE_MAX` in `includes/functions.php`). The stored age does not hide missions, library games, safety lessons, or in-game questions. Games have no countdown timers. Hero tagline: *"حيث يتحول التعلم إلى مغامرة بطولية"*
 (where learning turns into a heroic adventure).
 
 A child registers their own account (supplying a parent name + parent WhatsApp
@@ -74,7 +74,7 @@ Two defining design decisions:
 The flow is rigidly sequenced; each stage gates the next.
 
 ```
-index.php (landing + login/register, age 6–12, ONE character)
+index.php (landing + login/register, age 1–60, ONE character)
    ├─ register ─> welcome.php   full-screen animated greeting: companion + child's
    │                            photo, spoken lines, auto-continues (no subscription
    │                            prompt here any more)
@@ -116,20 +116,21 @@ assessment-due greeting.
   companion reads it aloud, the answer is POSTed to `api/assess-answer.php`
   (`question_id`, `option` 1–3) which returns the next question as JSON — no
   reload, no progress counter, no per-answer comment, no chart. On the last answer
-  the companion celebrates and the page redirects to `tasks.php`. The bar chart /
-  axis summary lives **only** in the admin Users tab (inline analysis panel) and the
-  parent WhatsApp report.
+  the companion celebrates and the page redirects to `tasks.php`. The axis summary
+  is a **radar chart** (scale 1–3, not a percent) from `behavior_radar_svg()` on
+  the child profile and in the admin Users tab. The parent WhatsApp report stays
+  a text list of axes.
 - Question set is pinned in the session (`$_SESSION['assess_qids']`) so leaving the
   page mid-quiz resumes rather than reshuffles.
 - Gated by `needs_assessment()` (`includes/functions.php` L129–133): first run, then
   **every 10 days** via `children.last_assessment_at`.
-- Admin results are a **level out of 3, deliberately not a percentage**
-  (`assessment_axis_summary()` → `AVG(value)`).
+- Results are a **level out of 3, deliberately not a percentage**
+  (`assessment_axis_summary()` → `AVG(value)`), drawn as a radar: inner ring = 1,
+  outer ring = 3, short labels on the spokes and the full axis name in the legend.
 - A button WhatsApps the full report to the parent (`profile.php`).
 - **Read-aloud (Sep 2026).** The question card has a `🔊 اسمع السؤال والخيارات`
   button (question + numbered options) and the companion's reply card has `🔊 اسمع`.
-  Under `GAME_TIMER_MIN_AGE` the question is also spoken automatically ~3 s after
-  the page greeting. Same on `tasks.php`: `🔊 اسمع المهمة` on the mission card and
+  Same on `tasks.php`: `🔊 اسمع المهمة` on the mission card and
   `🔊 اسمع القصة والشخصية` on the completion screen. All of these are the shared
   `data-say` button (handler in `app.js`, `.btn-listen` in `main.css`); if the 🗣️
   voice toggle is off the button shows a toast pointing at it instead of doing nothing.
@@ -141,10 +142,9 @@ assessment-due greeting.
   questions are never touched; the admin tab shows a warning while the count is below 10.
 
 ### `tasks.php` — the core
-- 4 tasks drawn at random from every active task — **no age filter** — then
-  **pinned for the day** in `daily_progress.task_pool_ids` so a refresh doesn't
-  reroll them (`daily_task_pool()` in `includes/functions.php`). An empty pool
-  (a child whose age matched nothing) is filled on the next load.
+- Up to 4 tasks drawn at random from **every active task** — age is not a filter —
+  then **pinned for the day** in `daily_progress.task_pool_ids` (`daily_task_pool()`).
+  Changing the stored age does not redraw the pool.
 - **Client-driven state machine (Sep 2026).** The page renders once; everything after
   is JS. «أنجزت المهمة» POSTs to `api/complete-task.php`, which awards points and
   returns `story_line`, `pair_line` (`companion_pair_line()` — ties the task
@@ -171,7 +171,7 @@ assessment-due greeting.
   story come **after** that game through the choice modal (see below).
 
 ### `safety.php` — «بطل الأمان» (3-step mission, Sep 2026)
-One **lesson per day**: `LESSONS` = age-filtered `safety_content` rows; the day index
+One **lesson per day**: `LESSONS` = every free `safety_content` row (age does not filter); the day index
 lives in `localStorage` (`kidora_safety_v5`, advances when the medal is earned). The
 page is a companion-led mission with a 3-step bar and one big card at a time:
 **1 القاعدة** — the rule read aloud by the companion, then the lesson video autoplays
@@ -201,7 +201,7 @@ Keep any new engine on `teach()`.
 
 ### `games.php` — games library
 36 seeded rows grouped into 6 categories (تربوي / علمي / اجتماعي / سلوكي / ثقافي / صحي)
-× the 6 mechanics, each with an icon + colour, age-filtered. Completion POSTs to
+× the 6 mechanics, each with an icon + colour. Age does not hide cards; the free plan still shows two of them. Completion POSTs to
 `api/play-game.php` which increments `daily_progress.games_played`. **No score is sent
 to the server.**
 
@@ -311,8 +311,9 @@ third-party mail API is used.
 - `friends.php` — per-character friend stories (**hardcoded** in JS, not DB).
 - `culture.php` — Arab/Islamic cultural story bank (**hardcoded** in JS, not DB).
 - `games2.php` — «ألعاب الذكاء» (rewritten Sep 2026): 4 self-contained **educational**
-  canvas games with a real end state, touch-only, no timers, companion reads every
-  question: `numbers` صيّاد الأرقام (tap the bubble completing the equation, 10
+  canvas games with a real end state, touch-only, no timers. The companion is pinned
+  above the modal and reads the question, the short result, and a wrong-answer hint:
+ `numbers` صيّاد الأرقام (tap the bubble completing the equation, 10
   rounds), `trace` تتبّع الحروف (draw the Arabic letter with a finger over its
   dashed outline — the glyph is rasterised to an 8 px cell mask on an offscreen
   canvas and the letter completes at 62 % / 75 % coverage; strokes off the letter are
@@ -419,7 +420,7 @@ historical `--gold` token remains indigo.
   from `includes/header.php` (every child-facing page) and the two admin `<head>`s
   (`admin/login.php`, `admin/index.php`).
 
-### Navigation (`includes/navbar.php`, 1,007 lines — self-contained HTML+CSS+JS)
+### Navigation (`includes/navbar.php` — self-contained HTML+CSS+JS)
 Fixed dark glass bar (`rgba(10,18,35,.92)` + 24px blur): **RTL-start brand cluster**
 (Kidora wordmark on the far right, then the 30-day progress ring),
 **4 primary links** (الرئيسية / مهامي / ألعابي / قصتي اليومية — child-sized targets,
@@ -427,7 +428,8 @@ bigger type), a "المزيد" dropdown for the other 9 (safety, friends, cultur
 story, ألعاب الذكاء, drawing, assessment, subscription, profile), the child's **photo
 avatar** linking to the profile, VIP/free badge, and 🗣️ voice + 🔇 music toggles
 (all such buttons are wired centrally in `app.js`). Below 1024px it collapses to a
-right-side sliding sidebar carrying all links.
+right-side sliding sidebar (`100dvh`, scrollable link list, footer pinned) carrying
+all links plus the voice controls. A compact 🗣️ button stays in the mobile header.
 
 ### Admin panel
 Deliberately different: dark navy sidebar (230px) + cream content area, white cards
@@ -517,21 +519,15 @@ and assessment flashes are gone — both flows moved to JSON endpoints in Sep 20
 | `sound-engine.js` | `SoundEngine` | `speak()` via `SpeechSynthesis` (`ar-SA`; `pickBestVoice()` scores Arabic voices, `preferredVoiceName` from the profile voice picker wins), `cleanSpeech()` strips emoji/symbols so nothing is read as «رمز», optional `onEnd`, **background music pauses while speaking and resumes after**, `sfx()` tones, optional Web Audio music. `listVoices()/setPreferredVoice()/getPreferredVoice()`. Toggles persist in `localStorage` (`kidaura_voice`, `kidaura_music`, `kidaura_voice_name`). Automatic tashkeel is **not** feasible client-side; voice quality is bounded by the OS voices |
 | `companion.js` | `Companion`, `KidoraYT` | see §4 «Companion widget». `KidoraYT.play(hostId, videoId, {autoplay, skipId})` loads the YouTube IFrame API once (`youtube-nocookie`), autoplays, and resolves on ENDED / skip button / error (6 s guard if the script is blocked). Used by `tasks.php` and `safety.php` |
 | `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay; `opts.book` switches to the paper-book layout with narration-synced page turns; a **one-scene story in book mode renders as `renderSingle`** (poster card read in one go by `Companion`); `exportVideo` holds a single scene for `clamp(len×70ms, 6–20 s)` and draws up to 7 text lines |
-| `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `puzzle` / `hide` / `adventure`. **Content is fetched from `api/game-content.php`, not hardcoded** (a small `FALLBACK` bank exists only so a failed request never shows a broken screen). `game_types()` in `includes/functions.php` is the authoritative slug→label list. Feedback vocabulary is `PRAISE` / `ENCOURAGE` only |
+| `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `puzzle` / `hide` / `adventure`. **Content is fetched from `api/game-content.php`, not hardcoded** (a small `FALLBACK` bank exists only so a failed request never shows a broken screen). `game_types()` in `includes/functions.php` is the authoritative slug→label list. Feedback vocabulary is `PRAISE` / `ENCOURAGE` only. Narration is `Companion.say` for every age; the widget is pinned while a game is open |
 | `app.js` | — | bootstrap: nav toggle, **all** `.voice-btn`/`.music-btn` toggles, `data-say` buttons (→ `Companion.readAloud`), companion click + swap; the page greeting is spoken by `companion.js` from `KIDAURA_PAGE_LINE` |
 
-**Age-adaptive play (Sep 2026).** `GAME_TIMER_MIN_AGE = 10` in
-`includes/functions.php`. The server decides which version a child gets and returns
-`calm` on the content endpoint — the client cannot opt into timers. When `calm`:
-
-- `quiz` drops the countdown entirely and reads each question aloud via `SoundEngine`.
-- `adventure` reads the situation and its choices aloud and waits longer on outcomes.
-- `catch` spawns slower and needs 5 catches instead of 6, `match` uses 4 pairs instead
-  of 6, `puzzle` is 2×2 instead of 3×3, `hide` shuffles slower. No mechanic is swapped
-  any more — the Sep 2026 set has no pure reaction-time game, so every card plays the
-  mechanic its title promises at every age.
-
-Read-aloud goes through `SoundEngine.speak()`, so the existing mute toggle still wins.
+**Play style (Sep 2026, updated).** No countdown timers in mission or library games.
+`game_is_calm_age()` always returns true; `api/game-content.php` sends `calm: true`.
+`quiz` has no timer; `catch` / `match` / `puzzle` / `hide` use the slower calm pacing.
+Read-aloud goes through `Companion.say()` (question, prompt, result, ending).
+`SoundEngine.speak()` is only the fallback when `Companion` is absent.
+Opening a game adds `kidora-game-open`, which pins the companion above the play surface.
 
 ### API endpoints
 All require `$_SESSION['child_id']` and have no CSRF token.
@@ -550,16 +546,11 @@ All require `$_SESSION['child_id']` and have no CSRF token.
   `{ok, id, url, title, counted_as_game}`; 401/400/500 with `{ok:false, error}`.
 - `GET api/game-content.php?category=<arabic>` → `{ok, age, calm, topic, label, icons,
   quiz, adventure}`. The Arabic category is resolved to a topic through
-  `game_topics.categories_json` (unknown → `general`), rows are filtered by the
-  child's age and returned in random order so replays differ. **Age comes from the
-  `children` row, never from the query string** — the calm/timed split is a
-  child-protection decision, not a client preference.
-
-  Age is a *preference*, not a filter. `game_topic_rows()` returns eligible rows
-  first and, only if there are fewer than a full round (`GAME_QUIZ_ROUND = 5`,
-  `GAME_ADVENTURE_SCENES = 4` — both mirroring `games-engine.js`), appends the rest of
-  the topic behind them. A topic with no content written for age 4 therefore plays
-  older content rather than opening an empty game.
+  `game_topics.categories_json` (unknown → `general`). Active rows for that topic
+  are returned in random order; age does not select them. The engine takes the
+  first round (`GAME_QUIZ_ROUND = 5`, `GAME_ADVENTURE_SCENES = 4`). **Age still
+  comes from the `children` row, never from the query string** (display only).
+  `calm` is always true — no timers.
 
 ---
 
@@ -801,6 +792,7 @@ These were not in the original list; recorded so they are not reintroduced.
     server (`GAME_TIMER_MIN_AGE = 10`); see §5 for what changes under `calm`.
 29. ~~**Games were silent.**~~ `SoundEngine.speak()` existed and worked in Arabic but
     `games-engine.js` never called it, so a pre-reader could not play a text game.
+    Narration now goes through `Companion.say` for every age, not only `calm`.
     Questions, adventure prompts, choices and outcomes are now read aloud under `calm`.
 30. ~~**Every child saw the whole games library and could generate a daily story, paid
     or not.**~~ `is_premium_active()` only guarded character selection and the VIP
@@ -813,7 +805,7 @@ These were not in the original list; recorded so they are not reintroduced.
 32. ~~**Game content was 72 questions and 27 scenarios hardcoded in JavaScript**~~, so
     a topic recycled its 8 questions immediately, `general` was 7/8 duplicated from
     other banks, replays were identical, and nothing was editable. Content is now
-    192 questions / 78 scenarios in the database, age-filtered and randomly ordered.
+    192 questions / 78 scenarios in the database, served in random order. Age labels stay on the rows and do not select which ones play.
 33. ~~**`quiz_questions` had no admin screen at all**~~ — the assessment that drives
     every growth axis could only be changed with raw SQL.
 34. ~~**Luqman's advice was framed as "أولها" (the first of his commandments)**~~,
@@ -923,10 +915,9 @@ host, so animations and autoplay were reviewed by reading, not by pixel.
   placeholder SVG avatars; `kidora_migrate_characters_v2()` remaps existing children.
   ⚠️ These names are third-party IP; the shipped art is deliberately generic.
 - **One character at registration**, second free one server-assigned; switch from
-  the profile. Registration, seed `age_min`, and admin forms stay 6–12.
-  **Profile edit** (`profile.php`, «تعديل البيانات») offers age **1–60** and the
-  POST refuses anything outside that. Tasks ignore age; games, safety, and
-  assessment content still use the stored age.
+  the profile. Registration and the profile both offer age **1–60**. The stored
+  age does not filter missions, the game library, safety lessons, or in-game
+  questions, and does not enable game timers.
 - **`welcome.php`** rebuilt as a full-screen animated greeting with the child's photo;
   the subscription page is no longer the first screen after signup and the paywall
   does not appear after the assessment.

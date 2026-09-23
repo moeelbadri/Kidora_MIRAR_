@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
    ============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $name = trim($_POST['child_name'] ?? '');
-    $age = (int)($_POST['child_age'] ?? 0);
+    $age = normalize_child_age($_POST['child_age'] ?? 0);
     $parentName = trim($_POST['parent_name'] ?? '');
     $parentPhone = trim($_POST['parent_phone'] ?? '');
     $email = trim($_POST['email'] ?? '');
@@ -115,8 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 
     if (!$char1) {
         $registerError = 'الرجاء اختيار رفيق المغامرة أولاً.';
-    } elseif ($name === '' || $age < 6 || $age > 12 || $parentName === '' || $parentPhone === '' || $email === '' || $password === '' || $confirm === '') {
-        $registerError = 'الرجاء ملء جميع الحقول المطلوبة (العمر من 6 إلى 12 سنة).';
+    } elseif ($name === '' || $age === null || $parentName === '' || $parentPhone === '' || $email === '' || $password === '' || $confirm === '') {
+        $registerError = 'الرجاء ملء جميع الحقول المطلوبة (العمر من ' . CHILD_AGE_MIN . ' إلى ' . CHILD_AGE_MAX . ' سنة).';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $registerError = 'الرجاء إدخال بريد إلكتروني صحيح.';
     } elseif ($password !== $confirm) {
@@ -479,7 +479,7 @@ require_once __DIR__ . '/includes/public-nav.php';
         <span class="public-eyebrow">✨ منصة آمنة تصنع مغامرات حقيقية</span>
         <h1><span class="public-gradient-text">Kidora</span><br>حيث يتحول التعلم إلى مغامرة بطولية</h1>
         <p class="public-hero-lead">مهام يومية، رفقاء محبوبون، ألعاب ذكية وقصص تجعل كل إنجاز لحظة تستحق الاحتفال.</p>
-        <p class="public-hero-copy">رحلة عربية مصممة للأطفال من 6 إلى 12 عاماً، تساعدهم على النمو خطوة بخطوة وتمنح الوالدين صورة أوضح عن التقدّم.</p>
+        <p class="public-hero-copy">رحلة عربية تناسب العمر الذي يختاره الأهل، تساعد الطفل على النمو خطوة بخطوة وتمنح الوالدين صورة أوضح عن التقدّم.</p>
         <div class="public-actions">
           <a class="k-btn k-btn-gold" href="<?php echo h(BASE_PATH . '/demo.php'); ?>">🎮 جرب الآن</a>
           <a class="k-btn k-btn-ghost" href="#auth">🚀 ابدأ المغامرة</a>
@@ -536,7 +536,7 @@ require_once __DIR__ . '/includes/public-nav.php';
         <p>كل تجربة تجمع بين المرح والفائدة والأمان، من أول مهمة حتى القصة الكبرى.</p>
       </div>
       <div class="public-features">
-        <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>📋</div><h3>مهام يومية مترابطة</h3><p>أربع مهام مناسبة للعمر، مع شخصية من تراثنا ولعبة صغيرة مرتبطة بكل إنجاز.</p></article>
+        <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>📋</div><h3>مهام يومية مترابطة</h3><p>أربع مهام كل يوم، مع شخصية من تراثنا ولعبة صغيرة مرتبطة بكل إنجاز.</p></article>
         <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>🎮</div><h3>ألعاب تفاعلية</h3><p>مطابقة وذاكرة وأسئلة ومغامرات، مع تجربة هادئة للصغار ووقت مناسب للكبار.</p></article>
         <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>📖</div><h3>قصة من إنجازاتك</h3><p>القصة اليومية تبنى من مهام الطفل الحقيقية، لتصبح الرحلة ذكرى يشعر أنها تخصه.</p></article>
         <article class="public-feature" data-reveal><div class="public-feature-icon" data-motion>📊</div><h3>فهم أفضل للتقدم</h3><p>تحليل سلوكي دوري يوضح المحاور الأقوى وما يحتاج إلى مزيد من التدريب بلطف.</p></article>
@@ -641,7 +641,7 @@ require_once __DIR__ . '/includes/public-nav.php';
             <input type="hidden" name="character_1" id="character_1" value="<?php echo (int)($prefillChar ?: ($_POST['character_1'] ?? 0)); ?>">
             <div class="public-form-grid">
               <div class="public-field"><label for="childName">اسم الطفل</label><input id="childName" type="text" name="child_name" maxlength="100" value="<?php echo h($_POST['child_name'] ?? $prefillName); ?>" autocomplete="name" required></div>
-              <div class="public-field"><label for="childAge">عمر الطفل</label><select id="childAge" name="child_age" required><option value="">اختر العمر</option><?php for ($a = 6; $a <= 12; $a++): ?><option value="<?php echo $a; ?>" <?php echo (($_POST['child_age'] ?? '') == $a) ? 'selected' : ''; ?>><?php echo $a; ?> سنوات</option><?php endfor; ?></select></div>
+              <div class="public-field"><label for="childAge">عمر الطفل</label><select id="childAge" name="child_age" required><option value="">اختر العمر</option><?php for ($a = CHILD_AGE_MIN; $a <= CHILD_AGE_MAX; $a++): ?><option value="<?php echo $a; ?>" <?php echo (($_POST['child_age'] ?? '') == $a) ? 'selected' : ''; ?>><?php echo $a; ?> <?php echo h(child_age_label($a)); ?></option><?php endfor; ?></select></div>
               <div class="public-field"><label for="parentName">اسم ولي الأمر</label><input id="parentName" type="text" name="parent_name" maxlength="100" value="<?php echo h($_POST['parent_name'] ?? ''); ?>" required></div>
               <div class="public-field"><label for="parentPhone">رقم واتساب ولي الأمر</label><input id="parentPhone" type="tel" name="parent_phone" maxlength="30" placeholder="مثال: 0599123456" value="<?php echo h($_POST['parent_phone'] ?? ''); ?>" required></div>
               <div class="public-field"><label for="registerEmail">البريد الإلكتروني</label><input id="registerEmail" type="email" name="email" maxlength="150" value="<?php echo h($_POST['email'] ?? ''); ?>" autocomplete="email" required></div>

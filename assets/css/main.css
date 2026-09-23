@@ -173,16 +173,17 @@ a{color:inherit;text-decoration:none;}
 @keyframes flyUp{ 0%{opacity:0; transform:translateY(0) scale(.6);} 15%{opacity:1; transform:translateY(-10px) scale(1.1);} 100%{opacity:0; transform:translateY(-90px) scale(1);} }
 .story-line-toast{ background:linear-gradient(135deg,var(--violet),#8B7CFF); color:#fff; padding:22px 26px; border-radius:var(--radius-md); text-align:center; font-family:var(--font-display); font-size:18px; box-shadow:var(--shadow-pop); }
 .mini-game-wrap{ text-align:center; padding:20px; }
-.mini-game-area{ position:relative; height:220px; background:linear-gradient(180deg,#EAF7FF,#fff); border-radius:var(--radius-md); overflow:hidden; margin:16px 0; border:2px dashed var(--violet-soft); }
+.mini-game-area{ position:relative; height:268px; background:linear-gradient(180deg,#EAF7FF,#fff); border-radius:var(--radius-md); overflow:hidden; margin:16px 0; border:2px dashed var(--violet-soft); }
 .mini-game-item{ position:absolute; font-size:34px; cursor:pointer; user-select:none; animation:fall linear forwards; }
 @keyframes fall{ from{ top:-10%; } to{ top:100%; } }
 
 /* ---------- GamesEngine (assets/js/games-engine.js) ---------- */
 .ge-wrap{ position:relative; overflow:hidden; padding:20px; }
-.ge-sub{ color:var(--ink-soft); line-height:1.8; }
+.ge-sub{ color:var(--ink-soft); line-height:1.8; font-size:1.15rem; }
+body.kidora-game-open .ge-wrap{ margin-bottom:110px; }
 .ge-target{ display:inline-block; font-size:1.5em; vertical-align:middle; animation:geBounce 1.2s ease-in-out infinite; }
 @keyframes geBounce{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-5px);} }
-.ge-catch-area{ height:260px; }
+.ge-catch-area{ height:300px; }
 .ge-target-badge{ position:absolute; top:8px; left:8px; z-index:2; background:#fff; border:2px solid var(--violet-soft); border-radius:999px; padding:4px 12px; font-weight:800; font-size:14px; box-shadow:0 6px 14px rgba(15,10,40,.12); }
 .ge-target-badge span{ font-size:22px; vertical-align:middle; }
 .ge-fall{ transition:transform .3s, opacity .3s; }
@@ -195,8 +196,9 @@ a{color:inherit;text-decoration:none;}
 .ge-progress i.on{ background:linear-gradient(135deg,var(--gold),#FFAE3C); transform:scale(1.25); }
 .ge-msg{ min-height:28px; font-weight:800; color:var(--ink-soft); margin-top:6px; line-height:1.7; }
 .ge-meta{ color:var(--ink-soft); font-weight:700; }
-.ge-question{ margin:14px 0; line-height:1.9; font-size:19px; }
+.ge-question{ margin:14px 0; line-height:1.9; font-size:1.15rem; }
 .ge-choices{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+.ge-choices .btn, .ge-wrap .btn{ min-height:44px; }
 .ge-choices-col{ flex-direction:column; align-items:center; }
 .ge-choices-col .btn{ max-width:360px; width:100%; }
 .ge-feedback{ padding:18px; border-radius:var(--radius-md); background:#F6F1FF; animation:geIn .3s ease-out; }
@@ -214,7 +216,11 @@ a{color:inherit;text-decoration:none;}
 
 /* مطابقة الأزواج — بطاقات تنقلب */
 .ge-match-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; max-width:380px; margin:14px auto; perspective:800px; }
-.ge-card{ height:74px; border:0; background:transparent; padding:0; cursor:pointer; font-family:inherit; }
+.ge-card{ height:74px; min-height:44px; border:0; background:transparent; padding:0; cursor:pointer; font-family:inherit; }
+@media (max-width:400px){
+  .ge-match-grid{ grid-template-columns:repeat(2,1fr); max-width:100%; }
+  .ge-card{ height:88px; }
+}
 .ge-card-inner{ position:relative; display:block; width:100%; height:100%; transform-style:preserve-3d; transition:transform .45s cubic-bezier(.4,1.4,.6,1); }
 .ge-card.open .ge-card-inner, .ge-card.done .ge-card-inner{ transform:rotateY(180deg); }
 .ge-card-back, .ge-card-face{ position:absolute; inset:0; display:grid; place-items:center; border-radius:14px; font-size:28px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
@@ -278,6 +284,22 @@ a{color:inherit;text-decoration:none;}
 .chart-row{ display:grid; grid-template-columns:130px 1fr 46px; align-items:center; gap:10px; }
 .chart-bar-bg{ background:#F1EBFF; border-radius:999px; height:16px; overflow:hidden; }
 .chart-bar-fg{ height:100%; border-radius:999px; background:linear-gradient(90deg,var(--violet),var(--pink)); transition:width 1s ease; }
+
+.behavior-radar{ max-width:420px; margin:0 auto; color:#3B2E6B; }
+.behavior-radar svg{ width:100%; height:auto; display:block; overflow:visible; }
+.behavior-radar .br-ring{ fill:none; stroke:#D6CCFF; stroke-width:1.4; }
+.behavior-radar .br-spoke{ stroke:#E4D9FF; stroke-width:1; }
+.behavior-radar .br-tick{ fill:#8A7AAD; font-size:11px; font-weight:800; }
+.behavior-radar .br-label{ fill:#3B2E6B; font-size:13px; font-weight:800; }
+.behavior-radar .br-shape{ fill:rgba(108,99,255,.28); stroke:#6C63FF; stroke-width:2.4; stroke-linejoin:round; }
+.behavior-radar-legend{ list-style:none; margin:8px 0 0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; }
+.behavior-radar-legend li{ display:flex; justify-content:space-between; gap:8px; font-size:13px; font-weight:800; color:#3B2E6B; border-bottom:1px dashed #E6DEFF; padding-bottom:4px; }
+.behavior-radar-legend b{ color:#5B4DB8; white-space:nowrap; }
+.behavior-radar-note{ margin:10px 0 0; text-align:center; font-size:13px; font-weight:800; color:#7B6EA8; }
+@media(max-width:520px){
+  .behavior-radar-legend{ grid-template-columns:1fr; }
+  .behavior-radar .br-label{ font-size:12px; }
+}
 
 /* ===================== STORY PLAYER ===================== */
 .story-ring-nav{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin:18px 0; }
@@ -389,6 +411,7 @@ a{color:inherit;text-decoration:none;}
 /* ===================== COMPANION (الرفيق المرشد) ===================== */
 /* أكبر وأبطأ: يمشي ببطء على طول الشاشة (34 ثانية للجولة) ويتوقف عندما يتكلم */
 #companionWidget{ position:fixed; bottom:0; left:0; z-index:250; display:flex; align-items:flex-end; gap:10px; animation:companionWalk 34s ease-in-out infinite; pointer-events:none; }
+body.kidora-game-open #companionWidget{ z-index:100001; }
 #companionWidget > *{ pointer-events:auto; }
 #companionWidget.is-talking, #companionWidget.is-pinned{ animation-play-state:paused; }
 @keyframes companionWalk{
