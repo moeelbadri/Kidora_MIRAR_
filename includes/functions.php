@@ -201,13 +201,52 @@ function selectable_characters(PDO $pdo, bool $premiumUnlocked): array {
     return array_values(array_filter($all, fn($c) => !$c['is_premium']));
 }
 
-function whatsapp_link(PDO $pdo, string $message, string $phone = ''): string {
-    $number = $phone !== '' ? preg_replace('/\D/', '', $phone) : '';
-    if ($number === '') {
+/**
+ * تنسيق رقم الهاتف ليصبح صالحاً لرابط واتساب الدولي مع إضافة المقدمة المناسبة (+972 أو +970)
+ */
+function normalize_wa_phone(string $phone, string $prefix = '972'): string {
+    $clean = preg_replace('/\D/', '', $phone);
+    if ($clean === '') return '';
+
+    // إزالة أصفار البداية الدولية 00
+    if (str_starts_with($clean, '00')) {
+        $clean = substr($clean, 2);
+    }
+
+    $prefix = ltrim($prefix, '+');
+
+    // إذا كان الرقم يبدأ بـ 972 أو 970، نحافظ على جسم الرقم ونستبدل المقدمة بالمطلوبة
+    if (str_starts_with($clean, '972') || str_starts_with($clean, '970')) {
+        $core = substr($clean, 3);
+        return $prefix . $core;
+    }
+
+    // إذا كان الرقم محلياً يبدأ بـ 0 (مثال: 0599... أو 0569...)
+    if (str_starts_with($clean, '0')) {
+        return $prefix . substr($clean, 1);
+    }
+
+    // إذا كان الرقم 9 أرقام ويبدأ بـ 5 (مثال: 599123456)
+    if (strlen($clean) === 9 && str_starts_with($clean, '5')) {
+        return $prefix . $clean;
+    }
+
+    // إذا كان رقماً دولياً آخر (طوله 10+ أرقام ولا يبدأ بـ 0): نتركه كما هو
+    if (strlen($clean) >= 10 && !str_starts_with($clean, '0')) {
+        return $clean;
+    }
+
+    return $prefix . $clean;
+}
+
+function whatsapp_link(PDO $pdo, string $message, string $phone = '', string $prefix = '972'): string {
+    $raw = $phone !== '' ? $phone : '';
+    if ($raw === '') {
         $stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key='whatsapp_number'");
         $r = $stmt->fetch();
-        $number = $r ? preg_replace('/\D/', '', $r['setting_value']) : '';
+        $raw = $r ? $r['setting_value'] : '';
     }
+    $number = normalize_wa_phone($raw, $prefix);
     return "https://wa.me/{$number}?text=" . rawurlencode($message);
 }
 

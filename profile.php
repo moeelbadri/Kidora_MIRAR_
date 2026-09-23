@@ -59,8 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_analysis'])) {
     if ($rows) {
         $lines = array_map(fn($r) => "• {$r['axis']}: " . number_format($r['avg_v'],1) . " / 3", $rows);
         $msg = "تحليل سلوك {$child['name']} 📊 (حديث حتى الآن):\n" . implode("\n", $lines) . "\n\nإجمالي النقاط: {$child['points']} ⭐ | أيام المغامرة: {$child['ring_days']}/30 🎬\n— منصة Kidora";
-        log_wa($pdo, $child['id'], 'analysis_report', $msg);
-        $_SESSION['flash_wa_link'] = whatsapp_link($pdo, $msg, $child['parent_phone']);
+        $prefix = (isset($_POST['wa_prefix']) && $_POST['wa_prefix'] === '970') ? '970' : '972';
+        log_wa($pdo, $child['id'], 'analysis_report_' . $prefix, $msg);
+        $_SESSION['flash_wa_link'] = whatsapp_link($pdo, $msg, $child['parent_phone'], $prefix);
     }
     header('Location: profile.php'); exit;
 }
@@ -99,6 +100,17 @@ $myStories = $myStories->fetchAll();
 $axisStmt = $pdo->prepare("SELECT axis, AVG(value) avg_v FROM quiz_history WHERE child_id = ? GROUP BY axis");
 $axisStmt->execute([$child['id']]);
 $axisRows = $axisStmt->fetchAll();
+
+$analysisMsg = '';
+$waAnalysis972 = '#';
+$waAnalysis970 = '#';
+if (!empty($axisRows)) {
+    $lines = array_map(fn($r) => "• {$r['axis']}: " . number_format((float)$r['avg_v'], 1) . " / 3", $axisRows);
+    $analysisMsg = "تحليل سلوك {$child['name']} 📊 (حديث حتى الآن):\n" . implode("\n", $lines) . "\n\nإجمالي النقاط: {$child['points']} ⭐ | أيام المغامرة: {$child['ring_days']}/30 🎬\n— منصة Kidora";
+    $waAnalysis972 = whatsapp_link($pdo, $analysisMsg, $child['parent_phone'] ?? '', '972');
+    $waAnalysis970 = whatsapp_link($pdo, $analysisMsg, $child['parent_phone'] ?? '', '970');
+}
+
 $badges = json_decode_safe($child['badges_json'], []);
 
 /* ============================================================
@@ -575,7 +587,32 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
   <?php endif; ?>
 
-  <form method="POST"><button type="submit" name="send_analysis" class="btn btn-mint btn-sm" style="margin:14px 0 26px;">📲 إرسال نتيجة التحليل لولي الأمر عبر واتساب</button></form>
+  <?php if (!empty($axisRows)): ?>
+    <div class="card" style="margin:20px 0 30px; padding:20px 24px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:24px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+        <span style="font-size:28px;">📲</span>
+        <div>
+          <h4 style="margin:0; color:#fff; font-size:17px; font-weight:800;">إرسال نتيجة التحليل لولي الأمر عبر واتساب</h4>
+          <span style="color:#d9d0ff; font-size:13px;">رقم هاتف ولي الأمر: <b style="direction:ltr; display:inline-block; font-family:monospace;"><?php echo h($child['parent_phone']); ?></b></span>
+        </div>
+      </div>
+      <p style="color:#c9bfe6; font-size:13.5px; margin:0 0 14px; line-height:1.6;">
+        اختر المقدمة المناسبة لإرسال التقرير (جرّب <b style="color:var(--gold);">+972</b> أو <b style="color:var(--mint);">+970</b> في حال لم يفتح أحدهما على واتساب ولي الأمر):
+      </p>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <a href="<?php echo h($waAnalysis972); ?>" target="_blank" rel="noopener" class="btn btn-mint btn-sm" style="font-size:14px; padding:10px 20px;" onclick="fetch('api/log-wa.php?type=analysis_report_972').catch(()=>{})">
+          <span>🟢 إرسال بمقدمة</span> <b style="direction:ltr; unicode-bidi:embed; font-family:monospace;">+972</b>
+        </a>
+        <a href="<?php echo h($waAnalysis970); ?>" target="_blank" rel="noopener" class="btn btn-gold btn-sm" style="font-size:14px; padding:10px 20px;" onclick="fetch('api/log-wa.php?type=analysis_report_970').catch(()=>{})">
+          <span>🟢 إرسال بمقدمة</span> <b style="direction:ltr; unicode-bidi:embed; font-family:monospace;">+970</b>
+        </a>
+      </div>
+    </div>
+  <?php else: ?>
+    <div style="margin:16px 0 26px;">
+      <button type="button" disabled class="btn btn-ghost btn-sm" style="opacity:.6; cursor:not-allowed;">📲 أجب عن أسئلة التحليل أولاً لترسل النتيجة لولي الأمر</button>
+    </div>
+  <?php endif; ?>
 
   <h3 style="color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">سجل قصصي اليومية (فيديو لكل يوم)</h3>
   <div class="reco-strip">
@@ -834,7 +871,19 @@ require_once __DIR__ . '/includes/navbar.php';
     });
   });
 
-  <?php if ($flashWaLink): ?> window.open(<?php echo json_encode($flashWaLink); ?>, '_blank'); <?php endif; ?>
+  <?php if ($flashWaLink): ?>
+    try { window.open(<?php echo json_encode($flashWaLink); ?>, '_blank'); } catch (e) {}
+    document.addEventListener('DOMContentLoaded', function(){
+      const wrap = document.getElementById('toastWrap');
+      if (wrap) {
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.innerHTML = '📲 تم تجهيز رسالة واتساب! <a href="<?php echo h($flashWaLink); ?>" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:underline;margin-inline-start:6px;font-weight:900;">اضغط هنا للفتح مباشرة</a>';
+        wrap.appendChild(el);
+        setTimeout(() => el.remove(), 7000);
+      }
+    });
+  <?php endif; ?>
   <?php if ($flashProfile): ?>
     document.addEventListener('DOMContentLoaded', function(){
       const wrap = document.getElementById('toastWrap');

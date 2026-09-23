@@ -81,7 +81,7 @@ $waNumber = $pdo->query("SELECT setting_value FROM settings WHERE setting_key='w
   <tbody>
     <?php foreach ($pending as $s):
       $waMsg = rawurlencode("مرحباً {$s['parent_name']}، بخصوص اشتراك {$s['child_name']} في خطة {$s['plan_name']} على Kidora...");
-      $waLink = "https://wa.me/" . preg_replace('/\D/','',$s['parent_phone']) . "?text={$waMsg}";
+      $waLink = "https://wa.me/" . normalize_wa_phone($s['parent_phone']) . "?text={$waMsg}";
     ?>
     <tr>
       <td><?php echo h($s['child_name']); ?></td><td><?php echo h($s['parent_name']); ?></td>
