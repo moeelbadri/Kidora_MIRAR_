@@ -31,9 +31,12 @@ const SoundEngine = (function () {
   }
 
   // ---------- اختيار الصوت ----------
-  function arabicVoices() {
+  function allVoices() {
     if (!("speechSynthesis" in window)) return [];
-    return (window.speechSynthesis.getVoices() || []).filter(v => /^ar([-_]|$)/i.test(v.lang));
+    return window.speechSynthesis.getVoices() || [];
+  }
+  function arabicVoices() {
+    return allVoices().filter(v => /^ar([-_]|$)/i.test(v.lang));
   }
   function voiceScore(v) {
     const n = (v.name || "").toLowerCase();
@@ -49,19 +52,25 @@ const SoundEngine = (function () {
   }
   function pickBestVoice() {
     if (cachedVoice) return cachedVoice;
-    const list = arabicVoices();
-    if (!list.length) return null;
+    const all = allVoices();
+    if (!all.length) return null;
     if (preferredVoiceName) {
-      const pref = list.find(v => v.name === preferredVoiceName);
+      const pref = all.find(v => v.name === preferredVoiceName);
       if (pref) { cachedVoice = pref; return pref; }
     }
+    const arabic = arabicVoices();
+    const list = arabic.length ? arabic : all;
     cachedVoice = list.slice().sort((a, b) => voiceScore(b) - voiceScore(a))[0] || null;
     return cachedVoice;
   }
   if ("speechSynthesis" in window) {
     window.speechSynthesis.onvoiceschanged = () => { cachedVoice = null; pickBestVoice(); };
   }
-  function listVoices() { return arabicVoices().map(v => ({ name: v.name, lang: v.lang })); }
+  function listVoices() {
+    const arabic = arabicVoices();
+    const rest = allVoices().filter(v => arabic.indexOf(v) === -1);
+    return arabic.concat(rest).map(v => ({ name: v.name, lang: v.lang }));
+  }
   function setPreferredVoice(name) {
     preferredVoiceName = name || "";
     cachedVoice = null;
@@ -74,7 +83,7 @@ const SoundEngine = (function () {
   function setVoiceEnabled(v) {
     voiceEnabled = v;
     localStorage.setItem("kidaura_voice", v ? "on" : "off");
-    if (!v && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (!v) stop();
   }
   function setMusicEnabled(v) {
     musicEnabled = v;
@@ -87,8 +96,10 @@ const SoundEngine = (function () {
 
   // ---------- الكلام ----------
   let speaking = false;
+  let speakGen = 0;
   function isSpeaking() { return speaking; }
   function stop() {
+    speakGen++;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }
 
@@ -111,8 +122,9 @@ const SoundEngine = (function () {
     opts = opts || {};
     const clean = cleanSpeech(text);
     let ended = false;
+    const gen = ++speakGen;
     const done = () => {
-      if (ended) return;
+      if (ended || gen !== speakGen) return;
       ended = true;
       speaking = false;
       if (musicPausedForSpeech && musicEnabled) { musicPausedForSpeech = false; startMusic(true); }
@@ -131,10 +143,10 @@ const SoundEngine = (function () {
     if (musicTimer) { stopMusic(); musicPausedForSpeech = true; }
 
     ensureVoice(voice => {
-      if (ended) return;
+      if (ended || gen !== speakGen) return;
       const u = new SpeechSynthesisUtterance(clean);
       u.lang = "ar-SA";
-      u.rate = opts.rate || 0.95;   // إيقاع سرد هادئ يناسب 6–12 سنة
+      u.rate = opts.rate || 0.95;
       u.pitch = opts.pitch || (charData && charData.slug === "spongebob" ? 1.15 : 1.05);
       u.volume = 1;
       if (voice) { u.voice = voice; u.lang = voice.lang; }
@@ -142,15 +154,17 @@ const SoundEngine = (function () {
       u.onend = done;
       u.onerror = done;
       if (!opts.silentChime) playChime();
-      try {
-        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-        window.speechSynthesis.speak(u);
-      } catch (e) { done(); }
-      // حارس: بعض المتصفحات لا تطلق onend إذا أُلغي الكلام من الخارج
-      const est = Math.min(60000, 1500 + clean.length * 95);
-      setTimeout(() => { if (!ended && !window.speechSynthesis.speaking) done(); }, est);
+      // Chrome و Safari يسقطان الجملة إذا جاء speak مباشرة بعد cancel.
+      setTimeout(() => {
+        if (ended || gen !== speakGen) return;
+        try {
+          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+          window.speechSynthesis.speak(u);
+        } catch (e) { done(); }
+      }, 80);
+      const est = Math.min(60000, 1600 + clean.length * 95);
+      setTimeout(() => { if (!ended && gen === speakGen && !window.speechSynthesis.speaking) done(); }, est);
     });
-
     return true;
   }
 

@@ -40,14 +40,14 @@ function ensure_daily_progress(PDO $pdo, int $childId): array {
 }
 
 /**
- * باكج اليوم: 4 مهام حسب عمر الطفل، تُثبَّت في daily_progress.task_pool_ids أول مرة.
+ * باكج اليوم: 4 مهام من كل المهام النشطة، بلا فلتر عمر.
+ * تُثبَّت في daily_progress.task_pool_ids أول مرة.
  * يُستخدم من tasks.php و api/complete-task.php حتى يبقى المصدر واحداً.
  */
 function daily_task_pool(PDO $pdo, array $child, array $progress): array {
     $pool = json_decode_safe($progress['task_pool_ids'] ?? null, null);
-    if ($pool === null) {
-        $stmt = $pdo->prepare("SELECT id FROM tasks WHERE active = 1 AND age_min <= ? AND age_max >= ?");
-        $stmt->execute([$child['age'], $child['age']]);
+    if ($pool === null || $pool === []) {
+        $stmt = $pdo->query("SELECT id FROM tasks WHERE active = 1");
         $eligible = array_column($stmt->fetchAll(), 'id');
         shuffle($eligible);
         $pool = array_slice($eligible, 0, min(4, count($eligible)));

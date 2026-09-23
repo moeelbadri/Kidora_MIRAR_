@@ -791,7 +791,7 @@ async function goStep2(){
     <h2 class="sf-title" style="font-size:1.35rem">${gameTitle(L.game_type)}</h2>
     <p class="sf-desc">${gameDesc(L.game_type)}</p>
     <div class="sf-game" id="sfGameBox"></div>
-    <div class="sf-fb" id="sfFb">جرّب اللعبة 👇</div>
+    <div class="sf-fb" id="sfFb">لنجرّب اللعبة 👇</div>
   `);
   const gt = (L.game_type || 'body').toLowerCase();
   (GAMES[gt] || GAMES.body)(document.getElementById('sfGameBox'), L);
@@ -838,9 +838,28 @@ function confettiBurst(){
 
 /* ============================================================
    عناوين الألعاب
+   قرار تربوي ثابت: لا يُقال «خطأ»/«غلط» ولا تظهر علامة X أو نتيجة.
+   الإجابة الآمنة تُكافأ بـ«أحسنت». غيرها لا تُمدَح: «حسناً» ثم الرفيق
+   قدوةً للصواب ثم القاعدة، بصيغة «نحن» حتى لا نفترض جنس الطفل.
+   أي محرك جديد يلتزم بـ teach() أدناه.
    ============================================================ */
-const SF_ENCOURAGE = ['فكرة جيدة! 💙', 'شكراً لأنك فكّرت 🤗', 'قريب جداً! 🌟', 'تفكيرك جميل ✨'];
-function gentle(rule){ return SF_ENCOURAGE[Math.floor(Math.random()*SF_ENCOURAGE.length)] + (rule ? ' الأأمن دائماً: ' + rule : ''); }
+function mateName(){
+  const raw = window.KIDAURA_ACTIVE_CHARACTER && window.KIDAURA_ACTIVE_CHARACTER.name;
+  const name = String(raw || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').trim();
+  return name || 'رفيقنا';
+}
+function teach(rule){
+  return 'حسناً، لكنّ الأفضلَ أن نتصرّفَ مثلَ ' + mateName() + ': ' + rule;
+}
+function teachChoice(choice){
+  return 'حسناً، لكنّ الأفضلَ أن نختارَ مثلَ ' + mateName() + ': «' + choice + '»';
+}
+function teachSafe(label){
+  return 'حسناً، «' + label + '» شيءٌ آمنٌ. لنبحثْ مثلَ ' + mateName() + ' عمّا قد يؤذينا.';
+}
+function teachNumber(){
+  return 'حسناً، لكلِّ جهةٍ رقمُها. لنجرّبْ رقماً آخرَ مثلَ ' + mateName() + '.';
+}
 function gameTitle(t){
   return ({
     body:'🛡️ لعبة المنطقة الخاصة',
@@ -896,8 +915,9 @@ function gameBody(box){
         done = true; gameCompleted = true; checkBothDone();
       } else {
         this.classList.add('no');
-        updateFb(gentle('المنطقة الخاصة هي التي نغطيها دائماً وتبقى سرّاً 🔒'), '#ffc93c');
-        speak('فكرة جيدة. المنطقة الخاصة هي التي نغطيها دائماً. جرّب مرة أخرى.');
+        const line = teach('المنطقةُ الخاصّةُ نُغطّيها دائماً، ولا يحقُّ لأحدٍ أن يلمسَها') + ' لنجرّبْ مرةً أخرى.';
+        updateFb(line, '#ffc93c');
+        speak(line);
         setTimeout(()=>this.classList.remove('no'), 600);
       }
     });
@@ -920,7 +940,7 @@ function gameDistance(box){
 
   const dz = document.getElementById('dz');
   const dk = document.getElementById('dk');
-  let drag=false, done=false;
+  let drag=false, done=false, moved=false;
 
   function move(clientX){
     if (!drag || done) return;
@@ -928,6 +948,7 @@ function gameDistance(box){
     let x = clientX - r.left - 28;
     x = Math.max(0, Math.min(x, r.width - 60));
     dk.style.left = x + 'px';
+    moved = true;
     const pct = (x / r.width) * 100;
     if (pct >= 32 && pct <= 68){
       done = true;
@@ -935,15 +956,23 @@ function gameDistance(box){
       speak('أحسنت! هذه هي المسافة الآمنة.');
       gameCompleted = true; checkBothDone();
     } else {
-      updateFb('⬅️ تابع السحب حتى المنطقة المنقطة', '#ffc93c');
+      updateFb('نُكملُ السحبَ حتى المنطقةِ المنقّطة', '#ffc93c');
     }
+  }
+  function release(){
+    const wasDragging = drag;
+    drag = false;
+    if (!wasDragging || done || !moved) return;
+    const line = teach('نبتعدُ عن الغريبِ ونبقى في المكانِ الآمن');
+    updateFb(line, '#ffc93c');
+    speak(line);
   }
   dk.addEventListener('mousedown', e=>{drag=true;e.preventDefault();});
   dk.addEventListener('touchstart', e=>{drag=true;e.preventDefault();}, {passive:false});
   document.addEventListener('mousemove', e=>move(e.clientX));
   document.addEventListener('touchmove', e=>move(e.touches[0].clientX), {passive:false});
-  document.addEventListener('mouseup', ()=>drag=false);
-  document.addEventListener('touchend', ()=>drag=false);
+  document.addEventListener('mouseup', release);
+  document.addEventListener('touchend', release);
 }
 
 /* ============================================================
@@ -985,7 +1014,9 @@ function gameHotspot(box, L){
         }
       } else {
         this.classList.add('wrong');
-        updateFb(gentle(`"${it.txt}" شيء آمن — نبحث عمّا قد يؤذينا 🔍`), '#ffc93c');
+        const line = teachSafe(it.txt);
+        updateFb(line, '#ffc93c');
+        speak(line);
         setTimeout(()=>{ this.classList.remove('done','wrong'); }, 800);
       }
     });
@@ -1068,8 +1099,9 @@ function gameScenario(box, L){
         } else {
           this.classList.add('no');
           box.querySelectorAll('.sc-choice')[q.correct].classList.add('ok');
-          updateFb(gentle(`الأبطال يختارون «${cleanEmoji(q.a[q.correct])}» — معلَّمة بالأخضر 💚`), '#ffc93c');
-          speak('شكراً لأنك فكّرت. الأبطال يختارون: ' + cleanEmoji(q.a[q.correct]));
+          const line = teachChoice(cleanEmoji(q.a[q.correct]));
+          updateFb(line, '#ffc93c');
+          speak(line);
           setTimeout(()=>{ i++; render(); }, 2000);
         }
       });
@@ -1142,7 +1174,9 @@ function gameMatch(box){
         const a = sel; sel = null;
         this.classList.add('err'); a.classList.add('err');
         setTimeout(()=>{ this.classList.remove('err','sel'); a.classList.remove('err','sel'); }, 600);
-        updateFb(gentle('كل رمز له رقمه — جرّب رقماً آخر 📞'), '#ffc93c');
+        const line = teachNumber();
+        updateFb(line, '#ffc93c');
+        speak(line);
       }
       sel = null;
     });
@@ -1154,11 +1188,11 @@ function gameMatch(box){
    ============================================================ */
 function gameQuiz(box){
   const qs = [
-    {q:'🔒 هل كلمة السر يجب أن تكون سهلة مثل 1234؟', a:false, tip:'كلمة السر طويلة وسرّية، لا يعرفها إلا أنا وأهلي 🔑'},
-    {q:'👤 هل أُبقي اسمي وعنواني سرّاً عن الغرباء على الإنترنت؟', a:true, tip:'معلوماتي الشخصية سرّ لا أعطيه لأي غريب 🔒'},
-    {q:'📸 هل من الآمن نشر صوري مع أي شخص؟', a:false, tip:'صوري أشاركها فقط بإذن أهلي ومع من أعرفهم 🖼️'},
-    {q:'🚫 إذا أزعجني شخص على الإنترنت، هل أخبر أهلي؟', a:true, tip:'أي شيء يزعجني أخبر به أهلي فوراً — هذا تصرّف الأبطال 💪'},
-    {q:'👥 هل من الآمن مقابلة شخص تعرّفت عليه على الإنترنت وحدي؟', a:false, tip:'لا أذهب لأي لقاء لا يعرفه أهلي 🚫🤝'}
+    {q:'هل كلمة السر يجب أن تكون سهلة مثل 1234؟', a:false, tip:'كلمةُ السرِّ طويلةٌ وسرّيّة، ولا يعرفُها إلا نحن وأهلُنا'},
+    {q:'هل أُبقي اسمي وعنواني سرّاً عن الغرباء على الإنترنت؟', a:true, tip:'معلوماتُنا الشخصيّةُ سرٌّ، ولا نُعطيها لأيِّ غريب'},
+    {q:'هل من الآمن نشر صوري مع أي شخص؟', a:false, tip:'لا نُشاركُ صورَنا إلا بإذنِ أهلِنا، ومع مَن نعرفُهم'},
+    {q:'إذا أزعجني شخص على الإنترنت، هل أُخبرُ أهلي؟', a:true, tip:'إذا أزعجَنا أحدٌ على الإنترنت، نُخبرُ أهلَنا فوراً'},
+    {q:'هل من الآمن مقابلة شخص تعرّفت عليه على الإنترنت وحدي؟', a:false, tip:'لا نذهبُ إلى لقاءٍ لا يعرفُه أهلُنا'}
   ].filter((_, k, all) => ((k - PROG.day) % all.length + all.length) % all.length < SF_MAX_QUIZ);
   let i = 0;
   function render(){
@@ -1190,11 +1224,15 @@ function gameQuiz(box){
         box.querySelectorAll('.qz-btn').forEach(x=>x.disabled=true);
         if (v === q.a){
           this.classList.add('ok');
-          updateFb('✅ أحسنت يا بطل! ' + q.tip, '#2ec4b6'); speak('أحسنت! ' + cleanEmoji(q.tip));
+          const praise = 'أحسنت يا ' + CHILD.name + '! ' + q.tip;
+          updateFb('✅ ' + praise, '#2ec4b6');
+          speak(praise);
           setTimeout(()=>{ i++; render(); }, 2200);
         } else {
           this.classList.add('soft');
-          updateFb(gentle(q.tip), '#ffc93c'); speak('فكرة جيدة. الأأمن دائماً: ' + cleanEmoji(q.tip));
+          const line = teach(q.tip);
+          updateFb(line, '#ffc93c');
+          speak(line);
           setTimeout(()=>{ i++; render(); }, 3200);
         }
       });
@@ -1246,8 +1284,8 @@ function gamePassword(box){
       updateFb('🎉 كلمة سر قوية جداً!', '#2ec4b6');
       speak('ممتاز! كلمة سر قوية.');
       gameCompleted = true; checkBothDone();
-    } else if (score >= 3){ updateFb('👍 جيدة جداً، أضف ما بقي ✨', '#ffc93c'); }
-    else { updateFb('🌱 بداية جيدة! أضف حروفاً وأرقاماً لتصير أقوى', '#ffc93c'); }
+    } else if (score >= 3){ updateFb('ما زالت تحتاج إلى ما بقي. لنُضِفْه', '#ffc93c'); }
+    else { updateFb('لنُضِفْ حروفاً وأرقاماً لتصبح أقوى', '#ffc93c'); }
   });
 }
 
@@ -1305,7 +1343,9 @@ function gameStreet(box){
       speak('أحسنت! عبرت بأمان.');
       gameCompleted = true; checkBothDone();
     } else {
-      updateFb(green ? '🚗 السيارة قريبة — ننتظر حتى تبتعد، أنت بأمان 💙' : '🔴 الإشارة حمراء — ننتظر الأخضر معاً 💙', '#ffc93c');
+      const line = teach(green ? 'ننتظرُ حتى تبتعدَ السيّارة' : 'ننتظرُ الإشارةَ الخضراء');
+      updateFb(line, '#ffc93c');
+      speak(line);
       kid.style.transform = 'translateX(-50%) rotate(10deg)';
       setTimeout(()=> kid.style.transform = 'translateX(-50%)', 400);
     }

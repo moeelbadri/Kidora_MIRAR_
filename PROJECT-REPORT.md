@@ -141,9 +141,10 @@ assessment-due greeting.
   questions are never touched; the admin tab shows a warning while the count is below 10.
 
 ### `tasks.php` — the core
-- 4 tasks drawn at random, filtered `age_min <= age <= age_max`, then **pinned for
-  the day** in `daily_progress.task_pool_ids` so a refresh doesn't reroll them
-  (`daily_task_pool()` in `includes/functions.php`).
+- 4 tasks drawn at random from every active task — **no age filter** — then
+  **pinned for the day** in `daily_progress.task_pool_ids` so a refresh doesn't
+  reroll them (`daily_task_pool()` in `includes/functions.php`). An empty pool
+  (a child whose age matched nothing) is filled on the next load.
 - **Client-driven state machine (Sep 2026).** The page renders once; everything after
   is JS. «أنجزت المهمة» POSTs to `api/complete-task.php`, which awards points and
   returns `story_line`, `pair_line` (`companion_pair_line()` — ties the task
@@ -188,11 +189,15 @@ internet safety), `password` (build a strong password), `street` (cross on green
 The four seeded lessons map to `body / distance / quiz / scenario` (seed +
 `kidora_migrate()` for DBs seeded earlier).
 
-**The safety module never says «خطأ», shows no X and no score** (the user's explicit
-rule: «م بينفع يحكيله اجابة خاطئة … تيجي بتحفيز بس»). Every engine routes a miss
-through `gentle(rule)` — an `SF_ENCOURAGE` line plus «الأأمن دائماً: <rule>» — in
-warm gold, never red; the quiz carries a `tip` per question and ends with «أنت الآن
-بطل الحماية!» listing all the golden rules. Keep any new engine on that path.
+**The safety module never says «خطأ», shows no X and no score.** A safe choice is
+praised («أحسنت», and in the yes/no quiz «أحسنت يا {اسم الطفل}»). Any other attempt
+is not praised: `teach(rule)` says «حسناً، لكنّ الأفضلَ أن نتصرّفَ مثلَ {اسم الرفيق}:
+{القاعدة}». The active companion (`KIDAURA_ACTIVE_CHARACTER.name`) is the model of
+the safe action, then the rule itself, in gender-neutral «نحن» — no «تعمل», no
+«فكرة جيدة», no «الأأمن». Hotspot, choice, and emergency-number misses use the same
+frame (`teachSafe` / `teachChoice` / `teachNumber`). Warm gold, never red. Quiz
+`tip`s are written in «نحن» and listed at the end under «أنت الآن بطل الحماية!».
+Keep any new engine on `teach()`.
 
 ### `games.php` — games library
 36 seeded rows grouped into 6 categories (تربوي / علمي / اجتماعي / سلوكي / ثقافي / صحي)
@@ -918,7 +923,10 @@ host, so animations and autoplay were reviewed by reading, not by pixel.
   placeholder SVG avatars; `kidora_migrate_characters_v2()` remaps existing children.
   ⚠️ These names are third-party IP; the shipped art is deliberately generic.
 - **One character at registration**, second free one server-assigned; switch from
-  the profile. Age range 6–12 everywhere (register validation, seed, admin forms).
+  the profile. Registration, seed `age_min`, and admin forms stay 6–12.
+  **Profile edit** (`profile.php`, «تعديل البيانات») offers age **1–60** and the
+  POST refuses anything outside that. Tasks ignore age; games, safety, and
+  assessment content still use the stored age.
 - **`welcome.php`** rebuilt as a full-screen animated greeting with the child's photo;
   the subscription page is no longer the first screen after signup and the paywall
   does not appear after the assessment.

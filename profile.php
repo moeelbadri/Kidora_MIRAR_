@@ -7,6 +7,7 @@ $child = require_login();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_profile'])) {
     $name = trim($_POST['child_name'] ?? $child['name']);
     $age = (int)($_POST['child_age'] ?? $child['age']);
+    if ($age < 1 || $age > 60) $age = (int)$child['age'];
     $parentName = trim($_POST['parent_name'] ?? '');
     $parentPhone = trim($_POST['parent_phone'] ?? '');
     $pdo->prepare("UPDATE children SET name=?, age=?, parent_name=?, parent_phone=? WHERE id=?")
@@ -478,7 +479,9 @@ require_once __DIR__ . '/includes/navbar.php';
       <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" value="<?php echo h($child['name']); ?>"></div>
       <div class="field"><label>عمر الطفل</label>
         <select name="child_age">
-          <?php for ($a=1;$a<=18;$a++): ?><option value="<?php echo $a; ?>" <?php echo $a==$child['age']?'selected':''; ?>><?php echo $a; ?> سنوات</option><?php endfor; ?>
+          <?php for ($a=1;$a<=60;$a++):
+            $unit = ($a === 2) ? 'سنتان' : (($a >= 3 && $a <= 10) ? 'سنوات' : 'سنة');
+          ?><option value="<?php echo $a; ?>" <?php echo $a==(int)$child['age']?'selected':''; ?>><?php echo $a; ?> <?php echo $unit; ?></option><?php endfor; ?>
         </select>
       </div>
       <div class="field"><label>اسم ولي الأمر</label><input type="text" name="parent_name" value="<?php echo h($child['parent_name']); ?>"></div>
