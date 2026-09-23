@@ -56,6 +56,8 @@ function kidora_migrate(PDO $pdo): void {
             'photo_path'       => $isMysql ? "VARCHAR(255) DEFAULT NULL" : 'TEXT DEFAULT NULL',
             'remember_token'   => $isMysql ? "VARCHAR(64) DEFAULT NULL" : 'TEXT DEFAULT NULL',
             'remember_expires' => $isMysql ? "DATETIME DEFAULT NULL" : 'DATETIME DEFAULT NULL',
+            // null للقواعد القديمة = سبعة أيام من created_at. التسجيل الجديد يكتبها صراحةً.
+            'trial_ends_at'     => 'DATETIME DEFAULT NULL',
         ],
         // ثيم عالم الشخصية (اسم العالم، الرفيق، زخرفة الخلفية) — سبتمبر 2026
         'characters' => ['theme_json' => 'TEXT DEFAULT NULL'],

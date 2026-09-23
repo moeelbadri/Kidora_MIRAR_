@@ -7,6 +7,8 @@ $__ringDays = min(30, (int)$__navChild['ring_days']);
 $__circumference = 119;
 $__offset = $__circumference - ($__circumference * $__ringDays / 30);
 $__currentPage = basename($_SERVER['PHP_SELF']);
+$__accessTier = access_tier($pdo, $__navChild);
+$__trialEnd = trial_ends_at_for($__navChild);
 
 // ===== تقسيم الروابط إلى (أساسية) و (ثانوية) =====
 // أربعة أزرار كبيرة فقط للطفل (6–12): الحلقة اليومية بترتيبها. الباقي تحت «المزيد».
@@ -98,10 +100,12 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
 
     <!-- ===== أزرار الصوت وحالة الاشتراك (لللاب) ===== -->
     <div class="header-actions">
-      <?php if (function_exists('is_premium_active') && is_premium_active($GLOBALS['pdo'], (int)$__navChild['id'])): ?>
+      <?php if ($__accessTier === 'paid'): ?>
         <span class="premium-badge">🌟 VIP</span>
+      <?php elseif ($__accessTier === 'trial'): ?>
+        <span class="premium-badge" title="تنتهي في <?php echo h($__trialEnd->format('Y-m-d H:i')); ?>">تجربة مجانية</span>
       <?php else: ?>
-        <span class="free-badge">🔓 مجاني</span>
+        <span class="free-badge">قصص وألعاب مجاناً</span>
       <?php endif; ?>
       <div class="header-voice">
         <button class="voice-btn on" id="voiceToggle" title="صوت الرفيق">🗣️</button>
@@ -157,10 +161,12 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
   </ul>
 
   <div class="sidebar-footer">
-    <?php if (function_exists('is_premium_active') && is_premium_active($GLOBALS['pdo'], (int)$__navChild['id'])): ?>
+    <?php if ($__accessTier === 'paid'): ?>
       <span class="premium-badge">🌟 مشترك VIP</span>
+    <?php elseif ($__accessTier === 'trial'): ?>
+      <span class="premium-badge">تجربة مجانية حتى <?php echo h($__trialEnd->format('Y-m-d H:i')); ?></span>
     <?php else: ?>
-      <span class="free-badge">🔓 حساب مجاني</span>
+      <span class="free-badge">قصص وألعاب مجاناً</span>
     <?php endif; ?>
     <div class="sidebar-voice">
       <button class="voice-btn on" id="voiceToggleSidebar">🗣️</button>

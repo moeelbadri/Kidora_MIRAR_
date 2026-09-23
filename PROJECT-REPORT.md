@@ -41,20 +41,23 @@ Two defining design decisions:
    real artwork must be licensed and uploaded through the admin Characters tab.
 
 2. **Monetisation runs through WhatsApp, manually — there is no payment gateway.**
-   Only the first two characters are free; the rest render dimmed with a 🔒.
+   Every account gets seven full days of the whole platform. After that, stories and
+   both game libraries stay open; missions, safety, assessment, drawing, and premium
+   companions require a paid plan. A locked companion is only hidden, never forgotten.
 
 ---
 
-## 2. Business model (character gating + manual WhatsApp upgrade)
+## 2. Business model (seven-day trial + manual WhatsApp upgrade)
 
 | Step | What happens | Where |
 |---|---|---|
-| 1 | Child registers, picks **one** `is_premium = 0` character; the server assigns the other free one as `character_2` | `index.php` |
-| 2 | Free plan row auto-inserted as `active` | `index.php` L98–102 |
-| 3 | Child presses "اشترك عبر واتساب" on a paid plan | `subscriptions.php` L10–31 |
-| 4 | `subscriptions` row written as `pending`; `wa.me` deep link opened in a new tab with a pre-filled message (child name, age, plan, parent name + phone, email) | `subscriptions.php` L21–27, `whatsapp_link()` in `includes/functions.php` L95–103 |
-| 5 | Admin confirms payment out-of-band, clicks "✅ ترقية" | `admin/tabs/subscriptions.php` |
-| 6 | Row flips to `active` → premium characters unlock + VIP badge appears | `is_premium_active()` / `selectable_characters()` in `includes/functions.php` L82–93 |
+| 1 | Child registers and may pick any companion; the server keeps another free companion in `character_2`. `trial_ends_at` is written as now + 7×24h in `Asia/Gaza` | `index.php` |
+| 2 | Free plan row auto-inserted as `active`; it does not itself grant full access | `index.php` |
+| 3 | For seven days, `has_full_access()` is true: tasks, safety, assessment, drawing, and every companion are open | `includes/functions.php` |
+| 4 | Child presses "اشترك عبر واتساب" on a paid plan | `subscriptions.php` |
+| 5 | `subscriptions` row written as `pending`; `wa.me` deep link opened in a new tab | `subscriptions.php`, `whatsapp_link()` |
+| 6 | Admin confirms payment and clicks "✅ ترقية" | `admin/tabs/subscriptions.php` |
+| 7 | Paid plan (`price_ils > 0`, `active`) keeps full access after the trial. Admin can also set one child's `trial_ends_at` from the Users tab | `has_full_access()`, `admin/tabs/users.php` |
 
 - Operator WhatsApp number lives in `settings.whatsapp_number` (currently
   `972592038364`), editable from the admin Settings tab.
@@ -66,6 +69,8 @@ Two defining design decisions:
 - Every outbound message is also logged to the `wa_log` table (`log_wa()`).
 - `is_premium_active()` deliberately requires `price_ils > 0`, so the free plan
   being `active` does not unlock premium characters.
+- Existing accounts with a null `trial_ends_at` are measured from `created_at`.
+  There is no fresh seven-day grant on deploy. An admin date overrides that default.
 
 ---
 
@@ -78,8 +83,8 @@ index.php (landing + login/register, age 1–60, ONE character)
    ├─ register ─> welcome.php   full-screen animated greeting: companion + child's
    │                            photo, spoken lines, auto-continues (no subscription
    │                            prompt here any more)
-   ├─ login, assessment due ─> welcome.php ─> assessment.php
-   └─ login, otherwise      ─> dashboard.php    the signed-in home
+   ├─ login during trial, assessment due ─> welcome.php ─> assessment.php
+   └─ login after trial or otherwise ─> dashboard.php    the signed-in home
         └─> assessment.php  SILENT quiz: companion reads each question, answers go
              │              to api/assess-answer.php, no progress/feedback shown,
              │              auto-redirect to tasks.php. Results only in admin.
@@ -90,17 +95,20 @@ index.php (landing + login/register, age 1–60, ONE character)
                   └─> games.php?from=tasks   companion announces «game of the day»
                        │  (deterministic per child/day); after ANY game a choice modal:
                        ├─> safety.php   3-step mission: rule (+video) → game → medal
-                       └─> story.php    PAID — one-scene story of the real day
+                       └─> story.php    free — one-scene story of the real day
                                           └─> grand-story.php  every 30 stories, 8 chapters
 ```
 
 Once tasks + a game + (safety **or** story) are flagged done for the day
 (`localStorage` `kidora_done_*`), `dashboard.php` shows the spoken goodbye modal.
 
-Under the free plan the loop still runs end to end — missions, their mini-games, the
-historical figures, safety, and the two library games are all free
-(`STORY_MIN_GAMES = 1`: the game of the day is enough to unlock the story). What the paywall
-holds back is the **daily story**, and with it the 30-story grand adventure.
+During the seven-day trial the loop runs end to end. After it, an unpaid child keeps
+every story surface (`story.php`, `friends.php`, `culture.php`, `grand-story.php`)
+and both game pages (`games.php`, `games2.php`). Tasks, safety, assessment, and
+drawing render the shared Arabic upgrade card, and their APIs return 403.
+`STORY_MIN_GAMES = 1`: one free game unlocks today's story. Completed missions enrich
+that story, but they are no longer required to create it. The goodbye modal appears
+only while full access is active.
 
 `dashboard.php` is the post-login landing page for a returning child (welcome banner,
 companion cards, plan status, and story recommendations keyed to the child's *weakest*
@@ -246,17 +254,15 @@ share it through the parent's WhatsApp. The gallery (latest 12, delete-own-only)
 in `profile.php#drawings`; the board is linked from the navbar, `games.php` and the
 dashboard.
 
-**Subscription gating (Sep 2026).** Without an active paid plan the child sees only
-`FREE_LIBRARY_GAMES = 2` cards, picked by `visible_library_games()` to be **two
-different mechanics** so the sample shows range, followed by one upgrade card naming
-how many remain. The mini-game that follows each mission is **not** part of this
-allowance — it belongs to the mission package and stays free.
+**Subscription gating (Sep 2026, revised).** Both game libraries stay complete after
+the trial. The mission mini-game is part of the paid mission package, so it is
+available only while `has_full_access()` is true.
 
 ### `story.php` — daily personal story
-- **Paid feature.** Without an active plan the page shows a paywall card and the
-  `generate_story` POST handler refuses (`$isPremium` is checked server-side, not
-  just in the view). An already-generated story stays viewable if the plan lapses.
-- Gated on `tasksDone && games_played >= STORY_MIN_GAMES` (= 1, the game of the day).
+- **Free after the trial as well.** Story, friend, culture, and grand-story pages do
+  not check the paid plan. An already-generated story stays viewable either way.
+- Gated on `games_played >= STORY_MIN_GAMES` (= 1). Finished missions are included
+  when they exist, and a game-only day still produces a complete scene.
 - Child may upload a photo; the story comes from `daily_story_scenes()` in
   `includes/functions.php`. **Since Sep 2026 it is ONE scene** (`kind: 'single'`): a
   single flowing paragraph about the real day — a seeded opening, the completed
@@ -273,10 +279,12 @@ allowance — it belongs to the mission package and stays free.
   single «اقرأ لي» button; the companion reads the whole card via `Companion.say()`
   and starts automatically. Multi-scene stories (old daily stories, grand story) use
   **book mode**: cream page, chapter ribbon, page-turn, dots, narration-synced autoplay.
-- Exportable as a real video file from the browser — Canvas + `MediaRecorder`,
-  640×360, tries `video/mp4` then falls back to `video/webm`; book mode draws the
-  same paper layout (`drawBookScene`). `xopts.onBlob` receives the Blob (used by the
-  test harness). No audio track, no paid AI service.
+- Exportable as a silent browser video — Canvas + `MediaRecorder` at **1920×1080**.
+  The one-scene daily card is redrawn as the on-screen cream poster (art, hills,
+  child photo, companion, full Arabic text, quote). Fonts and images load first;
+  Arabic wraps by whole words, and overflow continues on another frame instead of
+  being clipped. Multi-scene stories use the same resolution. The recorder tries
+  `video/mp4`, then WebM. `xopts.onBlob` receives the Blob. No audio track.
 
 ### `grand-story.php` — the 30-day payoff
 Consumes **30** daily stories (`GRAND_STORY_DAYS`) and builds one "Grand Adventure"
@@ -518,7 +526,7 @@ and assessment flashes are gone — both flows moved to JSON endpoints in Sep 20
 | `theme-engine.js` | `ThemeEngine` | `applyBackground()` / `previewCharacter()` — recolours gradient, sets `--theme-accent`/`--theme-glow`, spawns floating icons |
 | `sound-engine.js` | `SoundEngine` | `speak()` via `SpeechSynthesis` (`ar-SA`; `pickBestVoice()` scores Arabic voices, `preferredVoiceName` from the profile voice picker wins), `cleanSpeech()` strips emoji/symbols so nothing is read as «رمز», optional `onEnd`, **background music pauses while speaking and resumes after**, `sfx()` tones, optional Web Audio music. `listVoices()/setPreferredVoice()/getPreferredVoice()`. Toggles persist in `localStorage` (`kidaura_voice`, `kidaura_music`, `kidaura_voice_name`). Automatic tashkeel is **not** feasible client-side; voice quality is bounded by the OS voices |
 | `companion.js` | `Companion`, `KidoraYT` | see §4 «Companion widget». `KidoraYT.play(hostId, videoId, {autoplay, skipId})` loads the YouTube IFrame API once (`youtube-nocookie`), autoplays, and resolves on ENDED / skip button / error (6 s guard if the script is blocked). Used by `tasks.php` and `safety.php` |
-| `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay; `opts.book` switches to the paper-book layout with narration-synced page turns; a **one-scene story in book mode renders as `renderSingle`** (poster card read in one go by `Companion`); `exportVideo` holds a single scene for `clamp(len×70ms, 6–20 s)` and draws up to 7 text lines |
+| `story-player.js` | `StoryPlayer` | `render()` / `narrate()` / `share()` / `exportVideo()` — used by story, grand-story, friends, culture, profile. `opts.animate` adds autoplay; `opts.book` switches to the paper-book layout with narration-synced page turns; a **one-scene story in book mode renders as `renderSingle`** (poster card read in one go by `Companion`); `exportVideo` records a silent 1920×1080 card and continues overflow text on the next frame |
 | `games-engine.js` | `GamesEngine` | `run(type, host, title, color, onDone, {category})` → `catch` / `match` / `quiz` / `puzzle` / `hide` / `adventure`. **Content is fetched from `api/game-content.php`, not hardcoded** (a small `FALLBACK` bank exists only so a failed request never shows a broken screen). `game_types()` in `includes/functions.php` is the authoritative slug→label list. Feedback vocabulary is `PRAISE` / `ENCOURAGE` only. Narration is `Companion.say` for every age; the widget is pinned while a game is open |
 | `app.js` | — | bootstrap: nav toggle, **all** `.voice-btn`/`.music-btn` toggles, `data-say` buttons (→ `Companion.readAloud`), companion click + swap; the page greeting is spoken by `companion.js` from `KIDAURA_PAGE_LINE` |
 
@@ -559,7 +567,7 @@ All require `$_SESSION['child_id']` and have no CSRF token.
 | Table | Purpose |
 |---|---|
 | `characters` | slug, name, title, trait, `color`, `move_type`, `image_path`, `audio_path`, `icons_json`, `is_premium`, `sort_order`, **`theme_json`** (`{world, sidekick:{name,icon}, motif}`, Sep 2026) |
-| `children` | the user account: credentials, age, parent name/phone, optional `photo_path`, `character_1/2`, `active_character`, `points`, `ring_days`, `last_assessment_at`, `remember_token` / `remember_expires` |
+| `children` | the user account: credentials, age, parent name/phone, optional `photo_path`, `character_1/2`, `active_character`, `points`, `ring_days`, `last_assessment_at`, `remember_token` / `remember_expires`, **`trial_ends_at`** (null = `created_at` + 7 days) |
 | `tasks` | title, description, category, age range, `story_line`, `youtube_id`, `game_type`, `points`, `active` |
 | `games` | title, `type`, category, age range, description, `is_active` |
 | `game_topics` | `topic_key`, `label`, `icons_json`, `categories_json` (which Arabic task/game categories map to this topic), `active`, `sort_order` |
@@ -795,9 +803,9 @@ These were not in the original list; recorded so they are not reintroduced.
     Narration now goes through `Companion.say` for every age, not only `calm`.
     Questions, adventure prompts, choices and outcomes are now read aloud under `calm`.
 30. ~~**Every child saw the whole games library and could generate a daily story, paid
-    or not.**~~ `is_premium_active()` only guarded character selection and the VIP
-    badge. Now the library shows 2 games without a plan and `story.php` refuses the
-    POST — see §3.
+    or not.**~~ Replaced in Sep 2026 by the seven-day full-access trial. After expiry,
+    stories and both game libraries stay open; tasks, safety, assessment, drawing,
+    and premium companions require a paid plan. See §2 and §3.
 31. ~~**The daily story was a static, manually-clicked slideshow.**~~ `StoryPlayer`
     already supported chapter icons, titles and a floating sprite — the grand story
     used them, the daily story passed only `caption` and `grad`. It now passes all

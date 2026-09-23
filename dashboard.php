@@ -7,6 +7,9 @@ ensure_daily_progress($pdo, $child['id']);
 $myChars = array_filter([get_character($pdo, $child['character_1']), get_character($pdo, $child['character_2'])]);
 $activePlan = get_active_plan($pdo, $child['id']);
 $subRec = get_subscription_record($pdo, $child['id']);
+$fullAccess = has_full_access($pdo, $child);
+$tier = access_tier($pdo, $child);
+$trialEnd = trial_ends_at_for($child);
 
 // =============================================================
 // القصص الموصى بها حسب أضعف محور تحليل
@@ -40,7 +43,12 @@ require_once __DIR__ . '/includes/navbar.php';
     <div>
       <div class="eyebrow" style="color:#FFE9A8;">أهلاً بعودتك يا بطل!</div>
       <h2 class="section-title" style="margin:6px 0 4px;">مرحباً <?php echo h($child['name']); ?> 👋</h2>
-      <p style="opacity:.92;">عمرك <?php echo (int)$child['age']; ?> سنوات · خطتك: <?php echo $activePlan ? h($activePlan['name']) : ($subRec ? h($subRec['name']).' (قيد المراجعة ⏳)' : '-'); ?></p>
+      <p style="opacity:.92;">عمرك <?php echo (int)$child['age']; ?> سنوات · حالتك:
+        <?php if ($tier === 'paid'): ?><?php echo h($activePlan['name']); ?>
+        <?php elseif ($tier === 'trial'): ?>تجربة مجانية حتى <?php echo h($trialEnd->format('Y-m-d H:i')); ?>
+        <?php else: ?>قصص وألعاب مجاناً<?php echo $subRec && $subRec['status'] === 'pending' ? ' · طلب الاشتراك قيد المراجعة' : ''; ?>
+        <?php endif; ?>
+      </p>
     </div>
     <div class="welcome-points"><b><?php echo (int)$child['points']; ?></b><span>نقطة ⭐</span></div>
   </div>
@@ -50,7 +58,7 @@ require_once __DIR__ . '/includes/navbar.php';
     <div class="section-head">
       <div class="eyebrow">⚔️ مغامرات اليوم</div>
       <h2 class="section-title">استعد لمغامرتك!</h2>
-      <p class="section-sub">مغامرات جديدة تنتظرك كل يوم، انطلق الآن!</p>
+      <p class="section-sub"><?php echo $fullAccess ? 'مغامرات جديدة تنتظرك كل يوم، انطلق الآن!' : 'القصص والألعاب باقية لك مجاناً؛ أعد فتح المهام وبقية المزايا بالاشتراك.'; ?></p>
     </div>
 
     <div class="mission-card">
@@ -68,11 +76,11 @@ require_once __DIR__ . '/includes/navbar.php';
       <div class="mission-content-simple">
         <div class="mission-icon">🚀</div>
         <div class="mission-info-simple">
-          <h3 class="mission-title">انطلق في مغامرتك اليومية!</h3>
-          <p class="mission-desc">هناك مهام وقصص وألعاب في انتظارك. هل أنت مستعد؟</p>
+          <h3 class="mission-title"><?php echo $fullAccess ? 'انطلق في مغامرتك اليومية!' : 'انتهت التجربة المجانية'; ?></h3>
+          <p class="mission-desc"><?php echo $fullAccess ? 'هناك مهام وقصص وألعاب في انتظارك. هل أنت مستعد؟' : 'القصص والألعاب ما زالت مفتوحة، والاشتراك يعيد المهام والتحليل والحماية والرسم.'; ?></p>
         </div>
-        <a href="<?php echo BASE_PATH; ?>/tasks.php" class="mission-btn btn-active">
-          <span class="btn-text">⚡ انطلق في مغامرتك</span>
+        <a href="<?php echo BASE_PATH; ?>/<?php echo $fullAccess ? 'tasks.php' : 'subscriptions.php'; ?>" class="mission-btn btn-active">
+          <span class="btn-text"><?php echo $fullAccess ? '⚡ انطلق في مغامرتك' : '🔒 أعد فتح المهام بالاشتراك'; ?></span>
           <span class="btn-shine"></span>
         </a>
       </div>
@@ -144,12 +152,12 @@ require_once __DIR__ . '/includes/navbar.php';
         <div class="card-desc">قصة تفاعلية طويلة</div>
         <div class="card-btn">استكشف الآن ✨</div>
       </a>
-      <a href="<?php echo BASE_PATH; ?>/draw.php" class="discovery-card draw">
+      <a href="<?php echo BASE_PATH; ?>/<?php echo $fullAccess ? 'draw.php' : 'subscriptions.php'; ?>" class="discovery-card draw">
         <div class="card-glow"></div>
         <div class="card-icon">🎨</div>
         <div class="card-title">لوحتي</div>
         <div class="card-desc">ارسم ما تشعر به اليوم</div>
-        <div class="card-btn">ارسم الآن 🖌️</div>
+        <div class="card-btn"><?php echo $fullAccess ? 'ارسم الآن 🖌️' : 'تحتاج اشتراكاً 🔒'; ?></div>
       </a>
     </div>
   </div>
@@ -526,6 +534,8 @@ require_once __DIR__ . '/includes/navbar.php';
    3) درس حماية من safety.php
    ============================================================= */
 (function(){
+  const FULL_ACCESS = <?php echo $fullAccess ? 'true' : 'false'; ?>;
+  if (!FULL_ACCESS) return;
 
   const TODAY = new Date().toISOString().slice(0,10);
   const K = {

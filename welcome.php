@@ -3,19 +3,20 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 
-$hero  = active_character($pdo, $child) ?: get_character($pdo, $child['character_1']);
+$hero  = effective_character($pdo, $child) ?: get_character($pdo, $child['character_1']);
 $theme = character_theme($hero);
 $icons = $hero ? character_icons($hero) : ['✨', '⭐', '🌟'];
-$next  = needs_assessment($child) ? 'assessment.php' : 'dashboard.php';
+$assessmentDue = has_full_access($pdo, $child) && needs_assessment($child);
+$next  = $assessmentDue ? 'assessment.php' : 'dashboard.php';
 $photo = !empty($child['photo_path']) ? BASE_PATH . '/' . ltrim($child['photo_path'], '/') : null;
 
 // الرفيق يقود الترحيب بصوته ثم ينتقل تلقائياً — بلا زر «انتقل» إلا كبديل
 $lines = [
     "أهلاً وسهلاً يا {$child['name']}! أنا {$hero['name']}، من {$theme['world']}.",
     "من اليوم أنا رفيق مغامرتك: أقرأ لك المهام، ونلعب معاً، ونحكي القصص.",
-    needs_assessment($child)
+    $assessmentDue
         ? "قبل أن نبدأ، عندي أسئلة قليلة وسريعة لأعرفك أكثر. اختر ما يشبهك، ولا توجد إجابة خاطئة!"
-        : "يلا ننطلق إلى مهام اليوم!",
+        : (has_full_access($pdo, $child) ? "يلا ننطلق إلى مهام اليوم!" : "القصص والألعاب ما زالت مفتوحة لك دائماً!"),
 ];
 
 $__pageTitle = 'أهلاً بك — Kidora';
@@ -81,7 +82,7 @@ require_once __DIR__ . '/includes/header.php';
     <p class="wl-world"><?php echo h($hero['name']); ?> من <?php echo h($theme['world']); ?> رفيق مغامرتك <?php echo h($theme['sidekick']['icon']); ?></p>
     <div class="wl-line" id="wlLine"><?php echo h($lines[0]); ?></div>
     <div class="wl-progress" id="wlProgress"><?php foreach ($lines as $i => $_): ?><span class="<?php echo $i === 0 ? 'on' : ''; ?>"></span><?php endforeach; ?></div>
-    <a class="wl-go" id="wlGo" href="<?php echo h($next); ?>"><?php echo needs_assessment($child) ? '🚀 يلا نبدأ' : '🚀 إلى مهام اليوم'; ?></a>
+    <a class="wl-go" id="wlGo" href="<?php echo h($next); ?>"><?php echo $assessmentDue ? '🚀 يلا نبدأ' : '🚀 إلى الرئيسية'; ?></a>
     <a class="wl-skip" href="<?php echo h($next); ?>">تخطّي الترحيب</a>
   </section>
 </div>

@@ -18,6 +18,13 @@ $fail = function (string $msg, int $code = 400) { http_response_code($code); ech
 if (empty($_SESSION['child_id'])) $fail('غير مسجّل الدخول', 401);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') $fail('طريقة غير مدعومة', 405);
 $childId = (int)$_SESSION['child_id'];
+$childStmt = $pdo->prepare("SELECT * FROM children WHERE id = ?");
+$childStmt->execute([$childId]);
+$child = $childStmt->fetch();
+if (!$child) $fail('الحساب غير موجود', 401);
+if (!has_full_access($pdo, $child)) {
+    $fail('انتهت التجربة المجانية. لوحة الرسم تحتاج اشتراكاً مفعّلاً.', 403);
+}
 
 $raw = file_get_contents('php://input');
 if ($raw === false || strlen($raw) > 3 * 1024 * 1024) $fail('الرسمة كبيرة جداً');

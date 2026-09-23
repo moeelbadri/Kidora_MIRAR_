@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS children (
     ring_days INT DEFAULT 0,
     badges_json TEXT DEFAULT NULL,
     last_assessment_at DATETIME DEFAULT NULL,
+    trial_ends_at DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (character_1) REFERENCES characters(id) ON DELETE SET NULL,
     FOREIGN KEY (character_2) REFERENCES characters(id) ON DELETE SET NULL

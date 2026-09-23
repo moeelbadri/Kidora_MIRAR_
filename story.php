@@ -4,13 +4,11 @@ require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 $progress = ensure_daily_progress($pdo, $child['id']);
 
-$taskPool = json_decode_safe($progress['task_pool_ids'], []);
 $completedIds = json_decode_safe($progress['completed_task_ids'], []);
-$tasksDone = count($taskPool) > 0 && count($completedIds) >= count($taskPool);
 $gamesDone = (int)$progress['games_played'] >= STORY_MIN_GAMES;
-// القصة اليومية ميزة اشتراك: غير المشترك لا يولّدها أصلاً (لا زر ولا POST)
-$isPremium = is_premium_active($pdo, (int)$child['id']);
-$ready = $tasksDone && $gamesDone;
+// القصص والألعاب تبقى متاحة بعد انتهاء التجربة. لعبة واحدة تكفي لفتح قصة اليوم؛
+// المهام المدفوعة تثري النص أثناء التجربة/الاشتراك لكنها ليست شرطاً للتوليد.
+$ready = $gamesDone;
 
 // هل تُوجد قصة اليوم بالفعل؟
 $todayStory = null;
@@ -19,12 +17,12 @@ $st->execute([$child['id'], today_key()]);
 $todayStory = $st->fetch();
 
 // ---------------- توليد القصة ----------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_story']) && $isPremium && $ready && !$todayStory) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_story']) && $ready && !$todayStory) {
     $myChars = array_values(array_filter([get_character($pdo, $child['character_1']), get_character($pdo, $child['character_2'])]));
 
     $doneTasks = [];
     $tq = $pdo->prepare("SELECT * FROM tasks WHERE id = ?");
-    foreach ($taskPool as $tid) { $tq->execute([(int)$tid]); if ($row = $tq->fetch()) $doneTasks[] = $row; }
+    foreach ($completedIds as $tid) { $tq->execute([(int)$tid]); if ($row = $tq->fetch()) $doneTasks[] = $row; }
 
     $dayIndex = (int)$child['ring_days'] + 1;
     // الحكاية الكاملة (غلاف، افتتاحية، فصول، عقبة، شخصية تراثية، حكمة، خاتمة)
@@ -57,7 +55,6 @@ $todayStory = $st->fetch();
 
 $__pageTitle = 'قصتي اليومية — Kidora';
 if ($todayStory)      $__pageLine = "قصتك جاهزة! افتخر فيها 🎬";
-elseif (!$isPremium)  $__pageLine = "القصة اليومية المتحركة للمشتركين — خلّينا نشوف الاشتراكات مع بعض 💳";
 elseif ($ready)       $__pageLine = "حان وقت صنع قصتك الخاصة اليوم! ✨";
 else                  $__pageLine = "لسّا في شوي باقي قبل ما توصل لقصتك 🔒";
 require_once __DIR__ . '/includes/header.php';
@@ -68,13 +65,7 @@ require_once __DIR__ . '/includes/navbar.php';
   <div class="section-head">
     <div class="eyebrow">مكافأة اليوم</div>
     <h2 class="section-title">قصتي الخاصة اليوم</h2>
-    <p class="section-sub">
-      <?php if ($isPremium): ?>
-        بعد إنجاز مهامك اليومية ولعبة اليوم، تُبنى لوحة قصة واحدة عن مغامرة يومك الحقيقي — يقرأها رفيقك بصوته.
-      <?php else: ?>
-        القصة اليومية ميزة للمشتركين — لوحة واحدة تُبنى من مهام يومك ويقرأها رفيقك بصوته.
-      <?php endif; ?>
-    </p>
+    <p class="section-sub">بعد لعبة واحدة، تُبنى لك لوحة قصة يومية يقرأها رفيقك بصوته. وإذا أنجزت مهاماً اليوم تدخل مغامراتها في الحكاية أيضاً.</p>
   </div>
 
   <?php if ($todayStory): ?>
@@ -99,28 +90,14 @@ require_once __DIR__ . '/includes/navbar.php';
       });
     </script>
 
-  <?php elseif (!$isPremium): ?>
-    <div class="card" style="max-width:560px;margin:0 auto;padding:30px;text-align:center;">
-      <div style="font-size:44px;">🎬</div>
-      <h3 style="color:var(--ink);">قصتك اليومية المتحركة تنتظر الاشتراك</h3>
-      <p style="color:var(--ink-soft);line-height:2;">
-        كل يوم تُبنى لوحة قصة من مهامك أنت، وصوت رفيقك يحكيها،
-        ويمكن تنزيلها كفيديو ومشاركتها مع أهلك.
-      </p>
-      <p style="color:var(--ink-soft);">ومعها تُفتح مكتبة الألعاب كاملة بدل لعبتين.</p>
-      <a class="btn btn-primary btn-block" href="<?php echo BASE_PATH; ?>/subscriptions.php">شوف الاشتراكات 💳</a>
-      <a class="btn btn-ghost btn-sm" href="<?php echo BASE_PATH; ?>/games.php" style="margin-top:10px;">رجوع للألعاب 🎮</a>
-    </div>
-
   <?php elseif (!$ready): ?>
     <div class="card" style="max-width:520px;margin:0 auto;padding:30px;text-align:center;">
       <div style="font-size:44px;">🔒</div>
       <h3 style="color:var(--ink);">لسّا ما وصلت لهون!</h3>
       <ul style="text-align:right;color:var(--ink-soft);line-height:2;list-style:none;padding:0;">
-        <li><?php echo $tasksDone ? '✅' : '⬜'; ?> كل مهامك اليومية (باكج 4 مهام)</li>
         <li><?php echo $gamesDone ? '✅' : '⬜'; ?> لعبة اليوم من قسم الألعاب</li>
       </ul>
-      <a class="btn btn-primary" href="<?php echo $tasksDone ? 'games.php' : 'tasks.php'; ?>">اذهب <?php echo $tasksDone ? 'للألعاب' : 'لمهامي'; ?></a>
+      <a class="btn btn-primary" href="games.php">اذهب للألعاب</a>
     </div>
 
   <?php else: ?>

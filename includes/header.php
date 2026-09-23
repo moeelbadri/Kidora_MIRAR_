@@ -10,7 +10,7 @@ if (!empty($_SESSION['child_id'])) {
     $stmt = $pdo->prepare("SELECT * FROM children WHERE id = ?");
     $stmt->execute([$_SESSION['child_id']]);
     $__headerChild = $stmt->fetch() ?: null;
-    if ($__headerChild) $__activeChar = active_character($pdo, $__headerChild);
+    if ($__headerChild) $__activeChar = effective_character($pdo, $__headerChild);
 }
 if (!$__activeChar) {
     $all = all_characters($pdo);

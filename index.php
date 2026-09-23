@@ -28,7 +28,7 @@ if (empty($_SESSION['child_id'])) {
     if (isset($_GET['continue'])) {
         $autoChild = kidora_try_auto_login($pdo);
         if ($autoChild) {
-            header('Location: ' . (needs_assessment($autoChild) ? 'welcome.php' : 'dashboard.php'));
+            header('Location: ' . (has_full_access($pdo, $autoChild) && needs_assessment($autoChild) ? 'welcome.php' : 'dashboard.php'));
             exit;
         }
     } else {
@@ -45,7 +45,7 @@ if (!empty($_SESSION['child_id'])) {
     $chk = $pdo->prepare("SELECT * FROM children WHERE id = ?");
     $chk->execute([$_SESSION['child_id']]);
     $chkChild = $chk->fetch();
-    header('Location: ' . ($chkChild && needs_assessment($chkChild) ? 'welcome.php' : 'dashboard.php'));
+    header('Location: ' . ($chkChild && has_full_access($pdo, $chkChild) && needs_assessment($chkChild) ? 'welcome.php' : 'dashboard.php'));
     exit;
 }
 
@@ -65,7 +65,7 @@ if (!$prefillChar && !empty($_GET['char']) && preg_match('/^[a-z0-9_-]+$/i', (st
     $prefillChar = (int)($prefillStmt->fetchColumn() ?: 0);
 }
 $prefillCharRow = $prefillChar ? get_character($pdo, $prefillChar) : null;
-if (!$prefillCharRow || !empty($prefillCharRow['is_premium'])) $prefillChar = 0;
+if (!$prefillCharRow) $prefillChar = 0;
 
 /* ============================================================
    تسجيل الدخول
@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             $fullUser = $pdo->prepare("SELECT * FROM children WHERE id = ?");
             $fullUser->execute([$user['id']]);
             $fullUser = $fullUser->fetch();
-            header('Location: ' . (needs_assessment($fullUser) ? 'welcome.php' : 'dashboard.php'));
+            header('Location: ' . (has_full_access($pdo, $fullUser) && needs_assessment($fullUser) ? 'welcome.php' : 'dashboard.php'));
             exit;
         }
         $loginError = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
@@ -124,10 +124,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     } elseif (strlen($password) < 6) {
         $registerError = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.';
     } else {
-        $chk = $pdo->prepare("SELECT COUNT(*) c FROM characters WHERE id = ? AND is_premium = 0");
+        $chk = $pdo->prepare("SELECT COUNT(*) c FROM characters WHERE id = ?");
         $chk->execute([$char1]);
         if ((int)$chk->fetch()['c'] === 0) {
-            $registerError = 'هذه الشخصية مدفوعة ولا يمكن اختيارها قبل تفعيل الاشتراك.';
+            $registerError = 'الشخصية المختارة غير متاحة.';
         } else {
             $stmt = $pdo->prepare("SELECT id FROM children WHERE email = ?");
             $stmt->execute([$email]);
@@ -145,9 +145,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 }
                 if (!$registerError) {
                     $hashed = password_hash($password, PASSWORD_DEFAULT);
-                    $ins = $pdo->prepare("INSERT INTO children (name, email, password, age, parent_name, parent_phone, photo_path, character_1, character_2, active_character)
-                                           VALUES (?,?,?,?,?,?,?,?,?,?)");
-                    $ins->execute([$name, $email, $hashed, $age, $parentName, $parentPhone, $photoPath, $char1, $char2 ?: $char1, $char1]);
+                    $createdAt = date('Y-m-d H:i:s');
+                    $trialEndsAt = date('Y-m-d H:i:s', time() + TRIAL_DAYS * 86400);
+                    $ins = $pdo->prepare("INSERT INTO children (name, email, password, age, parent_name, parent_phone, photo_path, character_1, character_2, active_character, trial_ends_at, created_at)
+                                           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
+                    $ins->execute([$name, $email, $hashed, $age, $parentName, $parentPhone, $photoPath, $char1, $char2 ?: $char1, $char1, $trialEndsAt, $createdAt]);
                     $childId = (int)$pdo->lastInsertId();
 
                     $freePlan = $pdo->query("SELECT id FROM subscription_plans ORDER BY sort_order ASC, id ASC LIMIT 1")->fetch();
@@ -506,7 +508,7 @@ require_once __DIR__ . '/includes/public-nav.php';
       <div class="public-section-head">
         <span class="public-section-kicker">رفقاء الرحلة</span>
         <h2>اختر الشخصية التي تشبه خيالك</h2>
-        <p>جرّب أي شخصية في الديمو، ثم اختر رفيقك المجاني ليبدأ الرحلة معك.</p>
+        <p>كل الشخصيات متاحة عند إنشاء الحساب وتبقى مفتوحة طوال تجربة الأيام السبعة.</p>
       </div>
       <div class="public-carousel-shell">
         <button type="button" class="public-carousel-arrow prev" id="charPrev" aria-label="الشخصيات السابقة">›</button>
@@ -514,7 +516,7 @@ require_once __DIR__ . '/includes/public-nav.php';
           <div class="public-carousel-track" id="characterTrack">
             <?php foreach ($charDataForJS as $c): ?>
               <button type="button" class="public-character-card" data-char-id="<?php echo (int)$c['id']; ?>" style="--char-color:<?php echo h($c['color']); ?>" aria-haspopup="dialog">
-                <?php if ($c['is_premium']): ?><span class="public-character-badge is-premium">مدفوعة 🔒</span><?php else: ?><span class="public-character-badge">مجانية</span><?php endif; ?>
+                <?php if ($c['is_premium']): ?><span class="public-character-badge is-premium">تجربة ٧ أيام</span><?php else: ?><span class="public-character-badge">مجانية دائماً</span><?php endif; ?>
                 <span class="public-character-poster">
                   <?php if (!empty($c['image'])): ?><img src="<?php echo h($c['image']); ?>" alt="<?php echo h($c['name']); ?>" loading="lazy"><?php else: ?><?php echo h($c['icons'][0] ?? '✨'); ?><?php endif; ?>
                 </span>
@@ -629,8 +631,8 @@ require_once __DIR__ . '/includes/public-nav.php';
           <p class="public-pick-note">اختر رفيق المغامرة (شخصية واحدة). الرفيق المجاني الآخر يُضاف تلقائياً ويمكن التبديل بينهما من البروفايل. الشخصيات المدفوعة تُفتح بعد الترقية.</p>
           <div class="public-pick-grid" id="registerCharacterGrid">
             <?php foreach ($charDataForJS as $c): ?>
-              <button type="button" class="public-pick <?php echo $c['is_premium'] ? 'locked' : ''; ?>" data-pick-id="<?php echo (int)$c['id']; ?>" data-locked="<?php echo $c['is_premium'] ? '1' : '0'; ?>" style="--char-color:<?php echo h($c['color']); ?>">
-                <?php if ($c['is_premium']): ?><small>🔒 مدفوعة</small><?php endif; ?>
+              <button type="button" class="public-pick" data-pick-id="<?php echo (int)$c['id']; ?>" data-locked="0" style="--char-color:<?php echo h($c['color']); ?>">
+                <?php if ($c['is_premium']): ?><small>ضمن التجربة المجانية</small><?php endif; ?>
                 <span class="public-pick-media"><?php if (!empty($c['image'])): ?><img src="<?php echo h($c['image']); ?>" alt="<?php echo h($c['name']); ?>"><?php else: ?><?php echo h($c['icons'][0] ?? '✨'); ?><?php endif; ?></span>
                 <strong><?php echo h($c['name']); ?></strong>
               </button>

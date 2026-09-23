@@ -13,7 +13,9 @@ if (empty($_SESSION['child_id']) || $_SERVER['REQUEST_METHOD'] !== 'POST') { ech
 $stmt = $pdo->prepare("SELECT * FROM children WHERE id = ?");
 $stmt->execute([$_SESSION['child_id']]);
 $child = $stmt->fetch();
-if (!$child || !needs_assessment($child)) { echo json_encode(['ok' => false, 'done' => true]); exit; }
+if (!$child) { echo json_encode(['ok' => false, 'done' => true]); exit; }
+require_full_access_json($pdo, $child);
+if (!needs_assessment($child)) { echo json_encode(['ok' => false, 'done' => true]); exit; }
 
 $qSet = $_SESSION['assess_qids'] ?? [];
 $answered = $_SESSION['assess_answered'] ?? [];

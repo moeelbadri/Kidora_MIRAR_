@@ -2,6 +2,15 @@
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
+if (!has_full_access($pdo, $child)) {
+    $__pageTitle = 'مهامي اليومية — Kidora';
+    $__pageLine = 'انتهت التجربة المجانية. القصص والألعاب باقية لك، والمهام تعود مع الاشتراك.';
+    require_once __DIR__ . '/includes/header.php';
+    require_once __DIR__ . '/includes/navbar.php';
+    render_upgrade_gate('المهام اليومية');
+    require_once __DIR__ . '/includes/footer.php';
+    exit;
+}
 $progress = ensure_daily_progress($pdo, $child['id']);
 
 // ---------------- باكج اليوم: حتى 4 مهام نشطة، بلا فلتر عمر ----------------
@@ -27,7 +36,7 @@ if ($taskPool) {
 $orderedTasks = [];
 foreach ($taskPool as $tid) if (isset($tasksById[$tid])) $orderedTasks[] = $tasksById[$tid];
 $currentTask = $orderedTasks[$doneCount] ?? null;
-$companion = active_character($pdo, $child);
+$companion = effective_character($pdo, $child);
 $theme = character_theme($companion);
 
 $__pageTitle = 'مهامي اليومية — Kidora';

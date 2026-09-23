@@ -11,9 +11,19 @@ $stmt->execute([$_SESSION['child_id']]);
 $child = $stmt->fetch();
 if (!$child) { echo json_encode(['ok' => false]); exit; }
 
-$current = $child['active_character'] ?: $child['character_1'];
-$other = ($current == $child['character_1']) ? $child['character_2'] : $child['character_1'];
-if (!$other) { echo json_encode(['ok' => false, 'msg' => 'شخصية واحدة فقط']); exit; }
+$fullAccess = has_full_access($pdo, $child);
+$saved = active_character($pdo, $child);
+if (!$fullAccess && $saved && !empty($saved['is_premium'])) {
+    // لا نستبدل الاختيار المحفوظ لمجرد انتهاء التجربة؛ سيعود تلقائياً بعد الاشتراك.
+    echo json_encode(['ok' => false, 'msg' => 'رفيقك المحفوظ يعود مع الاشتراك']); exit;
+}
+$allowed = selectable_characters($pdo, $fullAccess);
+if (!$allowed) { echo json_encode(['ok' => false, 'msg' => 'لا توجد شخصية متاحة']); exit; }
+$allowedIds = array_map(fn($c) => (int)$c['id'], $allowed);
+$effective = effective_character($pdo, $child);
+$current = (int)($effective['id'] ?? 0);
+$idx = array_search($current, $allowedIds, true);
+$other = $allowedIds[$idx === false ? 0 : (($idx + 1) % count($allowedIds))];
 
 $upd = $pdo->prepare("UPDATE children SET active_character = ? WHERE id = ?");
 $upd->execute([$other, $child['id']]);

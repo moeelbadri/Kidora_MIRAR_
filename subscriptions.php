@@ -5,6 +5,8 @@ $child = require_login();
 
 $plans = $pdo->query("SELECT * FROM subscription_plans ORDER BY sort_order ASC")->fetchAll();
 $subRec = get_subscription_record($pdo, $child['id']);
+$tier = access_tier($pdo, $child);
+$trialEnd = trial_ends_at_for($child);
 
 // ---------------- معالجة طلب اشتراك ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_plan_id'])) {
@@ -41,8 +43,8 @@ $isWelcome = isset($_GET['welcome']);
 
 $__pageTitle = 'خطط الاشتراك — Kidora';
 $__pageLine = $isWelcome
-    ? "أهلاً فيك يا بطل! اختار خطتك، وإذا بدك تبلّش على طول اضغط متابعة 🚀"
-    : "اشتراكك المدفوع بيفتحلك شخصيات وألعاب وقصص أكتر بكتير! يلا نشترك سوا 💳";
+    ? "أهلاً فيك يا بطل! كل مزايا المنصة مفتوحة لك سبعة أيام لتجرّبها."
+    : "الاشتراك يفتح المهام والتحليل والحماية والرسم وكل الشخصيات بعد انتهاء التجربة.";
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
@@ -53,11 +55,16 @@ require_once __DIR__ . '/includes/navbar.php';
     <h2 class="section-title">اختر خطة اشتراكك (بالشيكل ₪)</h2>
     <p class="section-sub">
       <?php if ($isWelcome): ?>
-        تم إنشاء حسابك بنجاح! خطتك المجانية مفعّلة، وتقدر تبدأ مغامرتك فوراً. الاشتراك المدفوع يفتح باقي الشخصيات، مهام وقصص غير محدودة، وتقارير واتساب لولي الأمر.
+        تم إنشاء حسابك بنجاح! كل المزايا والشخصيات مفتوحة لك لمدة سبعة أيام. بعد انتهاء التجربة تبقى القصص والألعاب مجاناً، ويعيد الاشتراك فتح المهام والتحليل والحماية والرسم وبقية المزايا.
       <?php else: ?>
-        الاشتراك المدفوع يفتح باقي الشخصيات، مهام وقصص غير محدودة، وتقارير واتساب لولي الأمر.
+        القصص والألعاب متاحة للجميع. الاشتراك المدفوع يفتح المهام والتحليل والحماية والرسم وكل الشخصيات وتقارير واتساب لولي الأمر.
       <?php endif; ?>
     </p>
+    <?php if ($tier === 'trial' && $trialEnd): ?>
+      <p class="section-sub" style="color:var(--mint);font-weight:800;">تجربتك المجانية مفتوحة حتى <?php echo h($trialEnd->format('Y-m-d H:i')); ?></p>
+    <?php elseif ($tier === 'free'): ?>
+      <p class="section-sub" style="color:var(--gold);font-weight:800;">انتهت التجربة المجانية — القصص والألعاب ما زالت مفتوحة لك.</p>
+    <?php endif; ?>
   </div>
 
   <?php if ($isWelcome): ?>

@@ -15,6 +15,7 @@ $stmt = $pdo->prepare("SELECT * FROM children WHERE id = ?");
 $stmt->execute([$_SESSION['child_id']]);
 $child = $stmt->fetch();
 if (!$child) { echo json_encode(['ok' => false]); exit; }
+require_full_access_json($pdo, $child);
 
 $progress = ensure_daily_progress($pdo, (int)$child['id']);
 $pool = daily_task_pool($pdo, $child, $progress);
@@ -34,7 +35,7 @@ $pdo->prepare("UPDATE daily_progress SET completed_task_ids = ? WHERE id = ?")->
 $pdo->prepare("UPDATE children SET points = points + ? WHERE id = ?")->execute([(int)$task['points'], $child['id']]);
 
 $figure = figure_for_task($pdo, $task);
-$companion = active_character($pdo, $child);
+$companion = effective_character($pdo, $child);
 
 echo json_encode([
     'ok'         => true,

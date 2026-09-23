@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_profile'])) {
 
 // ---------------- تبديل الرفيق (شخصية واحدة نشطة؛ المدفوعة تتطلب اشتراكاً) ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_companion'])) {
-    $premiumUnlocked = is_premium_active($pdo, $child['id']);
+    $premiumUnlocked = has_full_access($pdo, $child);
     $pick = (int)($_POST['set_companion'] ?? 0);
     $row = $pick ? get_character($pdo, $pick) : null;
     if ($row && (empty($row['is_premium']) || $premiumUnlocked)) {
@@ -89,9 +89,9 @@ $myDrawings->execute([$child['id']]);
 $myDrawings = $myDrawings->fetchAll();
 $waShareBase = whatsapp_link($pdo, '', $child['parent_phone'] ?? '');
 
-$premiumUnlocked = is_premium_active($pdo, $child['id']);
-$allChars = selectable_characters($pdo, $premiumUnlocked);
-$activeChar = active_character($pdo, $child);
+$premiumUnlocked = has_full_access($pdo, $child);
+$allChars = all_characters($pdo);
+$activeChar = effective_character($pdo, $child);
 $activeTheme = character_theme($activeChar);
 $photoUrl = !empty($child['photo_path']) ? BASE_PATH . '/' . ltrim($child['photo_path'], '/') : null;
 $myStories = $pdo->prepare("SELECT * FROM daily_stories WHERE child_id = ? ORDER BY created_at DESC");
@@ -314,9 +314,9 @@ require_once __DIR__ . '/includes/navbar.php';
   </div>
 
   <h3 style="color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.35);">رفيقي — اختر من يرافقك</h3>
-  <p style="color:#D9D0FF;font-size:14px;margin-top:-6px;">اضغط على شخصية لتصير رفيقك فوراً. <?php if (!$premiumUnlocked): ?>الشخصيات المقفلة تُفتح مع <a href="subscriptions.php" style="color:var(--gold);font-weight:800;">الاشتراك المدفوع</a>.<?php endif; ?></p>
+  <p style="color:#D9D0FF;font-size:14px;margin-top:-6px;">اضغط على شخصية لتصير رفيقك فوراً. <?php if (!$premiumUnlocked): ?>انتهت التجربة؛ الشخصيات المقفلة تعود مع <a href="subscriptions.php" style="color:var(--gold);font-weight:800;">الاشتراك المدفوع</a>.<?php else: ?>كل الشخصيات مفتوحة خلال التجربة المجانية والاشتراك.<?php endif; ?></p>
   <div class="characters-grid pf-companions">
-    <?php foreach ($allChars as $c): $isActive = (int)$c['id'] === (int)($child['active_character'] ?: $child['character_1']); $locked = !empty($c['is_premium']) && !$premiumUnlocked; $th = character_theme($c); ?>
+    <?php foreach ($allChars as $c): $isActive = (int)$c['id'] === (int)($activeChar['id'] ?? 0); $locked = !empty($c['is_premium']) && !$premiumUnlocked; $th = character_theme($c); ?>
       <form method="POST" class="pf-companion <?php echo $isActive ? 'is-active' : ''; ?> <?php echo $locked ? 'is-locked' : ''; ?>" style="--card-color:<?php echo h($c['color']); ?>;">
         <button type="submit" name="set_companion" value="<?php echo (int)$c['id']; ?>" <?php echo $locked ? 'disabled' : ''; ?> aria-label="اختر <?php echo h($c['name']); ?>">
           <span class="pf-companion-media">

@@ -2,6 +2,15 @@
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
+if (!has_full_access($pdo, $child)) {
+    $__pageTitle = 'بطل الأمان — Kidora';
+    $__pageLine = 'مهمات الأمان تعود مع الاشتراك، والقصص والألعاب ما زالت مفتوحة لك.';
+    require_once __DIR__ . '/includes/header.php';
+    require_once __DIR__ . '/includes/navbar.php';
+    render_upgrade_gate('مهمات بطل الأمان');
+    require_once __DIR__ . '/includes/footer.php';
+    exit;
+}
 
 /* json_encode آمن */
 function safe_json($d){
@@ -711,7 +720,7 @@ function getProgress(){
 }
 let PROG = getProgress();
 const todayLesson = LESSONS[PROG.day % LESSONS.length];
-const STORY_OK = <?= is_premium_active($pdo, (int)$child['id']) ? 'true' : 'false' ?>;
+const STORY_OK = true;
 
 /* المهمة من ثلاث خطوات: 1 القاعدة (+فيديو) → 2 اللعبة → 3 الوسام */
 const SF_MAX_QUIZ = 3, SF_MAX_SCENES = 2;

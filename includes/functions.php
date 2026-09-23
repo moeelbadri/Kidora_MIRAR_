@@ -185,10 +185,85 @@ function is_premium_active(PDO $pdo, int $childId): bool {
 }
 
 /**
- * عدد ألعاب المكتبة المتاحة بلا اشتراك.
- * اللعبة الصغيرة التي تلي كل مهمة ليست منها — هي جزء من باكج المهمة ومجانية دائماً.
+ * نهاية التجربة المجانية. الحسابات القديمة التي لا تحمل قيمة صريحة تُحسب من
+ * created_at حتى لا تحصل تلقائياً على تجربة جديدة عند نشر التحديث.
  */
-const FREE_LIBRARY_GAMES = 2;
+const TRIAL_DAYS = 7;
+function trial_ends_at_for(array $child): ?DateTimeImmutable {
+    $raw = trim((string)($child['trial_ends_at'] ?? ''));
+    if ($raw === '') $raw = trim((string)($child['created_at'] ?? ''));
+    if ($raw === '') return null;
+    try {
+        $end = new DateTimeImmutable($raw);
+        return empty($child['trial_ends_at']) ? $end->modify('+' . TRIAL_DAYS . ' days') : $end;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function is_trial_active(array $child): bool {
+    $end = trial_ends_at_for($child);
+    return $end !== null && time() < $end->getTimestamp();
+}
+
+/** الاشتراك المدفوع أو التجربة السارية يفتح كل المنصة. */
+function has_full_access(PDO $pdo, array $child): bool {
+    return is_premium_active($pdo, (int)$child['id']) || is_trial_active($child);
+}
+
+/** وصف الحالة للواجهات: paid | trial | free. */
+function access_tier(PDO $pdo, array $child): string {
+    if (is_premium_active($pdo, (int)$child['id'])) return 'paid';
+    return is_trial_active($child) ? 'trial' : 'free';
+}
+
+/**
+ * الشخصية الظاهرة فعلياً. نحفظ اختيار الشخصية المدفوعة في الحساب عند انتهاء
+ * التجربة، لكن نعرض أول شخصية مجانية حتى يعود الاشتراك.
+ */
+function effective_character(PDO $pdo, array $child): ?array {
+    $selected = active_character($pdo, $child);
+    if (!$selected || empty($selected['is_premium']) || has_full_access($pdo, $child)) return $selected;
+
+    $stmt = $pdo->query("SELECT * FROM characters WHERE is_premium = 0 ORDER BY sort_order ASC, id ASC LIMIT 1");
+    return $stmt->fetch() ?: null;
+}
+
+/**
+ * بطاقة المنع الموحّدة للصفحات التعليمية بعد انتهاء التجربة.
+ * الصفحة تبقى قابلة للفتح كي يرى الطفل تفسيراً لطيفاً وطريق الاشتراك.
+ */
+function render_upgrade_gate(string $feature): void {
+    ?>
+    <div class="page-body">
+      <main class="container" style="padding-top:32px;">
+        <div class="card" style="max-width:620px;margin:0 auto;padding:34px 26px;text-align:center;">
+          <div style="font-size:52px;">🔒</div>
+          <h2 style="color:var(--ink);margin:8px 0;"><?php echo h($feature); ?> ضمن مزايا الاشتراك</h2>
+          <p style="color:var(--ink-soft);line-height:2;margin:0 0 18px;">
+            انتهت التجربة المجانية التي فتحت كل مزايا Kidora لمدة سبعة أيام.
+            القصص والألعاب ما زالت متاحة لك، ويمكن لولي الأمر تفعيل الاشتراك لإعادة فتح هذه الميزة وكل المنصة.
+          </p>
+          <a class="btn btn-primary" href="<?php echo BASE_PATH; ?>/subscriptions.php">شاهد خطط الاشتراك</a>
+          <a class="btn btn-ghost" href="<?php echo BASE_PATH; ?>/games.php" style="margin-inline-start:8px;">اذهب إلى الألعاب</a>
+        </div>
+      </main>
+    </div>
+    <?php
+}
+
+/** ردّ JSON موحّد عند محاولة تجاوز بوابة الاشتراك من API. */
+function require_full_access_json(PDO $pdo, array $child): void {
+    if (has_full_access($pdo, $child)) return;
+    http_response_code(403);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'انتهت التجربة المجانية. هذه الميزة تحتاج اشتراكاً مفعّلاً.',
+        'upgrade_url' => BASE_PATH . '/subscriptions.php',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 /** ألعاب اليوم المطلوبة قبل القصة اليومية — لعبة اليوم المقترحة تكفي (سبتمبر 2026) */
 const STORY_MIN_GAMES = 1;
 
@@ -201,34 +276,10 @@ function game_of_the_day(array $visibleGames, int $childId): ?array {
     return $visibleGames[$idx];
 }
 
-/**
- * ألعاب المكتبة التي يراها الطفل فعلاً.
- * غير المشترك يرى FREE_LIBRARY_GAMES فقط، ويُفضَّل أن تكون بآليات مختلفة
- * حتى تُظهر العيّنة تنوّع المكتبة لا آلية واحدة مكرّرة.
- */
-function visible_library_games(array $games, bool $premium): array {
-    if ($premium) return $games;
-
-    $picked = $seenTypes = $pickedIds = [];
-    foreach ($games as $g) {
-        if (count($picked) >= FREE_LIBRARY_GAMES) break;
-        if (in_array($g['type'], $seenTypes, true)) continue;
-        $seenTypes[] = $g['type'];
-        $pickedIds[] = $g['id'];
-        $picked[] = $g;
-    }
-    // مكتبة بآلية واحدة فقط: أكمل العدد بالترتيب
-    foreach ($games as $g) {
-        if (count($picked) >= FREE_LIBRARY_GAMES) break;
-        if (!in_array($g['id'], $pickedIds, true)) { $pickedIds[] = $g['id']; $picked[] = $g; }
-    }
-    return $picked;
-}
-
-/** الشخصيات المتاحة للاختيار: المجانية دائماً + الحصرية فقط إن كان الاشتراك مفعّلاً */
-function selectable_characters(PDO $pdo, bool $premiumUnlocked): array {
+/** الشخصيات المتاحة: كلها مع الاشتراك أو التجربة، والمجانية بعد انتهائهما. */
+function selectable_characters(PDO $pdo, bool $fullAccess): array {
     $all = all_characters($pdo);
-    if ($premiumUnlocked) return $all;
+    if ($fullAccess) return $all;
     return array_values(array_filter($all, fn($c) => !$c['is_premium']));
 }
 
@@ -926,8 +977,11 @@ function daily_story_scenes(PDO $pdo, array $child, array $doneTasks, array $com
     ];
     $moral = $morals[$topCat] ?? 'كل يوم نحاول فيه هو يوم ننتصر فيه';
 
+    $achievementLine = $doneTasks
+        ? " وعند الغروب، {$totalPts} نجمة تلمع في جيب {$name} ✨"
+        : " وفي هذه الرحلة، لعبة اليوم صارت باباً لحكاية جديدة لـ{$name} ✨";
     $caption = $pickOne($openings) . $journey . $figureLine
-        . " وعند الغروب، {$totalPts} نجمة تلمع في جيب {$name} ✨ وحكمة اليوم: {$moral} 🌙";
+        . $achievementLine . " وحكمة اليوم: {$moral} 🌙";
 
     $quote = $pickOne([
         "هذا ما أسمّيه شجاعة! نلتقي غداً على أول الطريق.",

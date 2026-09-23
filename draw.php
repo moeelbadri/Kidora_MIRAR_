@@ -3,8 +3,17 @@
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
+if (!has_full_access($pdo, $child)) {
+    $__pageTitle = 'لوحتي — Kidora';
+    $__pageLine = 'لوحة الرسم تعود مع الاشتراك، والقصص والألعاب ما زالت مفتوحة لك.';
+    require_once __DIR__ . '/includes/header.php';
+    require_once __DIR__ . '/includes/navbar.php';
+    render_upgrade_gate('لوحة الرسم');
+    require_once __DIR__ . '/includes/footer.php';
+    exit;
+}
 $progress = ensure_daily_progress($pdo, $child['id']);
-$activeChar = active_character($pdo, $child);
+$activeChar = effective_character($pdo, $child);
 $stamps = $activeChar ? character_icons($activeChar) : ['✨','⭐','🌟'];
 
 $recent = $pdo->prepare("SELECT * FROM drawings WHERE child_id = ? ORDER BY id DESC LIMIT 6");

@@ -6,19 +6,13 @@ $progress = ensure_daily_progress($pdo, $child['id']);
 
 $games = $pdo->query("SELECT * FROM games ORDER BY category, id")->fetchAll();
 
-// غير المشترك يرى عيّنة من المكتبة فقط. اللعبة التالية لكل مهمة تبقى مجانية.
-$isPremium = is_premium_active($pdo, (int)$child['id']);
-$totalGames = count($games);
-$games = visible_library_games($games, $isPremium);
-$lockedCount = $totalGames - count($games);
-
+// القصص والألعاب تبقى كاملة بعد انتهاء التجربة؛ الاشتراك يخص بقية المنصة.
 $categories = [];
 foreach ($games as $g) { $categories[$g['category']][] = $g; }
 
 // لعبة اليوم المقترحة من الرفيق (ثابتة طول اليوم). ?from=tasks: جاء من إنهاء الباكج
 $gameOfDay = game_of_the_day(array_values($games), (int)$child['id']);
 $fromTasks = isset($_GET['from']) && $_GET['from'] === 'tasks';
-$isPremiumForStory = $isPremium;
 
 $CATEGORY_META = [
     'تربوي'  => ['icon'=>'📚','color'=>'#6C63FF'],
@@ -42,11 +36,7 @@ require_once __DIR__ . '/includes/navbar.php';
     <div class="eyebrow">مكتبة الألعاب</div>
     <h2 class="section-title">كل الألعاب</h2>
     <p class="section-sub">
-      <?php if ($isPremium): ?>
-        ألعاب متنوعة تربوية وعلمية واجتماعية وسلوكية وثقافية — العب واحدة على الأقل لتفتح قصتك اليومية لاحقاً!
-      <?php else: ?>
-        هاتان لعبتاك المجانيتان لليوم. مع الاشتراك تُفتح المكتبة كاملة 🎮
-      <?php endif; ?>
+      ألعاب متنوعة تربوية وعلمية واجتماعية وسلوكية وثقافية — المكتبة كاملة متاحة للجميع، والعب واحدة على الأقل لتفتح قصتك اليومية!
     </p>
     <p class="section-sub" style="color:var(--mint);">ألعابك بلا مؤقّت، وبتنقرأ عليك بصوت صاحبك 🔊</p>
   </div>
@@ -91,15 +81,6 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
   <?php endforeach; ?>
 
-  <?php if ($lockedCount > 0): ?>
-    <div class="card" style="max-width:520px;margin:24px auto 0;padding:26px;text-align:center;">
-      <div style="font-size:40px;">🔓</div>
-      <h3 style="color:var(--ink);">في <?php echo (int)$lockedCount; ?> لعبة كمان مستنيّاك!</h3>
-      <p style="color:var(--ink-soft);">مع الاشتراك تُفتح المكتبة كاملة، وكذلك قصتك اليومية المتحركة.</p>
-      <a class="btn btn-primary" href="<?php echo BASE_PATH; ?>/subscriptions.php">شوف الاشتراكات 💳</a>
-    </div>
-  <?php endif; ?>
-
   <div id="gameHost" style="margin-top:20px;"></div>
 
   <div style="text-align:center;margin:30px 0;">
@@ -121,7 +102,7 @@ require_once __DIR__ . '/includes/navbar.php';
       <a href="story.php" class="choice-opt choice-story">
         <span class="choice-emoji">📖</span>
         <b>قصتي اليومية</b>
-        <small><?php echo $isPremiumForStory ? 'قصة مغامرتك الحقيقية اليوم' : 'مكافأة المشتركين — نشوفها معاً'; ?></small>
+        <small>قصة مغامرتك الحقيقية اليوم</small>
       </a>
     </div>
     <button type="button" class="choice-close" onclick="closeChoice()">أكمل اللعب هنا 🎮</button>

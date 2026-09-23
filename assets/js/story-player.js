@@ -338,15 +338,20 @@ const StoryPlayer = (function () {
   }
 
   function wrapLines(ctx, text, maxWidth) {
-    const words = String(text).split(" ");
-    let line = "", lines = [];
-    words.forEach(w => {
-      const test = line + w + " ";
-      if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = w + " "; }
-      else line = test;
-    });
-    lines.push(line);
-    return lines.map(l => l.trim());
+    const lines = [];
+    let line = '';
+    for (const word of String(text || '').trim().split(/\s+/u).filter(Boolean)) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (ctx.measureText(candidate).width <= maxWidth) { line = candidate; continue; }
+      if (line) { lines.push(line); line = ''; }
+      // Break a single unusually long token rather than drawing it outside the card.
+      for (const char of Array.from(word)) {
+        if (ctx.measureText(line + char).width > maxWidth && line) { lines.push(line); line = ''; }
+        line += char;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
   }
   function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
     const lines = wrapLines(ctx, text, maxWidth);
@@ -354,115 +359,218 @@ const StoryPlayer = (function () {
     lines.forEach((l, i) => ctx.fillText(l, x, startY + i * lineHeight));
   }
 
-  function exportVideo(story, xopts = {}) {
-    if (!("MediaRecorder" in window)) { alert('التصدير كفيديو غير مدعوم على هذا المتصفح'); return; }
-    const canvas = document.createElement("canvas");
-    canvas.width = 640; canvas.height = 360;
-    const ctx = canvas.getContext("2d");
-    const stream = canvas.captureStream(30);
-    let recorder;
+  function roundBox(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  function coverCircle(ctx, img, x, y, diameter, color) {
+    if (!img || !img.naturalWidth) return false;
+    const scale = Math.max(diameter / img.naturalWidth, diameter / img.naturalHeight);
+    const sw = diameter / scale, sh = diameter / scale;
+    ctx.save(); ctx.beginPath(); ctx.arc(x, y, diameter / 2, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2,
+      sw, sh, x - diameter / 2, y - diameter / 2, diameter, diameter);
+    ctx.restore();
+    ctx.lineWidth = 7; ctx.strokeStyle = color;
+    ctx.beginPath(); ctx.arc(x, y, diameter / 2, 0, Math.PI * 2); ctx.stroke();
+    return true;
+  }
+
+  function loadImage(src) {
+    if (!src) return Promise.resolve(null);
+    return new Promise(resolve => {
+      const img = new Image();
+      if (/^https?:\/\//i.test(src) && new URL(src, location.href).origin !== location.origin) img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  function singlePages(ctx, caption) {
+    for (const size of [42, 38, 34, 30]) {
+      ctx.font = `600 ${size}px Cairo, sans-serif`;
+      const lines = wrapLines(ctx, caption, 1480);
+      const lineHeight = Math.round(size * 1.65);
+      if (lines.length * lineHeight <= 315) return { size, lineHeight, pages: [lines] };
+    }
+    ctx.font = '600 30px Cairo, sans-serif';
+    const lines = wrapLines(ctx, caption, 1480);
+    const perPage = Math.floor(315 / 50);
+    const pages = [];
+    for (let i = 0; i < lines.length; i += perPage) pages.push(lines.slice(i, i + perPage));
+    return { size: 30, lineHeight: 50, pages: pages.length ? pages : [[]] };
+  }
+
+  /** Replicate the actual daily poster in a wide video frame, without cropping Arabic. */
+  function drawSingleVideo(ctx, story, layout, index, photo, companion) {
+    const s = story.scenes[0], W = 1920, H = 1080;
+    const x = 140, y = 30, w = 1640, h = 1020, artH = 395;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.direction = 'rtl';
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#1B1035'); bg.addColorStop(1, '#3A2A75');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    ctx.save(); roundBox(ctx, x, y, w, h, 36); ctx.clip();
+    ctx.fillStyle = '#FFF9EE'; ctx.fillRect(x, y, w, h);
+    const [g1, g2] = String(s.grad || '#6C63FF,#FF6FA5').split(',');
+    const gradient = ctx.createLinearGradient(x, y, x + w, y + artH);
+    gradient.addColorStop(0, g1.trim()); gradient.addColorStop(1, (g2 || g1).trim());
+    ctx.fillStyle = gradient; ctx.fillRect(x, y, w, artH);
+    const sky = ctx.createRadialGradient(x + 350, y + 90, 5, x + 350, y + 90, 430);
+    sky.addColorStop(0, 'rgba(255,255,255,.35)'); sky.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sky; ctx.fillRect(x, y, w, artH);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, artH); ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,.22)';
+    ctx.beginPath(); ctx.ellipse(x + 460, y + artH - 8, 680, 138, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.3)';
+    ctx.beginPath(); ctx.ellipse(x + 1340, y + artH + 4, 720, 158, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+    ctx.font = '134px sans-serif'; ctx.fillText(s.icon || '📖', W / 2, y + 170);
+    if (!coverCircle(ctx, photo, x + w - 145, y + artH - 125, 145, '#FFC93C')) {
+      ctx.font = '108px sans-serif'; ctx.fillText('🧒', x + w - 145, y + artH - 125);
+    }
+    if (story.childName) {
+      ctx.font = '800 27px Cairo, sans-serif';
+      const nameWidth = Math.min(345, ctx.measureText(story.childName).width + 40);
+      ctx.fillStyle = 'rgba(255,255,255,.93)';
+      roundBox(ctx, x + w - 145 - nameWidth / 2, y + artH - 45, nameWidth, 40, 20); ctx.fill();
+      ctx.fillStyle = '#241645'; ctx.fillText(story.childName, x + w - 145, y + artH - 24);
+    }
+    const face = window.KIDAURA_ACTIVE_CHARACTER || {};
+    if (!coverCircle(ctx, companion, x + 150, y + artH - 125, 145, '#fff')) {
+      ctx.font = '95px sans-serif'; ctx.fillStyle = '#fff';
+      ctx.fillText(story.spriteFace || (face.icons && face.icons[0]) || '✨', x + 150, y + artH - 125);
+    }
+    ctx.fillStyle = '#241645'; ctx.font = '800 49px "Baloo Bhaijaan 2", sans-serif';
+    ctx.fillText(s.title || story.title || '', W / 2, y + artH + 70, w - 110);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.font = `600 ${layout.size}px Cairo, sans-serif`;
+    const textX = x + w - 80, textTop = y + artH + 120;
+    for (const [line, i] of layout.pages[index].map((line, i) => [line, i])) {
+      ctx.fillText(line, textX, textTop + i * layout.lineHeight, w - 160);
+    }
+    if (s.quote) {
+      const qY = y + h - 150;
+      ctx.fillStyle = '#fff'; roundBox(ctx, x + 80, qY, w - 160, 125, 24); ctx.fill();
+      ctx.fillStyle = '#6C63FF'; ctx.font = '700 25px Cairo, sans-serif';
+      ctx.fillText(s.speaker || '', x + w - 120, qY + 12, w - 240);
+      ctx.fillStyle = '#241645'; ctx.font = '700 29px Cairo, sans-serif';
+      ctx.fillText(`«${s.quote}»`, x + w - 120, qY + 59, w - 240);
+    }
+    ctx.restore();
+    if (layout.pages.length > 1) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.direction = 'rtl';
+      ctx.fillStyle = '#fff'; ctx.font = '700 25px Cairo, sans-serif';
+      ctx.fillText(`${index + 1} / ${layout.pages.length}`, W / 2, 1060);
+    }
+  }
+
+  async function exportVideo(story, xopts = {}) {
+    if (!("MediaRecorder" in window) || !HTMLCanvasElement.prototype.captureStream) {
+      alert('التصدير كفيديو غير مدعوم على هذا المتصفح'); return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920; canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { alert('تعذّر إنشاء الفيديو على هذا المتصفح'); return; }
+    const single = !!xopts.book && story.scenes.length === 1;
     try {
-      recorder = new MediaRecorder(stream, { mimeType: "video/mp4" });
+      if (document.fonts) {
+        await Promise.all([document.fonts.load('600 42px Cairo'), document.fonts.load('800 49px "Baloo Bhaijaan 2"')]);
+        await document.fonts.ready;
+      }
+      const face = window.KIDAURA_ACTIVE_CHARACTER || {};
+      const faceUrl = face.image && (/^(?:https?:|\/)/i.test(face.image) ? face.image : `${window.KIDAURA_BASE || ''}/${face.image}`);
+      const [photoImg, companionImg] = await Promise.all([loadImage(story.photo), loadImage(faceUrl)]);
+      const layout = single ? singlePages(ctx, story.scenes[0].caption || '') : null;
+      const stream = canvas.captureStream(30);
+      let recorder = null;
+      for (const mimeType of ['video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']) {
+        if (MediaRecorder.isTypeSupported && !MediaRecorder.isTypeSupported(mimeType)) continue;
+        try { recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 }); break; } catch (e) {}
+      }
+      if (!recorder) recorder = new MediaRecorder(stream);
+      const outExt = recorder.mimeType && recorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const chunks = [];
+      recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      recorder.onerror = () => alert('تعذّر تسجيل الفيديو. جرّب متصفحاً آخر.');
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+        if (!blob.size) { alert('لم يُنشأ الفيديو. جرّب متصفحاً آخر.'); return; }
+        if (typeof xopts.onBlob === 'function') xopts.onBlob(blob);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `${(story.title || 'kidora-story').replace(/\s+/g, '_')}.${outExt}`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      };
+      if (single) {
+        recorder.start();
+        for (let i = 0; i < layout.pages.length; i++) {
+          const draw = () => drawSingleVideo(ctx, story, layout, i, photoImg, companionImg);
+          draw();
+          const textLength = layout.pages[i].join(' ').length;
+          const duration = Math.min(20000, Math.max(6000, textLength * 70));
+          const started = performance.now();
+          await new Promise(resolve => {
+            const timer = setInterval(() => {
+              draw();
+              if (performance.now() - started >= duration) { clearInterval(timer); resolve(); }
+            }, 100);
+          });
+        }
+        recorder.stop();
+        return;
+      }
+      // القصص متعددة المشاهد تُرسم أيضاً بدقة 1920×1080، وتكمل في إطار تالٍ بدل قصّ النص.
+      const drawOther = (s, i, lines) => {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.direction = 'rtl'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const [c1, c2] = String(s.grad || '#6C63FF,#FF6FA5').split(',');
+        const gradient = ctx.createLinearGradient(0, 0, 1920, 1080);
+        gradient.addColorStop(0, c1.trim()); gradient.addColorStop(1, (c2 || c1).trim());
+        ctx.fillStyle = xopts.book ? '#FFF9EE' : gradient; ctx.fillRect(0, 0, 1920, 1080);
+        if (xopts.book) {
+          ctx.fillStyle = gradient; roundBox(ctx, 70, 55, 1780, 510, 30); ctx.fill();
+        }
+        ctx.fillStyle = '#fff'; ctx.font = '170px sans-serif';
+        ctx.fillText(s.icon || story.spriteFace || '✨', 960, xopts.book ? 290 : 315);
+        if (photoImg) coverCircle(ctx, photoImg, 1680, 455, 140, '#FFC93C');
+        if (xopts.book && companionImg) coverCircle(ctx, companionImg, 235, 455, 140, '#fff');
+        ctx.fillStyle = xopts.book ? '#241645' : '#fff';
+        ctx.font = '800 68px "Baloo Bhaijaan 2", sans-serif';
+        ctx.fillText(s.title || ribbonLabel(story, i), 960, xopts.book ? 635 : 560, 1650);
+        ctx.font = '600 48px Cairo, sans-serif';
+        lines.forEach((line, n) => ctx.fillText(line, 960, (xopts.book ? 730 : 690) + n * 68, 1590));
+      };
+      recorder.start();
+      for (let i = 0; i < story.scenes.length; i++) {
+        ctx.font = '600 48px Cairo, sans-serif';
+        const lines = wrapLines(ctx, story.scenes[i].caption || '', 1590);
+        const pages = [];
+        for (let n = 0; n < lines.length; n += 4) pages.push(lines.slice(n, n + 4));
+        if (!pages.length) pages.push([]);
+        for (const page of pages) {
+          const draw = () => drawOther(story.scenes[i], i, page);
+          draw();
+          await new Promise(resolve => {
+            const timer = setInterval(draw, 100);
+            setTimeout(() => { clearInterval(timer); resolve(); }, xopts.book ? 3200 : 2200);
+          });
+        }
+      }
+      recorder.stop();
     } catch (e) {
-      recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+      alert('تعذّر تصدير الفيديو على هذا المتصفح. جرّب متصفحاً آخر.');
     }
-    const outExt = recorder.mimeType && recorder.mimeType.includes("mp4") ? "mp4" : "webm";
-    const chunks = [];
-    recorder.ondataavailable = e => chunks.push(e.data);
-    // القصة ذات المشهد الواحد تبقى على الشاشة بقدر ما يحتاج نصّها للقراءة
-    const single = story.scenes.length === 1;
-    const perScene = single ? Math.min(20000, Math.max(6000, String(story.scenes[0].caption || '').length * 70)) : (xopts.book ? 3200 : 2200);
-    const photoImg = story.photo ? Object.assign(new Image(), { src: story.photo }) : null;
-
-    function drawScene(s) {
-      const [c1, c2] = s.grad.split(",");
-      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      grad.addColorStop(0, c1); grad.addColorStop(1, c2 || c1);
-      ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.textAlign = "center";
-
-      if (s.icon) {
-        ctx.font = "72px sans-serif";
-        ctx.fillText(s.icon, canvas.width / 2, 150);
-      }
-      if (s.title) {
-        ctx.font = "800 26px Baloo Bhaijaan 2, sans-serif";
-        ctx.fillStyle = "#FFC93C";
-        ctx.fillText(s.title, canvas.width / 2, s.icon ? 196 : 150);
-      }
-
-      ctx.fillStyle = "rgba(0,0,0,.28)";
-      ctx.fillRect(0, canvas.height - 120, canvas.width, 120);
-      ctx.fillStyle = "#fff";
-      ctx.font = "600 22px Cairo, sans-serif";
-      wrapText(ctx, s.caption, canvas.width / 2, canvas.height - 60, canvas.width - 80, 30);
-      ctx.font = "800 16px Baloo Bhaijaan 2, sans-serif";
-      ctx.fillStyle = "#FFC93C";
-      ctx.fillText("Kidora ✨", canvas.width / 2, 40);
-    }
-
-    /** صفحة الكتاب نفسها: ورق فاتح، لوحة ملوّنة في الأعلى، نص داكن في الأسفل */
-    function drawBookScene(s, i) {
-      const W = canvas.width, H = canvas.height;
-      ctx.fillStyle = "#FFF9EE"; ctx.fillRect(0, 0, W, H);
-      // اللوحة
-      const [c1, c2] = String(s.grad).split(",");
-      const g = ctx.createLinearGradient(0, 0, W, 190);
-      g.addColorStop(0, c1); g.addColorStop(1, c2 || c1);
-      ctx.fillStyle = g; ctx.fillRect(20, 16, W - 40, 190);
-      ctx.fillStyle = "rgba(255,255,255,.18)";
-      ctx.beginPath(); ctx.ellipse(W * .3, 206, 260, 60, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,.28)";
-      ctx.beginPath(); ctx.ellipse(W * .78, 210, 220, 52, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.textAlign = "center";
-      ctx.font = "84px sans-serif";
-      ctx.fillStyle = "#fff";
-      ctx.fillText(s.icon || '✨', W / 2, 130);
-      // صورة الطفل في إطار دائري يمين اللوحة
-      if (photoImg && photoImg.complete && photoImg.naturalWidth) {
-        ctx.save(); ctx.beginPath(); ctx.arc(W - 80, 160, 34, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
-        ctx.drawImage(photoImg, W - 114, 126, 68, 68); ctx.restore();
-        ctx.strokeStyle = "#FFC93C"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(W - 80, 160, 34, 0, Math.PI * 2); ctx.stroke();
-      }
-      // شريط الفصل
-      const label = ribbonLabel(story, i);
-      ctx.font = "800 15px Baloo Bhaijaan 2, sans-serif";
-      const lw = ctx.measureText(label).width + 28;
-      ctx.fillStyle = "#FFC93C"; ctx.fillRect(W - 20 - lw, 28, lw, 28);
-      ctx.fillStyle = "#241645"; ctx.fillText(label, W - 20 - lw / 2, 47);
-      // النص
-      ctx.fillStyle = "#241645";
-      if (s.title) { ctx.font = "800 22px Baloo Bhaijaan 2, sans-serif"; ctx.fillText(s.title, W / 2, 238); }
-      const maxLines = story.scenes.length === 1 ? 7 : 4;
-      ctx.font = maxLines > 4 ? "600 14px Cairo, sans-serif" : "600 17px Cairo, sans-serif";
-      const lh = maxLines > 4 ? 19 : 24;
-      const lines = wrapLines(ctx, s.caption, W - 90).slice(0, maxLines);
-      lines.forEach((l, k) => ctx.fillText(l, W / 2, 262 + k * lh));
-      if (s.quote) {
-        ctx.fillStyle = "#6C63FF"; ctx.font = "700 14px Cairo, sans-serif";
-        ctx.fillText(`${s.speaker ? s.speaker + ': ' : ''}«${s.quote}»`, W / 2, H - 14);
-      }
-      ctx.fillStyle = "#8b7aa8"; ctx.font = "800 12px Baloo Bhaijaan 2, sans-serif";
-      ctx.textAlign = "left"; ctx.fillText(`${i + 1} / ${story.scenes.length}`, 24, H - 14);
-      ctx.textAlign = "right"; ctx.fillText("Kidora ✨", W - 24, H - 14);
-    }
-
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
-      if (typeof xopts.onBlob === 'function') xopts.onBlob(blob);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `${(story.title || 'kidaura-story').replace(/\s+/g,'_')}.${outExt}`;
-      document.body.appendChild(a); a.click(); a.remove();
-    };
-    recorder.start();
-    let i = 0;
-    (function next() {
-      if (i >= story.scenes.length) { recorder.stop(); return; }
-      if (xopts.book) drawBookScene(story.scenes[i], i); else drawScene(story.scenes[i]);
-      i++;
-      setTimeout(next, perScene);
-    })();
   }
 
   return { render, narrate, share, exportVideo };
