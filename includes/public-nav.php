@@ -61,3 +61,45 @@ $__publicNavCompact = !empty($__publicNavCompact);
   @media(max-width:700px){.public-nav-inner{width:min(100% - 20px,560px);min-height:64px;gap:10px}.public-brand{font-size:21px}.public-brand-mark{width:31px;height:31px;font-size:19px;border-radius:10px}.public-nav-links{display:none}.public-nav-login{display:none}.public-nav-demo{padding:8px 12px;font-size:12px}.public-voice-toggle{width:36px;height:36px;font-size:15px}}
   @media(prefers-reduced-motion:reduce){.public-nav-demo{animation:none}}
 </style>
+
+
+<script>
+(function(){
+  const btn = document.getElementById('voiceToggle');
+  if (!btn) return;
+
+  // حدد الحالة من localStorage
+  const isOn = localStorage.getItem('kidaura_voice') !== 'off';
+  btn.classList.toggle('on', isOn);
+  btn.textContent = isOn ? '🔊' : '🔇';
+
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // 🔓 افتح القفل دائماً
+    if (window.SoundEngine && SoundEngine.unlockAudio) {
+      SoundEngine.unlockAudio();
+    }
+
+    // بدّل الحالة
+    const currentlyOn = window.SoundEngine && SoundEngine.isVoiceEnabled ? SoundEngine.isVoiceEnabled() : true;
+    const nowOn = !currentlyOn;
+
+    if (window.SoundEngine && SoundEngine.setVoiceEnabled) {
+      SoundEngine.setVoiceEnabled(nowOn);
+    }
+    localStorage.setItem('kidaura_voice', nowOn ? 'on' : 'off');
+    btn.classList.toggle('on', nowOn);
+    btn.textContent = nowOn ? '🔊' : '🔇';
+
+    // جرّب الصوت
+    if (nowOn && window.Companion && Companion.say) {
+      setTimeout(() => {
+        Companion.say('أنا معك! هل تسمعني الآن؟', { mood: 'wave' });
+      }, 200);
+    }
+  });
+})();
+</script>
+
