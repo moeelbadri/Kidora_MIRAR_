@@ -14,8 +14,41 @@ const SoundEngine = (function () {
   let cachedVoice = null;
   const listeners = { start: [], end: [] };
 
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  let hasUserGesture = false;
+  let unlocked = false;
+
+  /* ---------- تتبّع أول تفاعل من المستخدم (iOS يطلبه) ---------- */
+  if (typeof document !== "undefined") {
+    const markGesture = () => {
+      hasUserGesture = true;
+      // 🔓 فتح قفل الأصوات فوراً على الجوال
+      if (isMobile && !unlocked) {
+        unlocked = true;
+        try {
+          const warm = new SpeechSynthesisUtterance(" ");
+          warm.volume = 0.001;
+          warm.lang = "ar-SA";
+          window.speechSynthesis.speak(warm);
+        } catch (e) {}
+        try {
+          const ac = new (window.AudioContext || window.webkitAudioContext)();
+          if (ac.state === "suspended") ac.resume();
+          audioCtx = ac;
+        } catch (e) {}
+      }
+      document.removeEventListener("touchstart", markGesture);
+      document.removeEventListener("touchend", markGesture);
+      document.removeEventListener("click", markGesture);
+      document.removeEventListener("keydown", markGesture);
+    };
+    document.addEventListener("touchstart", markGesture, { once: true, passive: true });
+    document.addEventListener("touchend", markGesture, { once: true, passive: true });
+    document.addEventListener("click", markGesture, { once: true });
+    document.addEventListener("keydown", markGesture, { once: true });
+  }
+
   // ---------- تنظيف النص قبل النطق ----------
-  // الإيموجي والرموز التصويرية والأسهم والنقاط الزخرفية تُحذف؛ الفواصل تصبح وقفات.
   const EMOJI_RE = /[\p{Extended_Pictographic}\p{Emoji_Presentation}\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
   const SYMBOL_RE = /[\u2190-\u21FF\u2300-\u23FF\u2500-\u27BF\u2B00-\u2BFF\u{1F000}-\u{1FAFF}•▪▮●▲■○◌✦✧·]/gu;
   function cleanSpeech(text) {
@@ -45,7 +78,7 @@ const SoundEngine = (function () {
     if (/online/.test(n)) s += 20;
     if (/google/.test(n)) s += 25;
     if (/microsoft/.test(n)) s += 15;
-    if (/salma|hoda|zariyah|laila|amany|female|زينب|سلمى|هدى/.test(n)) s += 10; // نبرة أدفأ لسرد الأطفال
+    if (/salma|hoda|zariyah|laila|amany|female|زينب|سلمى|هدى/.test(n)) s += 10;
     if (/^ar-(sa|eg|ae|jo|ps|lb|kw|qa|ma|dz|tn|iq|sy)/i.test(v.lang)) s += 5;
     if (v.localService === false) s += 3;
     return s;
@@ -65,6 +98,8 @@ const SoundEngine = (function () {
   }
   if ("speechSynthesis" in window) {
     window.speechSynthesis.onvoiceschanged = () => { cachedVoice = null; pickBestVoice(); };
+    // 🔥 حمّل الأصوات مبكراً
+    window.speechSynthesis.getVoices();
   }
   function listVoices() {
     const arabic = arabicVoices();
@@ -103,21 +138,9 @@ const SoundEngine = (function () {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }
 
-  function ensureVoice(cb) {
-    const v = pickBestVoice();
-    if (v) { cb(v); return; }
-    if (!("speechSynthesis" in window)) { cb(null); return; }
-    let handled = false;
-    const onVoices = () => {
-      if (handled) return;
-      handled = true;
-      cachedVoice = null;
-      cb(pickBestVoice());
-    };
-    try { window.speechSynthesis.addEventListener("voiceschanged", onVoices, { once: true }); } catch (e) {}
-    setTimeout(() => { if (!handled) { handled = true; cb(pickBestVoice()); } }, 350);
-  }
-
+  /* ============================================================
+     ⚡ speak() — نسخة سريعة تعمل مباشرة على اللاب والجوال
+     ============================================================ */
   function speak(text, charData, opts) {
     opts = opts || {};
     const clean = cleanSpeech(text);
@@ -139,32 +162,56 @@ const SoundEngine = (function () {
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     } catch (e) {}
 
-    // لا تداخل بين الموسيقى وصوت الرفيق: تتوقف الآن وتعود بعد آخر كلمة
     if (musicTimer) { stopMusic(); musicPausedForSpeech = true; }
 
-    ensureVoice(voice => {
-      if (ended || gen !== speakGen) return;
-      const u = new SpeechSynthesisUtterance(clean);
-      u.lang = "ar-SA";
-      u.rate = opts.rate || 0.95;
-      u.pitch = opts.pitch || (charData && charData.slug === "spongebob" ? 1.15 : 1.05);
-      u.volume = 1;
-      if (voice) { u.voice = voice; u.lang = voice.lang; }
-      u.onstart = () => { speaking = true; emit("start", clean); };
-      u.onend = done;
-      u.onerror = done;
-      if (!opts.silentChime) playChime();
-      // Chrome و Safari يسقطان الجملة إذا جاء speak مباشرة بعد cancel.
+    // 🔥 جهّز الأصوات الآن
+    let voice = pickBestVoice();
+
+    // ⚡ ابنِ الـ utterance
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = "ar-SA";
+    u.rate = opts.rate || 0.95;
+    u.pitch = opts.pitch || (charData && charData.slug === "spongebob" ? 1.15 : 1.05);
+    u.volume = 1;
+    if (voice) { u.voice = voice; u.lang = voice.lang; }
+    u.onstart = () => { speaking = true; emit("start", clean); };
+    u.onend = done;
+    u.onerror = done;
+    if (!opts.silentChime) playChime();
+
+    // 🎯 نطق فوري (بدون تأخير)
+    let spoke = false;
+    try {
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      window.speechSynthesis.speak(u);
+      spoke = true;
+    } catch (e) {}
+
+    // 🔁 لو ما نجح، جرّب بعد تحميل الأصوات
+    if (!spoke && !voice) {
+      let handled = false;
+      const onVoices = () => {
+        if (handled || ended || gen !== speakGen) return;
+        handled = true;
+        cachedVoice = null;
+        const v2 = pickBestVoice();
+        if (v2) { u.voice = v2; u.lang = v2.lang; }
+        try { window.speechSynthesis.speak(u); } catch (e) { done(); }
+      };
+      try { window.speechSynthesis.addEventListener("voiceschanged", onVoices, { once: true }); } catch (e) {}
       setTimeout(() => {
-        if (ended || gen !== speakGen) return;
-        try {
-          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-          window.speechSynthesis.speak(u);
-        } catch (e) { done(); }
-      }, 80);
-      const est = Math.min(60000, 1600 + clean.length * 95);
-      setTimeout(() => { if (!ended && gen === speakGen && !window.speechSynthesis.speaking) done(); }, est);
-    });
+        if (!handled && !ended && gen === speakGen) {
+          handled = true;
+          const v2 = pickBestVoice();
+          if (v2) { u.voice = v2; u.lang = v2.lang; }
+          try { window.speechSynthesis.speak(u); } catch (e) { done(); }
+        }
+      }, 250);
+    }
+
+    // ⏱️ حارس: بعض المتصفحات لا تطلق onend
+    const est = Math.min(60000, 1600 + clean.length * 95);
+    setTimeout(() => { if (!ended && gen === speakGen && !window.speechSynthesis.speaking) done(); }, est);
     return true;
   }
 
@@ -216,7 +263,6 @@ const SoundEngine = (function () {
     } catch (e) {}
   }
 
-  /** يشغّل الملف الصوتي المرفوع للشخصية إن وُجد (ترحيب/تعريف)، وإلا ينطق الاسم */
   function playCharacterClip(charData) {
     if (!voiceEnabled) return;
     if (charData && charData.audio) {
@@ -229,7 +275,7 @@ const SoundEngine = (function () {
 
   // ---------- موسيقى خلفية ----------
   function startMusic(resume) {
-    if (!resume && speaking) { musicPausedForSpeech = true; return; } // تنتظر انتهاء الكلام
+    if (!resume && speaking) { musicPausedForSpeech = true; return; }
     let ac;
     try { ac = ctx(); } catch (e) { return; }
     stopMusic();
@@ -263,5 +309,5 @@ const SoundEngine = (function () {
   };
 })();
 
-// ✅ تصدير للـ window عشان Companion يقدر يوصله
+// ✅ تصدير للـ window
 window.SoundEngine = SoundEngine;
