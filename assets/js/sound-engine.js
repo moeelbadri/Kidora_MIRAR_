@@ -1,10 +1,5 @@
 /* ============================================================
-   SoundEngine — صوت الرفيق المرشد.
-   - speak(): يقرأ نصاً نظيفاً (بلا إيموجي ولا رموز) بأفضل صوت عربي متاح
-     على جهاز الطفل، ويوقف الموسيقى الخلفية أثناء الكلام ثم يعيدها.
-   - sfx(): نغمات قصيرة للتفاعل. startMusic()/stopMusic(): موسيقى خلفية هادئة.
-   - الصوت المفضّل يُحفظ في localStorage (kidaura_voice_name) ويختاره الطفل
-     من البروفايل.
+   SoundEngine — صوت الرفيق (يعمل على الجوال واللاب)
    ============================================================ */
 const SoundEngine = (function () {
   let voiceEnabled = localStorage.getItem("kidaura_voice") !== "off";
@@ -15,40 +10,52 @@ const SoundEngine = (function () {
   const listeners = { start: [], end: [] };
 
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  let hasUserGesture = false;
-  let unlocked = false;
 
-  /* ---------- تتبّع أول تفاعل من المستخدم (iOS يطلبه) ---------- */
-  if (typeof document !== "undefined") {
-    const markGesture = () => {
-      hasUserGesture = true;
-      // 🔓 فتح قفل الأصوات فوراً على الجوال
-      if (isMobile && !unlocked) {
-        unlocked = true;
-        try {
-          const warm = new SpeechSynthesisUtterance(" ");
-          warm.volume = 0.001;
-          warm.lang = "ar-SA";
-          window.speechSynthesis.speak(warm);
-        } catch (e) {}
-        try {
-          const ac = new (window.AudioContext || window.webkitAudioContext)();
-          if (ac.state === "suspended") ac.resume();
-          audioCtx = ac;
-        } catch (e) {}
-      }
-      document.removeEventListener("touchstart", markGesture);
-      document.removeEventListener("touchend", markGesture);
-      document.removeEventListener("click", markGesture);
-      document.removeEventListener("keydown", markGesture);
-    };
-    document.addEventListener("touchstart", markGesture, { once: true, passive: true });
-    document.addEventListener("touchend", markGesture, { once: true, passive: true });
-    document.addEventListener("click", markGesture, { once: true });
-    document.addEventListener("keydown", markGesture, { once: true });
+  let unlocked = false;
+  const unlockQueue = [];
+
+  /* ============================================================
+     🔓 فتح القفل — يُستدعى من أول لمسة/ضغطة/كيبورد
+     ============================================================ */
+  function unlockAudio() {
+    if (unlocked) return;
+    unlocked = true;
+
+    // 1) AudioContext
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {}
+
+    // 2) iOS unlock — جملة حقيقية قصيرة جداً
+    if ("speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance("أهلاً");
+        u.lang = "ar-SA";
+        u.volume = 0.05;
+        u.rate = 2;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+
+    // 3) شغّل كل النطق المعلّق
+    setTimeout(() => {
+      const q = unlockQueue.slice();
+      unlockQueue.length = 0;
+      q.forEach(fn => { try { fn(); } catch (e) {} });
+    }, 150);
   }
 
-  // ---------- تنظيف النص قبل النطق ----------
+  if (typeof document !== "undefined") {
+    const boot = () => unlockAudio();
+    document.addEventListener("touchstart", boot, { once: true, passive: true });
+    document.addEventListener("touchend", boot, { once: true, passive: true });
+    document.addEventListener("click", boot, { once: true });
+    document.addEventListener("keydown", boot, { once: true });
+  }
+
+  /* ---------- تنظيف النص ---------- */
   const EMOJI_RE = /[\p{Extended_Pictographic}\p{Emoji_Presentation}\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
   const SYMBOL_RE = /[\u2190-\u21FF\u2300-\u23FF\u2500-\u27BF\u2B00-\u2BFF\u{1F000}-\u{1FAFF}•▪▮●▲■○◌✦✧·]/gu;
   function cleanSpeech(text) {
@@ -63,7 +70,7 @@ const SoundEngine = (function () {
       .trim();
   }
 
-  // ---------- اختيار الصوت ----------
+  /* ---------- الأصوات ---------- */
   function allVoices() {
     if (!("speechSynthesis" in window)) return [];
     return window.speechSynthesis.getVoices() || [];
@@ -80,7 +87,6 @@ const SoundEngine = (function () {
     if (/microsoft/.test(n)) s += 15;
     if (/salma|hoda|zariyah|laila|amany|female|زينب|سلمى|هدى/.test(n)) s += 10;
     if (/^ar-(sa|eg|ae|jo|ps|lb|kw|qa|ma|dz|tn|iq|sy)/i.test(v.lang)) s += 5;
-    if (v.localService === false) s += 3;
     return s;
   }
   function pickBestVoice() {
@@ -96,11 +102,14 @@ const SoundEngine = (function () {
     cachedVoice = list.slice().sort((a, b) => voiceScore(b) - voiceScore(a))[0] || null;
     return cachedVoice;
   }
+
   if ("speechSynthesis" in window) {
-    window.speechSynthesis.onvoiceschanged = () => { cachedVoice = null; pickBestVoice(); };
-    // 🔥 حمّل الأصوات مبكراً
+    window.speechSynthesis.onvoiceschanged = () => { cachedVoice = null; };
     window.speechSynthesis.getVoices();
+    setTimeout(() => { cachedVoice = null; window.speechSynthesis.getVoices(); }, 100);
+    setTimeout(() => { cachedVoice = null; window.speechSynthesis.getVoices(); }, 600);
   }
+
   function listVoices() {
     const arabic = arabicVoices();
     const rest = allVoices().filter(v => arabic.indexOf(v) === -1);
@@ -118,7 +127,7 @@ const SoundEngine = (function () {
   function setVoiceEnabled(v) {
     voiceEnabled = v;
     localStorage.setItem("kidaura_voice", v ? "on" : "off");
-    if (!v) stop();
+    if (!v && "speechSynthesis" in window) window.speechSynthesis.cancel();
   }
   function setMusicEnabled(v) {
     musicEnabled = v;
@@ -129,7 +138,6 @@ const SoundEngine = (function () {
   function on(evt, fn) { if (listeners[evt]) listeners[evt].push(fn); }
   function emit(evt, payload) { (listeners[evt] || []).forEach(fn => { try { fn(payload); } catch (e) {} }); }
 
-  // ---------- الكلام ----------
   let speaking = false;
   let speakGen = 0;
   function isSpeaking() { return speaking; }
@@ -139,7 +147,7 @@ const SoundEngine = (function () {
   }
 
   /* ============================================================
-     ⚡ speak() — نسخة سريعة تعمل مباشرة على اللاب والجوال
+     speak() — بسيط ومباشر
      ============================================================ */
   function speak(text, charData, opts) {
     opts = opts || {};
@@ -154,68 +162,52 @@ const SoundEngine = (function () {
       emit("end", clean);
       if (typeof opts.onEnd === "function") opts.onEnd();
     };
+
     if (!voiceEnabled || !clean) { done(); return false; }
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) { done(); return false; }
 
-    try {
-      window.speechSynthesis.cancel();
-      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    } catch (e) {}
-
+    try { window.speechSynthesis.cancel(); } catch (e) {}
     if (musicTimer) { stopMusic(); musicPausedForSpeech = true; }
-
-    // 🔥 جهّز الأصوات الآن
-    let voice = pickBestVoice();
-
-    // ⚡ ابنِ الـ utterance
-    const u = new SpeechSynthesisUtterance(clean);
-    u.lang = "ar-SA";
-    u.rate = opts.rate || 0.95;
-    u.pitch = opts.pitch || (charData && charData.slug === "spongebob" ? 1.15 : 1.05);
-    u.volume = 1;
-    if (voice) { u.voice = voice; u.lang = voice.lang; }
-    u.onstart = () => { speaking = true; emit("start", clean); };
-    u.onend = done;
-    u.onerror = done;
     if (!opts.silentChime) playChime();
 
-    // 🎯 نطق فوري (بدون تأخير)
-    let spoke = false;
-    try {
-      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-      window.speechSynthesis.speak(u);
-      spoke = true;
-    } catch (e) {}
+    // 🎯 النطق الفعلي
+    const fireNow = () => {
+      if (ended || gen !== speakGen) return;
+      const u = new SpeechSynthesisUtterance(clean);
+      u.lang = "ar-SA";
+      u.rate = opts.rate || 0.95;
+      u.pitch = opts.pitch || (charData && charData.slug === "spongebob" ? 1.15 : 1.05);
+      u.volume = 1;
+      const v = pickBestVoice();
+      if (v) { u.voice = v; u.lang = v.lang; }
+      u.onstart = () => { speaking = true; emit("start", clean); };
+      u.onend = done;
+      u.onerror = done;
 
-    // 🔁 لو ما نجح، جرّب بعد تحميل الأصوات
-    if (!spoke && !voice) {
-      let handled = false;
-      const onVoices = () => {
-        if (handled || ended || gen !== speakGen) return;
-        handled = true;
-        cachedVoice = null;
-        const v2 = pickBestVoice();
-        if (v2) { u.voice = v2; u.lang = v2.lang; }
-        try { window.speechSynthesis.speak(u); } catch (e) { done(); }
-      };
-      try { window.speechSynthesis.addEventListener("voiceschanged", onVoices, { once: true }); } catch (e) {}
-      setTimeout(() => {
-        if (!handled && !ended && gen === speakGen) {
-          handled = true;
-          const v2 = pickBestVoice();
-          if (v2) { u.voice = v2; u.lang = v2.lang; }
-          try { window.speechSynthesis.speak(u); } catch (e) { done(); }
-        }
-      }, 250);
+      try {
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+        window.speechSynthesis.speak(u);
+      } catch (e) { done(); }
+    };
+
+    if (unlocked || !isMobile) {
+      // ✅ مسموح — نطق مباشر (بتأخير صغير لتفادي كتم Chrome/Safari)
+      setTimeout(fireNow, isMobile ? 30 : 70);
+    } else {
+      // 📱 iOS قبل unlock: انتظر أول لمسة
+      unlockQueue.push(fireNow);
     }
 
-    // ⏱️ حارس: بعض المتصفحات لا تطلق onend
+    // حارس
     const est = Math.min(60000, 1600 + clean.length * 95);
-    setTimeout(() => { if (!ended && gen === speakGen && !window.speechSynthesis.speaking) done(); }, est);
+    setTimeout(() => {
+      if (!ended && gen === speakGen && !window.speechSynthesis.speaking) done();
+    }, est);
+
     return true;
   }
 
-  // ---------- مؤثرات ----------
+  /* ---------- مؤثرات ---------- */
   function ctx() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
@@ -273,7 +265,6 @@ const SoundEngine = (function () {
     }
   }
 
-  // ---------- موسيقى خلفية ----------
   function startMusic(resume) {
     if (!resume && speaking) { musicPausedForSpeech = true; return; }
     let ac;
@@ -305,9 +296,9 @@ const SoundEngine = (function () {
   return {
     speak, stop, isSpeaking, cleanSpeech, sfx, playCharacterClip, on,
     isVoiceEnabled, isMusicEnabled, setVoiceEnabled, setMusicEnabled, startMusic, stopMusic,
-    listVoices, setPreferredVoice, getPreferredVoice
+    listVoices, setPreferredVoice, getPreferredVoice,
+    unlockAudio
   };
 })();
 
-// ✅ تصدير للـ window
 window.SoundEngine = SoundEngine;
