@@ -126,26 +126,56 @@ const Companion = (function () {
     mood(null); hideBubble(0);
   }
 
-  function bind() {
+
+
+     function bind() {
     if (!els()) return;
     avatar.addEventListener("click", () => {
+      if (window.SoundEngine && SoundEngine.unlockAudio) SoundEngine.unlockAudio();
       const c = char();
       const t = theme();
       say(window.KIDAURA_LAST_LINE || (c ? `${c.name} معك دائماً من ${t.world || "عالمه"}! 💛` : "أنا معك دائماً!"), { mood: "wave", sidekick: true });
     });
-    // رسالة الصفحة من PHP ($__pageLine) — يقولها الرفيق بعد لحظة
+
+    // رسالة الصفحة من PHP ($__pageLine)
     if (window.KIDAURA_PAGE_LINE && !window.KIDAURA_SILENT_PAGE) {
       window.KIDAURA_LAST_LINE = window.KIDAURA_PAGE_LINE;
-      setTimeout(() => say(window.KIDAURA_PAGE_LINE, { mood: "wave" }), 600);
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      if (isMobile) {
+        // على الجوال: ننتظر أول لمسة ثم نتكلم
+        const start = () => {
+          setTimeout(() => say(window.KIDAURA_PAGE_LINE, { mood: "wave" }), 250);
+          document.removeEventListener("touchstart", start);
+          document.removeEventListener("click", start);
+        };
+        document.addEventListener("touchstart", start, { once: true, passive: true });
+        document.addEventListener("click", start, { once: true });
+      } else {
+        setTimeout(() => say(window.KIDAURA_PAGE_LINE, { mood: "wave" }), 600);
+      }
     }
   }
-  document.addEventListener("DOMContentLoaded", bind);
 
-  // توافق مع الصفحات القديمة
-  window.companionSay = function (text, opts) { window.KIDAURA_LAST_LINE = text; return say(text, opts); };
+//   function bind() {
+//     if (!els()) return;
+//     avatar.addEventListener("click", () => {
+//       const c = char();
+//       const t = theme();
+//       say(window.KIDAURA_LAST_LINE || (c ? `${c.name} معك دائماً من ${t.world || "عالمه"}! 💛` : "أنا معك دائماً!"), { mood: "wave", sidekick: true });
+//     });
+//     // رسالة الصفحة من PHP ($__pageLine) — يقولها الرفيق بعد لحظة
+//     if (window.KIDAURA_PAGE_LINE && !window.KIDAURA_SILENT_PAGE) {
+//       window.KIDAURA_LAST_LINE = window.KIDAURA_PAGE_LINE;
+//       setTimeout(() => say(window.KIDAURA_PAGE_LINE, { mood: "wave" }), 600);
+//     }
+//   }
+//   document.addEventListener("DOMContentLoaded", bind);
 
-  return { say, readAloud, sequence, celebrate, guideTo, mood, pin, stop, sidekick: () => theme().sidekick || null, theme, character: char };
-})();
+//   // توافق مع الصفحات القديمة
+//   window.companionSay = function (text, opts) { window.KIDAURA_LAST_LINE = text; return say(text, opts); };
+
+//   return { say, readAloud, sequence, celebrate, guideTo, mood, pin, stop, sidekick: () => theme().sidekick || null, theme, character: char };
+// })();
 
 /* ============================================================
    KidoraYT — يوتيوب IFrame API لتشغيل الفيديو تلقائياً ورصد نهايته.
