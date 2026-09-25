@@ -18,7 +18,17 @@ document.addEventListener("DOMContentLoaded", function () {
   const refreshMusic = () => { const on = SoundEngine.isMusicEnabled(); musicBtns.forEach(b => { b.classList.toggle("on", on); b.textContent = on ? "🔊" : "🔇"; }); };
   refreshVoice(); refreshMusic();
   if (SoundEngine.isMusicEnabled()) SoundEngine.startMusic();
-  voiceBtns.forEach(b => b.addEventListener("click", () => { SoundEngine.setVoiceEnabled(!SoundEngine.isVoiceEnabled()); refreshVoice(); }));
+  voiceBtns.forEach(b => b.addEventListener("click", () => {
+    if (SoundEngine.unlockAudio) SoundEngine.unlockAudio();
+    const nowOn = !SoundEngine.isVoiceEnabled();
+    SoundEngine.setVoiceEnabled(nowOn);
+    refreshVoice();
+    if (nowOn && b.classList.contains("public-voice-toggle")) {
+      const line = "أنا معك! هل تسمعني الآن؟";
+      if (window.Companion) Companion.say(line, { mood: "wave" });
+      else SoundEngine.speak(line, window.KIDAURA_ACTIVE_CHARACTER);
+    }
+  }));
   musicBtns.forEach(b => b.addEventListener("click", () => { SoundEngine.setMusicEnabled(!SoundEngine.isMusicEnabled()); refreshMusic(); }));
 
   // ---------- الرفيق الدائم (المنطق في companion.js) ----------

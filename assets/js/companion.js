@@ -195,3 +195,8 @@ const KidoraYT = (function () {
   }
   return { play, destroy, load };
 })();
+
+// الصفحات الأخرى تفحص window.Companion / window.KidoraYT.
+// const في سكربت عادي لا يُنشئ خاصية على window، فيُتخطى الصوت كله.
+window.Companion = Companion;
+window.KidoraYT = KidoraYT;

@@ -36,7 +36,7 @@ const SoundEngine = (function () {
       pendingUtterance = null;
       pendingDone = null;
       try {
-        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
       } catch (e) {
         if (typeof done === "function") done();
@@ -95,8 +95,9 @@ const SoundEngine = (function () {
       if (pref) { cachedVoice = pref; return pref; }
     }
     const arabic = arabicVoices();
-    const list = arabic.length ? arabic : all;
-    cachedVoice = list.slice().sort((a, b) => voiceScore(b) - voiceScore(a))[0] || null;
+    // لا نختار صوتاً إنجليزياً لنص عربي: الجملة تنتهي خلال جزء من الثانية وتبدو صامتة.
+    if (!arabic.length) return null;
+    cachedVoice = arabic.slice().sort((a, b) => voiceScore(b) - voiceScore(a))[0] || null;
     return cachedVoice;
   }
 
@@ -167,7 +168,12 @@ const SoundEngine = (function () {
     if (!voiceEnabled || !clean) { done(); return false; }
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) { done(); return false; }
 
-    try { window.speechSynthesis.cancel(); } catch (e) {}
+    try {
+      const ss = window.speechSynthesis;
+      // cancel() على طابور فارغ يُسقط الجملة التالية في Chrome وSafari.
+      if (ss.speaking || ss.pending) ss.cancel();
+      if (ss.paused) ss.resume();
+    } catch (e) {}
     if (musicTimer) { stopMusic(); musicPausedForSpeech = true; }
     if (!opts.silentChime) playChime();
 

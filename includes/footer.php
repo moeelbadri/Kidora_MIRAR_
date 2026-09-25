@@ -23,6 +23,6 @@
 
 </div><!-- /.app-wrapper -->
 
-<script src="<?php echo BASE_PATH; ?>/assets/js/app.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/js/app.js?v=20260925"></script>
 </body>
 </html>
