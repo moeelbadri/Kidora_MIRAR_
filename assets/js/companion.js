@@ -1,17 +1,5 @@
 /* ============================================================
-   Companion — الرفيق المرشد (سبونج بوب، دورا، …) الذي يقود الطفل.
-   يقرأ كل شيء بصوته (SoundEngine)، يغيّر مزاجه (يتكلم/يفرح/يفكّر/يشير)،
-   يتوقف عن المشي أثناء الحديث، ويعرض رفيقه (بسيط، دارون…) عند الحاجة.
-
-   API:
-     Companion.say(text, {mood, sidekick, onEnd, hold})   → Promise ينتهي بانتهاء الكلام
-     Companion.sequence([{text, mood}, …])                → يقول الجمل واحدة بعد الأخرى
-     Companion.mood('talk'|'cheer'|'think'|'wave'|'point'|null)
-     Companion.celebrate(text)                            → مزاج فرح + نغمة + كلام
-     Companion.guideTo(url, text, mood)                   → يقول ثم ينتقل تلقائياً
-     Companion.pin(true|false)                            → يثبّته في مكانه (لا يمشي)
-     Companion.readAloud(text)                            → قراءة بلا فقاعة (أسئلة، مهام)
-   window.companionSay(text) يبقى للتوافق مع الصفحات القديمة.
+   Companion — الرفيق المرشد
    ============================================================ */
 const Companion = (function () {
   const MOOD_BADGE = { cheer: "🎉", think: "💭", wave: "👋", point: "👉", talk: "" };
@@ -60,7 +48,7 @@ const Companion = (function () {
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
   function readTime(text) { return Math.min(14000, 1800 + String(text || "").length * 70); }
 
-  /** يقول جملة: فقاعة + مزاج + صوت. يعود بـ Promise ينتهي مع انتهاء الكلام. */
+  /** يقول جملة: فقاعة + مزاج + صوت */
   function say(text, opts) {
     opts = opts || {};
     return new Promise(resolve => {
@@ -79,12 +67,10 @@ const Companion = (function () {
         resolve();
       };
       const spoke = window.SoundEngine && SoundEngine.speak(text, char(), { onEnd: finish, silentChime: opts.silentChime });
-      // الصوت مغلق أو غير مدعوم: الفقاعة تبقى زمن قراءة تقريبياً ثم تنتهي
       if (!spoke) setTimeout(finish, readTime(text));
     });
   }
 
-  /** يقرأ نصاً بصوت الرفيق بلا فقاعة (أسئلة التحليل، نص المهمة الظاهر أصلاً على الشاشة) */
   function readAloud(text, opts) {
     opts = Object.assign({ silentChime: true }, opts || {});
     return new Promise(resolve => {
@@ -98,7 +84,6 @@ const Companion = (function () {
     });
   }
 
-  /** يقول عدة جمل بالتسلسل. كل عنصر: نص أو {text, mood, sidekick, hold} */
   function sequence(lines) {
     queue = queue.then(async () => {
       for (const l of lines || []) {
@@ -115,7 +100,6 @@ const Companion = (function () {
     return say(text, Object.assign({ mood: "cheer", keepMood: true, hold: 2000 }, opts || {})).then(() => mood(null));
   }
 
-  /** يقول ثم ينتقل تلقائياً — بلا زر «انتقل» */
   function guideTo(url, text, moodName) {
     return say(text, { mood: moodName || "point", keepMood: true, hold: 300 }).then(() => { location.href = url; });
   }
@@ -126,11 +110,14 @@ const Companion = (function () {
     mood(null); hideBubble(0);
   }
 
-
-
-     function bind() {
+  /* ============================================================
+     bind() — الربط مع الصفحة
+     ============================================================ */
+  function bind() {
     if (!els()) return;
+
     avatar.addEventListener("click", () => {
+      // 🔓 فتح القفل (مهم لـ iOS)
       if (window.SoundEngine && SoundEngine.unlockAudio) SoundEngine.unlockAudio();
       const c = char();
       const t = theme();
@@ -140,48 +127,38 @@ const Companion = (function () {
     // رسالة الصفحة من PHP ($__pageLine)
     if (window.KIDAURA_PAGE_LINE && !window.KIDAURA_SILENT_PAGE) {
       window.KIDAURA_LAST_LINE = window.KIDAURA_PAGE_LINE;
+
       const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
       if (isMobile) {
-        // على الجوال: ننتظر أول لمسة ثم نتكلم
+        // 📱 على الجوال: النطق MUST يحدث SYNCHRONOUS داخل أول لمسة
         const start = () => {
-          setTimeout(() => say(window.KIDAURA_PAGE_LINE, { mood: "wave" }), 250);
+          if (window.SoundEngine && SoundEngine.unlockAudio) SoundEngine.unlockAudio();
+          // 🎯 say() مباشرة بدون setTimeout — هذا مفتاح iOS
+          say(window.KIDAURA_PAGE_LINE, { mood: "wave" });
           document.removeEventListener("touchstart", start);
           document.removeEventListener("click", start);
         };
         document.addEventListener("touchstart", start, { once: true, passive: true });
         document.addEventListener("click", start, { once: true });
       } else {
+        // 💻 على اللاب: نطق عادي بعد لحظة
         setTimeout(() => say(window.KIDAURA_PAGE_LINE, { mood: "wave" }), 600);
       }
     }
   }
 
-//   function bind() {
-//     if (!els()) return;
-//     avatar.addEventListener("click", () => {
-//       const c = char();
-//       const t = theme();
-//       say(window.KIDAURA_LAST_LINE || (c ? `${c.name} معك دائماً من ${t.world || "عالمه"}! 💛` : "أنا معك دائماً!"), { mood: "wave", sidekick: true });
-//     });
-//     // رسالة الصفحة من PHP ($__pageLine) — يقولها الرفيق بعد لحظة
-//     if (window.KIDAURA_PAGE_LINE && !window.KIDAURA_SILENT_PAGE) {
-//       window.KIDAURA_LAST_LINE = window.KIDAURA_PAGE_LINE;
-//       setTimeout(() => say(window.KIDAURA_PAGE_LINE, { mood: "wave" }), 600);
-//     }
-//   }
-//   document.addEventListener("DOMContentLoaded", bind);
+  // ✅ استدعاء bind() بعد تحميل الصفحة
+  document.addEventListener("DOMContentLoaded", bind);
 
-//   // توافق مع الصفحات القديمة
-//   window.companionSay = function (text, opts) { window.KIDAURA_LAST_LINE = text; return say(text, opts); };
+  // توافق مع الصفحات القديمة
+  window.companionSay = function (text, opts) { window.KIDAURA_LAST_LINE = text; return say(text, opts); };
 
-//   return { say, readAloud, sequence, celebrate, guideTo, mood, pin, stop, sidekick: () => theme().sidekick || null, theme, character: char };
-// })();
+  return { say, readAloud, sequence, celebrate, guideTo, mood, pin, stop, sidekick: () => theme().sidekick || null, theme, character: char };
+})();
 
 /* ============================================================
-   KidoraYT — يوتيوب IFrame API لتشغيل الفيديو تلقائياً ورصد نهايته.
-   play(hostId, videoId, {autoplay, skipId}) → Promise ينتهي عند انتهاء الفيديو
-   أو الضغط على زر التخطّي (skipId) أو خطأ التحميل. يُستخدم في باكج المهام
-   وقسم الحماية — التشغيل بصوت مسموح لأن الطفل تفاعل مع الصفحة نفسها قبله.
+   KidoraYT — يوتيوب IFrame API
    ============================================================ */
 const KidoraYT = (function () {
   let ready = null, current = null;
@@ -192,7 +169,7 @@ const KidoraYT = (function () {
       const prev = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => { if (prev) prev(); res(); };
       const s = document.createElement("script"); s.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(s);
-      setTimeout(res, 6000); // حارس: إن حُجب السكربت نكمل بلا فيديو
+      setTimeout(res, 6000);
     });
     return ready;
   }
