@@ -140,15 +140,46 @@ const TK = {
     }
   };
 
-  const YT = {
+    const YT = {
     destroy: () => {
       try { if (window.KidoraYT && KidoraYT.destroy) KidoraYT.destroy(); } catch(e) {}
     },
     play: (hostId, videoId, opts) => {
+      opts = opts || {};
+      // 1) جرّب KidoraYT الرسمي
       try {
-        if (window.KidoraYT && KidoraYT.play) return KidoraYT.play(hostId, videoId, opts);
+        if (window.KidoraYT && typeof KidoraYT.play === 'function') {
+          return KidoraYT.play(hostId, videoId, opts);
+        }
       } catch(e) { console.warn('[Tasks] KidoraYT.play failed:', e); }
-      return Promise.resolve();
+
+      // 2) Fallback: نبني iframe مباشرة
+      return new Promise(resolve => {
+        const host = document.getElementById(hostId);
+        if (!host) return resolve();
+
+        const autoplay = opts.autoplay ? 1 : 0;
+        const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?rel=0&modestbranding=1&playsinline=1&autoplay=${autoplay}`;
+
+        host.innerHTML = `<iframe
+          src="${src}"
+          title="فيديو"
+          style="position:absolute;inset:0;width:100%;height:100%;border:0;"
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowfullscreen
+          loading="lazy"></iframe>`;
+
+        // نراقب زر التخطي
+        if (opts.skipId) {
+          const skip = document.getElementById(opts.skipId);
+          if (skip) skip.onclick = () => resolve();
+        }
+
+        // ننتظر مدة الفيديو (fallback) أو انتهاء المستخدم
+        // (بدون API، ما نقدر نعرف متى يخلص الفيديو — فنسيب الطفل يضغط "التالي")
+        // نخزّن resolve عشان نقدر نستخدمه لو احتاج
+        window.__tkYTResolve = resolve;
+      });
     }
   };
 
