@@ -148,7 +148,6 @@ const Companion = (function () {
     }
   }
 
-  // ✅ استدعاء bind() بعد تحميل الصفحة
   document.addEventListener("DOMContentLoaded", bind);
 
   // توافق مع الصفحات القديمة
