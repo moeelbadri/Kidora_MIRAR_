@@ -110,10 +110,52 @@ const TK = {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   let busy = false;
 
+  /* ============================================================
+     ✅ أغلفة آمنة — تمنع انهيار الصفحة لو Companion غير معرّف
+     ============================================================ */
+  const CMP = {
+    say: (text, opts) => {
+      try {
+        if (window.Companion && typeof Companion.say === 'function') {
+          return Companion.say(text, opts);
+        }
+      } catch(e) { console.warn('[Tasks] Companion.say failed:', e); }
+      return new Promise(r => setTimeout(r, Math.min(2500, 800 + String(text || '').length * 30)));
+    },
+    readAloud: (text, opts) => {
+      try {
+        if (window.Companion && typeof Companion.readAloud === 'function') {
+          return Companion.readAloud(text, opts);
+        }
+      } catch(e) { console.warn('[Tasks] Companion.readAloud failed:', e); }
+      return Promise.resolve();
+    },
+    celebrate: (text, opts) => {
+      try {
+        if (window.Companion && typeof Companion.celebrate === 'function') {
+          return Companion.celebrate(text, opts);
+        }
+      } catch(e) { console.warn('[Tasks] Companion.celebrate failed:', e); }
+      return new Promise(r => setTimeout(r, 1800));
+    }
+  };
+
+  const YT = {
+    destroy: () => {
+      try { if (window.KidoraYT && KidoraYT.destroy) KidoraYT.destroy(); } catch(e) {}
+    },
+    play: (hostId, videoId, opts) => {
+      try {
+        if (window.KidoraYT && KidoraYT.play) return KidoraYT.play(hostId, videoId, opts);
+      } catch(e) { console.warn('[Tasks] KidoraYT.play failed:', e); }
+      return Promise.resolve();
+    }
+  };
+
   function swap(html){
     return new Promise(res => {
       view.classList.add('is-out');
-      setTimeout(() => { KidoraYT.destroy(); view.innerHTML = html; view.classList.remove('is-out'); res(); }, 320);
+      setTimeout(() => { YT.destroy(); view.innerHTML = html; view.classList.remove('is-out'); res(); }, 320);
     });
   }
   function dots(){ document.querySelectorAll('#tkDots span').forEach((d, i) => { d.className = i < TK.doneCount ? 'done' : (i === TK.doneCount ? 'current' : ''); }); }
@@ -124,7 +166,7 @@ const TK = {
       p.style.backgroundColor = colors[i % colors.length]; p.style.width = p.style.height = (Math.random()*10+6)+'px'; p.style.borderRadius = Math.random() > .5 ? '50%' : '4px';
       p.style.animationDuration = (Math.random()*2+2)+'s'; p.style.animationDelay = (Math.random()*1.2)+'s'; c.appendChild(p); setTimeout(() => p.remove(), 4200); }
   }
-  const playVideo = (hostId, videoId, autoplay) => KidoraYT.play(hostId, videoId, { autoplay, skipId: hostId + '_skip' });
+  const playVideo = (hostId, videoId, autoplay) => YT.play(hostId, videoId, { autoplay, skipId: hostId + '_skip' });
 
   // ---------- المرحلة 1: المهمة ----------
   async function showTask(){
@@ -142,11 +184,11 @@ const TK = {
         <button type="button" class="btn btn-primary tk-done" id="tkDone">أنجزت المهمة ✅ (+${Number(t.points)})</button>
       </div>`);
     const text = `${t.title}. ${t.description}`;
-    document.getElementById('tkListen').onclick = () => Companion.readAloud(text);
+    document.getElementById('tkListen').onclick = () => CMP.readAloud(text);
     document.getElementById('tkDone').onclick = completeTask;
-    if (t.youtube_id) playVideo('tkTaskVideo', t.youtube_id, false); // فيديو المهمة: يبدأ بلمسة الطفل
+    if (t.youtube_id) playVideo('tkTaskVideo', t.youtube_id, false);
     await wait(TK._greeted ? 300 : 4000); TK._greeted = true;
-    await Companion.say(text, { mood: 'talk', hold: 600 });
+    await CMP.say(text, { mood: 'talk', hold: 600 });
   }
 
   // ---------- المرحلة 2: إنجاز → قصة → شخصية التراث → لعبة ----------
@@ -156,7 +198,12 @@ const TK = {
     const btn = document.getElementById('tkDone'); if (btn) { btn.disabled = true; btn.textContent = '…'; }
     let data = null;
     try { data = await (await fetch(TK.base + '/api/complete-task.php', { method: 'POST', body: new URLSearchParams({ task_id: t.id }) })).json(); } catch(e){}
-    if (!data || !data.ok) { busy = false; if (btn) { btn.disabled = false; btn.textContent = 'أنجزت المهمة ✅'; } Companion.say('حدث خطأ صغير… جرّب مرة أخرى.', { mood: 'think' }); return; }
+    if (!data || !data.ok) {
+      busy = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'أنجزت المهمة ✅'; }
+      CMP.say('حدث خطأ صغير… جرّب مرة أخرى.', { mood: 'think' });
+      return;
+    }
     TK.doneCount = data.done_count; dots();
     if (data.all_done) markDoneToday();
 
@@ -165,14 +212,14 @@ const TK = {
     await swap(`
       <div class="tk-celebrate"><h2>🌟 أحسنت يا ${esc(TK.childName)}! +${Number(data.points)} ⭐</h2><div class="stars">⭐ ⭐ ⭐</div></div>
       <div class="card tk-card"><div class="tk-story">📖 ${esc(data.story_line)}</div></div>`);
-    await Companion.celebrate(`أحسنت يا ${TK.childName}! كسبت ${data.points} نقاط.`);
-    await Companion.say(data.story_line, { mood: 'talk', hold: 500 });
-    await Companion.say(data.pair_line, { mood: 'talk', sidekick: true, hold: 500 });
+    await CMP.celebrate(`أحسنت يا ${TK.childName}! كسبت ${data.points} نقاط.`);
+    await CMP.say(data.story_line, { mood: 'talk', hold: 500 });
+    await CMP.say(data.pair_line, { mood: 'talk', sidekick: true, hold: 500 });
 
     // شخصية التراث: القصة تُقرأ أولاً، ثم الفيديو يبدأ وحده
     if (data.figure) {
       const f = data.figure;
-      await Companion.say(`والآن نتعرّف على شخصية من تراثنا: ${f.name}.`, { mood: 'point', hold: 200 });
+      await CMP.say(`والآن نتعرّف على شخصية من تراثنا: ${f.name}.`, { mood: 'point', hold: 200 });
       await swap(`
         <div class="card tk-card">
           <div class="eyebrow">شخصية من تراثنا</div>
@@ -181,24 +228,24 @@ const TK = {
           <p style="color:var(--violet);font-weight:800;">✨ ${esc(f.story_line)}</p>
           ${f.youtube_id ? `<div class="tk-video"><div class="ratio"><div class="yt-host" id="tkFigVideo"></div></div></div><button type="button" class="tk-skip" id="tkFigVideo_skip">⏭ التالي</button>` : '<div class="tk-figure-emoji">🕌</div>'}
         </div>`);
-      await Companion.say(`${f.name}، ${f.title}. ${f.description} ${f.story_line}`, { mood: 'talk', hold: 300 });
+      await CMP.say(`${f.name}، ${f.title}. ${f.description} ${f.story_line}`, { mood: 'talk', hold: 300 });
       if (f.youtube_id) {
-        await Companion.say('شاهد الفيديو الآن، وبعده لعبة قصيرة!', { mood: 'point', hold: 100 });
+        await CMP.say('شاهد الفيديو الآن، وبعده لعبة قصيرة!', { mood: 'point', hold: 100 });
         await playVideo('tkFigVideo', f.youtube_id, true);
       }
     }
 
     // اللعبة
-    await Companion.say(data.all_done ? 'آخر لعبة صغيرة قبل المفاجأة!' : 'يلا نلعب لعبة قصيرة قبل المهمة التالية!', { mood: 'cheer', hold: 200 });
+    await CMP.say(data.all_done ? 'آخر لعبة صغيرة قبل المفاجأة!' : 'يلا نلعب لعبة قصيرة قبل المهمة التالية!', { mood: 'cheer', hold: 200 });
     await swap(`<div id="taskGameHost"></div>`);
     GamesEngine.run(data.game.type, document.getElementById('taskGameHost'), data.game.title, 'var(--coral)', async function(){
       fetch(TK.base + '/api/play-game.php', { method: 'POST' });
       busy = false;
       if (data.all_done) {
-        await Companion.celebrate(`${TK.childName}! أنجزت مهامك كلها لليوم! يلا إلى قسم الألعاب لنرى لعبة اليوم المقترحة لك.`);
+        await CMP.celebrate(`${TK.childName}! أنجزت مهامك كلها لليوم! يلا إلى قسم الألعاب لنرى لعبة اليوم المقترحة لك.`);
         location.href = 'games.php?from=tasks';
       } else {
-        await Companion.say('ممتاز! المهمة التالية…', { mood: 'point', hold: 100 });
+        await CMP.say('ممتاز! المهمة التالية…', { mood: 'point', hold: 100 });
         showTask();
       }
     }, { category: data.game.category });
