@@ -9,25 +9,227 @@ $__pageLine = "تعال شوف قصصي المتحركة يا {$child['name']}! 
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
+<style>
+  /* ============================================================
+     قصص أصدقائي — تحسينات
+     ============================================================ */
+  .friend-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+    gap:16px;
+    margin-top:18px;
+  }
+  .friend-card{
+    padding:14px;
+    border-radius:22px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .friend-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 18px 40px rgba(0,0,0,.28);
+  }
+  .friend-card .fchar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .friend-card .fe{
+    width:52px;
+    height:52px;
+    border-radius:16px;
+    display:grid;
+    place-items:center;
+    font-size:28px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .friend-card .fe img{ width:100%; height:100%; object-fit:cover; }
+  .friend-card h4{
+    margin:6px 0;
+    color:var(--ink);
+    font-size:1.05rem;
+  }
+  .friend-card .friend-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:auto;
+  }
+  .friend-card .friend-actions .btn{
+    flex:1;
+    min-width:0;
+    padding:8px 12px;
+    font-size:13px;
+  }
+  .friend-video-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:2px 8px;
+    border-radius:999px;
+    background:rgba(255,0,0,.15);
+    color:#ff4d4d;
+    font-size:11px;
+    font-weight:900;
+    border:1px solid rgba(255,0,0,.3);
+  }
+
+  /* ============================================================
+     مشغل الفيديو
+     ============================================================ */
+  .friend-video-wrap{
+    margin-top:26px;
+    padding:18px;
+    border-radius:24px;
+    background:linear-gradient(160deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+    border:1px solid rgba(255,255,255,.15);
+    animation:stageFadeIn .5s ease;
+  }
+  .friend-video-title{
+    color:#fff;
+    font-family:var(--font-display, inherit);
+    font-size:1.15rem;
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .friend-video-frame{
+    position:relative;
+    width:100%;
+    max-width:820px;
+    margin:0 auto;
+    border-radius:18px;
+    overflow:hidden;
+    background:#000;
+    box-shadow:0 20px 50px rgba(0,0,0,.4);
+  }
+  .friend-video-frame .ratio{
+    position:relative;
+    padding-bottom:56.25%;
+    height:0;
+  }
+  .friend-video-frame iframe{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    border:0;
+  }
+  .friend-video-actions{
+    display:flex;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:14px;
+  }
+
+  /* ============================================================
+     مكتبة الفيديوهات لكل شخصية
+     ============================================================ */
+  .friend-video-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:center;
+    margin-top:12px;
+  }
+  .friend-video-list button{
+    padding:8px 14px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.2);
+    background:rgba(255,255,255,.08);
+    color:#fff;
+    font-weight:800;
+    font-size:13px;
+    cursor:pointer;
+    transition:all .2s ease;
+  }
+  .friend-video-list button:hover,
+  .friend-video-list button.is-active{
+    background:var(--theme-accent, #6c63ff);
+    color:#fff;
+    border-color:transparent;
+    transform:translateY(-2px);
+  }
+
+  @keyframes stageFadeIn{
+    from{ opacity:0; transform:translateY(14px); }
+    to  { opacity:1; transform:translateY(0); }
+  }
+
+  @media (max-width: 640px){
+    .friend-grid{ grid-template-columns:1fr; }
+    .friend-card h4{ font-size:1rem; }
+  }
+</style>
 <div class="page-body">
 <main class="container" style="padding-top:26px;">
   <div class="section-head">
-    <div class="eyebrow">قصص متحركة جاهزة</div>
+    <div class="eyebrow">قصص فيديو حقيقية</div>
     <h2 class="section-title">قصص أصدقائي المتحركة</h2>
-    <p class="section-sub">لكل شخصية عالمها الخاص! قصص كرتونية متحركة قصيرة بصوت وثيم كل صديق، شاهدها أو نزّلها كفيديو.</p>
+    <p class="section-sub">لكل شخصية فيديو خاص بها! اختر شخصيتك، وشاهد فيديو ممتع من عالمها. أو اقرأ القصة النصية المتحركة.</p>
   </div>
   <div class="friend-grid" id="friendGrid"></div>
-  <div id="friendPlayerBox" style="margin-top:26px;"></div>
+  <div id="friendPlayerBox"></div>
 </main>
 </div>
 <footer class="site-footer">Kidora © 2026</footer>
 <script>window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;</script>
 <script>
+/* ============================================================
+   الشخصيات التي يملكها الطفل
+   ============================================================ */
 const MY_CHARS = <?php echo json_encode(array_values(array_map(fn($c)=>[
     'slug'=>$c['slug'],'name'=>$c['name'],'trait'=>$c['trait'],'color'=>$c['color'],'move'=>$c['move_type'],
     'image'=>$c['image_path'],'icon'=>(character_icons($c)[0] ?? '✨')
 ], $myChars)), JSON_UNESCAPED_UNICODE); ?>;
 
+/* ============================================================
+   🎬 مكتبة الفيديوهات — أضيفي/عدّلي الروابط هنا
+   ------------------------------------------------------------
+   كل شخصية عندها مصفوفة فيديوهات.
+   كل فيديو فيه:
+     - title:  عنوان الفيديو
+     - id:     معرف يوتيوب (الجزء اللي بعد v= أو بعد youtu.be/)
+     - desc:   وصف مختصر (اختياري)
+   ============================================================ */
+const FRIEND_VIDEOS = {
+  spongebob: [
+    { id: "SN-CxJVsbyg", title: "سبونج بوب في قاع الهامور", desc: "مغامرات الفقاعات" },
+    { id: "ANG1Cq2fMl0", title: "يوم في مقرمشات سلطع", desc: "مغامرة طبخ" },
+  ],
+  dora: [
+    { id: "dOBGOlrUCM4", title: "دورا والمغامرة الكبيرة", desc: "استكشاف الغابة" },
+    { id: "unYS07FuDIU", title: "دورا والجبل المغنّي", desc: "الرحلة الشجاعة" },
+  ],
+  gumball: [
+    { id: "NQ3ugCFXuEk", title: "عالم غامبول العجيب", desc: "المدرسة والمغامرات" },
+    { id: "KP4Wmdf26ZE", title: "غامبول ودارون", desc: "الأخوّة والفوضى" },
+  ],
+  ladybug: [
+    { id: "NqW4hwGHIjc", title: "ليدي باج في باريس", desc: "الحكمة والشجاعة" },
+  ],
+  spiderman: [
+    { id: "B4OELaY0ink", title: "سبايدرمان والمسؤولية", desc: "البطولة اليومية" },
+  ],
+  batman: [
+    { id: "iBZR8lCCPf0", title: "باتمان وحماية المدينة", desc: "الشجاعة الهادئة" },
+  ],
+  ben10: [
+    { id: "34WNhf4wris", title: "بن تن والمغامرة الصيفية", desc: "الجدّ ماكس والطريق" },
+  ],
+  conan: [
+    { id: "6KrkLfekHrU", title: "كونان والمحققون الصغار", desc: "ألغاز صغيرة" },
+  ],
+};
+
+/* ============================================================
+   القصص النصية المتحركة (Fallback)
+   ============================================================ */
 const FRIEND_STORY_BANK = {
   spongebob: [
     { title:"ويوم الفقاعات في قاع الهامور", scenes:[
@@ -95,20 +297,137 @@ const FRIEND_STORY_BANK = {
   ]
 };
 
+/* ============================================================
+   بناء شبكة الشخصيات
+   ============================================================ */
 const grid = document.getElementById('friendGrid');
-grid.innerHTML = MY_CHARS.map(c => (FRIEND_STORY_BANK[c.slug]||[]).map((s,i) => `
-  <div class="friend-card card" style="border-top:5px solid ${c.color};">
-    <div class="fchar"><div class="fe" style="background:linear-gradient(150deg, ${c.color}, #fff2);">${c.image ? `<img src="${window.KIDAURA_BASE}/${c.image}">` : c.icon}</div><div><b>${c.name}</b><div style="font-size:12px;color:var(--ink-soft);">${c.trait}</div></div></div>
-    <h4 style="margin:6px 0;color:var(--ink);">${c.name} ${s.title}</h4>
-    <button class="btn btn-sm btn-primary" onclick="playFriendStory('${c.slug}',${i})">▶ شاهد القصة المتحركة</button>
-  </div>`).join('')).join('');
+if (grid) {
+  grid.innerHTML = MY_CHARS.map(c => {
+    const hasVideo = FRIEND_VIDEOS[c.slug] && FRIEND_VIDEOS[c.slug].length > 0;
+    const hasStory = FRIEND_STORY_BANK[c.slug] && FRIEND_STORY_BANK[c.slug].length > 0;
 
+    return `
+      <div class="friend-card card" style="border-top:5px solid ${c.color};">
+        <div class="fchar">
+          <div class="fe" style="background:linear-gradient(150deg, ${c.color}, #fff2);">
+            ${c.image ? `<img src="${window.KIDAURA_BASE}/${c.image}" alt="${c.name}">` : c.icon}
+          </div>
+          <div>
+            <b>${c.name}</b>
+            <div style="font-size:12px;color:var(--ink-soft);">${c.trait || ''}</div>
+          </div>
+        </div>
+        ${hasVideo ? `<span class="friend-video-badge">🎬 ${FRIEND_VIDEOS[c.slug].length} فيديو</span>` : ''}
+        <div class="friend-actions">
+          ${hasVideo ? `<button class="btn btn-sm btn-primary" onclick="playFriendVideo('${c.slug}',0)">🎬 شاهد الفيديو</button>` : ''}
+          ${hasStory ? `<button class="btn btn-sm btn-ghost" onclick="playFriendStory('${c.slug}',0)">📖 القصة النصية</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ============================================================
+   🎬 تشغيل فيديو يوتيوب
+   ============================================================ */
+function playFriendVideo(slug, videoIndex){
+  const c = MY_CHARS.find(x => x.slug === slug);
+  const videos = FRIEND_VIDEOS[slug] || [];
+  const video = videos[videoIndex];
+  if (!c || !video) return;
+
+  // بنينا كل الفيديوهات كأزرار للتبديل بينها
+  const videoListHTML = videos.length > 1 ? `
+    <div class="friend-video-list">
+      ${videos.map((v, i) => `
+        <button type="button"
+                class="${i === videoIndex ? 'is-active' : ''}"
+                onclick="playFriendVideo('${slug}',${i})">
+          ${escapeHtml(v.title)}
+        </button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  const box = document.getElementById('friendPlayerBox');
+  box.innerHTML = `
+    <div class="friend-video-wrap">
+      <h3 class="friend-video-title">
+        <span>🎬</span>
+        ${escapeHtml(c.name)} — ${escapeHtml(video.title)}
+      </h3>
+      ${video.desc ? `<p style="text-align:center;color:#b9abd4;margin:0 0 12px;font-size:.9rem;">${escapeHtml(video.desc)}</p>` : ''}
+      <div class="friend-video-frame">
+        <div class="ratio">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.id)}?rel=0&modestbranding=1&playsinline=1"
+            title="${escapeHtml(video.title)}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            loading="lazy"></iframe>
+        </div>
+      </div>
+      ${videoListHTML}
+      <div class="friend-video-actions">
+        <button class="btn btn-sm btn-ghost" onclick="closeFriendPlayer()">✖ إغلاق</button>
+        ${FRIEND_STORY_BANK[slug] ? `<button class="btn btn-sm btn-ghost" onclick="playFriendStory('${slug}',0)">📖 اقرأ القصة النصية</button>` : ''}
+      </div>
+    </div>
+  `;
+
+  box.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ============================================================
+   📖 تشغيل القصة النصية
+   ============================================================ */
 function playFriendStory(slug, index){
   const c = MY_CHARS.find(x => x.slug === slug);
-  const raw = FRIEND_STORY_BANK[slug][index];
-  const story = { title: `${c.name} ${raw.title}`, scenes: raw.scenes, spriteFace: c.image ? null : c.icon };
-  StoryPlayer.render(story, 'friendPlayerBox', {});
-  document.getElementById('friendPlayerBox').scrollIntoView({behavior:'smooth'});
+  if (!c) return;
+  const bank = FRIEND_STORY_BANK[slug] || [];
+  const raw = bank[index];
+  if (!raw) return;
+
+  const story = {
+    title: `${c.name} — ${raw.title}`,
+    scenes: raw.scenes,
+    spriteFace: c.image ? null : c.icon
+  };
+
+  const box = document.getElementById('friendPlayerBox');
+  box.innerHTML = `
+    <div class="friend-video-wrap">
+      <h3 class="friend-video-title">
+        <span>📖</span>
+        ${escapeHtml(c.name)} — ${escapeHtml(raw.title)}
+      </h3>
+      <div id="friendStoryInner"></div>
+      <div class="friend-video-actions">
+        <button class="btn btn-sm btn-ghost" onclick="closeFriendPlayer()">✖ إغلاق</button>
+        ${FRIEND_VIDEOS[slug] ? `<button class="btn btn-sm btn-primary" onclick="playFriendVideo('${slug}',0)">🎬 شاهد الفيديو</button>` : ''}
+      </div>
+    </div>
+  `;
+
+  if (window.StoryPlayer && typeof StoryPlayer.render === 'function') {
+    StoryPlayer.render(story, 'friendStoryInner', {});
+  }
+
+  box.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function closeFriendPlayer(){
+  const box = document.getElementById('friendPlayerBox');
+  if (box) box.innerHTML = '';
+}
+
+/* ============================================================
+   أدوات
+   ============================================================ */
+function escapeHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
 }
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
