@@ -53,7 +53,7 @@ require_once __DIR__ . '/includes/public-nav.php';
 
 <style>
 /* =========================================================
-   Kidora Demo — تصميم متجاوب نظيف
+   Kidora Demo — تصميم متجاوب نظيف مع ثيم ديناميكي
    ========================================================= */
 :root{
   --demo-gold:#ffc93c;
@@ -64,14 +64,13 @@ require_once __DIR__ . '/includes/public-nav.php';
   --demo-ink:#241645;
   --demo-bg-card:rgba(255,255,255,.075);
   --demo-bg-line:rgba(255,255,255,.14);
+  --theme-accent:#6c63ff;
+  --theme-glow:rgba(108,99,255,.35);
+  --theme-soft:rgba(108,99,255,.12);
 }
 
-/* إعادة ضبط شاملة لمنع أي تجاوز أفقي */
-.demo-page,
-.demo-page *,
-.demo-page *::before,
-.demo-page *::after{ box-sizing:border-box; }
-
+/* إعادة ضبط شاملة */
+.demo-page, .demo-page *, .demo-page *::before, .demo-page *::after{ box-sizing:border-box; }
 html, body{ overflow-x:hidden; max-width:100%; }
 
 .demo-page{
@@ -80,6 +79,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
   min-height:calc(100vh - 72px);
   padding:26px 0 80px;
   color:#f1f5f9;
+  transition:background .6s ease;
 }
 .demo-container{
   width:min(980px, calc(100% - 28px));
@@ -133,11 +133,11 @@ html, body{ overflow-x:hidden; max-width:100%; }
   transition:background .35s ease, box-shadow .35s ease;
 }
 .demo-progress span.active{
-  background:linear-gradient(90deg, #ffc93c, #ff6fa5);
-  box-shadow:0 0 14px rgba(255,201,60,.45);
+  background:linear-gradient(90deg, var(--theme-accent), #ff6fa5);
+  box-shadow:0 0 14px var(--theme-glow);
 }
 .demo-progress span.done{
-  background:linear-gradient(90deg, #2ec4b6, #5b8def);
+  background:linear-gradient(90deg, #2ec4b6, var(--theme-accent));
 }
 
 /* ====== البطاقة الرئيسية ====== */
@@ -148,10 +148,11 @@ html, body{ overflow-x:hidden; max-width:100%; }
   background:var(--demo-bg-card);
   backdrop-filter:blur(14px);
   -webkit-backdrop-filter:blur(14px);
-  box-shadow:0 24px 60px rgba(0,0,0,.22);
+  box-shadow:0 24px 60px rgba(0,0,0,.22), 0 0 0 1px var(--theme-soft);
   animation:stageFadeIn .45s ease both;
   max-width:100%;
   overflow-x:clip;
+  transition:box-shadow .5s ease;
 }
 .demo-stage[hidden]{ display:none; }
 @keyframes stageFadeIn{
@@ -185,6 +186,11 @@ html, body{ overflow-x:hidden; max-width:100%; }
   border:1px solid rgba(255,255,255,.13);
   border-radius:20px;
   background:rgba(10,6,26,.32);
+  transition:box-shadow .4s ease, border-color .4s ease;
+}
+.demo-guide.is-active{
+  border-color:var(--theme-accent);
+  box-shadow:0 0 0 3px var(--theme-soft), 0 12px 30px rgba(0,0,0,.2);
 }
 .demo-guide-avatar{
   width:64px;
@@ -197,6 +203,12 @@ html, body{ overflow-x:hidden; max-width:100%; }
   background:linear-gradient(145deg, var(--guide-color, #6c63ff), rgba(10,6,26,.8));
   font-size:36px;
   overflow:hidden;
+  transition:border-color .4s ease, box-shadow .4s ease;
+  animation:avatarFloat 3.5s ease-in-out infinite;
+}
+@keyframes avatarFloat{
+  0%,100%{ transform:translateY(0); }
+  50%    { transform:translateY(-4px); }
 }
 .demo-guide-avatar img{ width:100%; height:100%; object-fit:cover; }
 .demo-guide-bubble{
@@ -301,13 +313,13 @@ html, body{ overflow-x:hidden; max-width:100%; }
   background:rgba(255,255,255,.06);
   text-align:center;
   cursor:pointer;
-  transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1), border-color .2s ease, box-shadow .2s ease;
   font-family:inherit;
   min-width:0;
 }
 .demo-character:hover,
 .demo-character:focus-visible{
-  transform:translateY(-4px);
+  transform:translateY(-5px);
   border-color:var(--char-color);
   box-shadow:0 14px 24px rgba(0,0,0,.28);
   outline:none;
@@ -315,6 +327,28 @@ html, body{ overflow-x:hidden; max-width:100%; }
 .demo-character.selected{
   border-color:#ffc93c;
   box-shadow:0 0 0 3px rgba(255,201,60,.25), 0 14px 24px rgba(255,201,60,.3);
+  transform:translateY(-4px);
+}
+.demo-character.selected::before{
+  content:"✓";
+  position:absolute;
+  top:6px;
+  left:6px;
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  background:#ffc93c;
+  color:#241645;
+  border-radius:50%;
+  font-weight:900;
+  font-size:13px;
+  z-index:2;
+  animation:checkPop .35s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes checkPop{
+  0%{ transform:scale(0); }
+  100%{ transform:scale(1); }
 }
 .demo-character-media{
   position:relative;
@@ -358,6 +392,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
   font-size:.6rem;
   font-weight:900;
   border:1px solid rgba(255,201,60,.4);
+  z-index:2;
 }
 
 /* ====== بطاقة الشخصية المختارة ====== */
@@ -379,7 +414,12 @@ html, body{ overflow-x:hidden; max-width:100%; }
   background:linear-gradient(145deg, var(--selected-color, #6c63ff), rgba(10,6,26,.8));
   font-size:58px;
   overflow:hidden;
-  box-shadow:0 18px 30px rgba(0,0,0,.28);
+  box-shadow:0 18px 30px rgba(0,0,0,.28), 0 0 40px var(--theme-glow);
+  animation:selectedPulse 2.6s ease-in-out infinite;
+}
+@keyframes selectedPulse{
+  0%,100%{ box-shadow:0 18px 30px rgba(0,0,0,.28), 0 0 30px var(--theme-glow); }
+  50%    { box-shadow:0 18px 30px rgba(0,0,0,.28), 0 0 60px var(--theme-glow); }
 }
 .demo-selected-media img{ width:100%; height:100%; object-fit:cover; }
 .demo-selected-card strong{
@@ -419,7 +459,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
   width:100%;
   height:100%;
   transform-style:preserve-3d;
-  transition:transform .4s ease;
+  transition:transform .45s cubic-bezier(.4,0,.2,1);
 }
 .demo-memory-card.is-open .demo-memory-inner,
 .demo-memory-card.is-matched .demo-memory-inner{
@@ -448,6 +488,12 @@ html, body{ overflow-x:hidden; max-width:100%; }
 .demo-memory-card.is-matched .demo-memory-back{
   border-color:#8ff0d4;
   box-shadow:0 0 20px rgba(46,196,182,.45);
+  animation:matchPop .5s ease;
+}
+@keyframes matchPop{
+  0%{ transform:rotateY(180deg) scale(1); }
+  50%{ transform:rotateY(180deg) scale(1.1); }
+  100%{ transform:rotateY(180deg) scale(1); }
 }
 .demo-memory-card:focus-visible{ outline:3px solid #fff; outline-offset:3px; border-radius:14px; }
 
@@ -471,8 +517,13 @@ html, body{ overflow-x:hidden; max-width:100%; }
   font:inherit;
   font-size:1.05rem;
   text-align:center;
+  transition:border-color .2s ease, box-shadow .2s ease;
 }
-.demo-name-form input:focus{ outline:2px solid #ffc93c; outline-offset:1px; }
+.demo-name-form input:focus{
+  outline:none;
+  border-color:var(--theme-accent);
+  box-shadow:0 0 0 3px var(--theme-soft);
+}
 .demo-error{
   min-height:22px;
   color:#fecaca;
@@ -493,8 +544,15 @@ html, body{ overflow-x:hidden; max-width:100%; }
   overflow:hidden;
   border-radius:22px;
   background:linear-gradient(135deg, var(--story-color, #6c63ff), #241645);
-  box-shadow:0 22px 50px rgba(0,0,0,.32);
-  transition:background .6s ease;
+  box-shadow:0 22px 50px rgba(0,0,0,.32), 0 0 60px var(--theme-glow);
+  transition:background .6s ease, box-shadow .6s ease;
+}
+.demo-story-scene::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.15), transparent 60%);
+  pointer-events:none;
 }
 .demo-story-sprite{
   position:absolute;
@@ -510,12 +568,14 @@ html, body{ overflow-x:hidden; max-width:100%; }
   background:linear-gradient(145deg, var(--story-color, #6c63ff), rgba(10,6,26,.8));
   font-size:58px;
   overflow:hidden;
-  animation:spriteFloat 2.8s ease-in-out infinite;
+  animation:spriteFloat 3s ease-in-out infinite;
+  box-shadow:0 20px 40px rgba(0,0,0,.35);
+  z-index:2;
 }
 .demo-story-sprite img{ width:100%; height:100%; object-fit:cover; }
 @keyframes spriteFloat{
   0%,100%{ margin-top:0; transform:translate(-50%,-50%) rotate(-3deg); }
-  50%    { margin-top:-12px; transform:translate(-50%,-50%) rotate(3deg); }
+  50%    { margin-top:-12px; transform:translate(-50%,-58%) rotate(3deg); }
 }
 .demo-story-chapter{
   position:absolute;
@@ -527,11 +587,22 @@ html, body{ overflow-x:hidden; max-width:100%; }
   font-size:1.05rem;
   font-weight:900;
   text-shadow:0 2px 8px rgba(0,0,0,.4);
+  z-index:2;
+  animation:chapterIn .6s ease both;
+}
+@keyframes chapterIn{
+  from{ opacity:0; transform:translateY(-12px); }
+  to  { opacity:1; transform:translateY(0); }
 }
 .demo-story-chapter-icon{
   display:block;
   margin-bottom:2px;
   font-size:38px;
+  animation:iconBounce 2s ease-in-out infinite;
+}
+@keyframes iconBounce{
+  0%,100%{ transform:translateY(0) rotate(0); }
+  50%    { transform:translateY(-6px) rotate(-6deg); }
 }
 .demo-story-caption{
   width:100%;
@@ -545,6 +616,8 @@ html, body{ overflow-x:hidden; max-width:100%; }
   min-height:130px;
   overflow-wrap:anywhere;
   word-break:break-word;
+  position:relative;
+  z-index:2;
 }
 .demo-story-caption .typing-cursor{
   display:inline-block;
@@ -568,14 +641,21 @@ html, body{ overflow-x:hidden; max-width:100%; }
 }
 
 /* ====== النهاية ====== */
-.demo-finale{ text-align:center; }
+.demo-finale{ text-align:center; position:relative; overflow:hidden; }
+.demo-finale::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 0%, var(--theme-soft), transparent 70%);
+  pointer-events:none;
+}
 .demo-finale-icon{
   font-size:64px;
   animation:finalePop 1.8s ease-in-out infinite;
   display:inline-block;
 }
 @keyframes finalePop{
-  0%,100%{ transform:scale(1); }
+  0%,100%{ transform:scale(1) rotate(0); }
   50%    { transform:scale(1.12) rotate(4deg); }
 }
 .demo-finale p{
@@ -672,12 +752,15 @@ html, body{ overflow-x:hidden; max-width:100%; }
 @media (prefers-reduced-motion: reduce){
   .demo-story-sprite,
   .demo-finale-icon,
-  .demo-btn-pulse{ animation:none; }
+  .demo-btn-pulse,
+  .demo-guide-avatar,
+  .demo-selected-media,
+  .demo-story-chapter-icon{ animation:none; }
   .demo-stage{ animation:none; }
 }
 </style>
 
-<main class="demo-page">
+<main class="demo-page" id="demoPage">
   <div class="demo-container">
     <div class="demo-head">
       <span class="demo-kicker">🎈 تجربة Kidora القصيرة</span>
@@ -691,7 +774,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
 
     <!-- ========== 1. الترحيب ========== -->
     <section class="demo-stage demo-welcome" id="demoWelcome">
-      <div class="demo-guide">
+      <div class="demo-guide" id="welcomeGuide">
         <div class="demo-guide-avatar" id="welcomeGuideAvatar"
              style="--guide-color:<?php echo h($guideData['color']); ?>">
           <?php if (!empty($guideData['image'])): ?>
@@ -841,7 +924,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
 
 <script>
 /* ============================================================
-   Kidora Demo — نظام تجربة نظيف، بدون تعارض
+   Kidora Demo — نسخة محدّثة: ثيم ديناميكي + قصص صحيحة
    ============================================================ */
 (function(){
   'use strict';
@@ -855,68 +938,116 @@ html, body{ overflow-x:hidden; max-width:100%; }
       'selectedSlug' => $selectedChar['slug'] ?? '',
   ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
-  /* ================= أدوات ================= */
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  /* ================= النطق ================= */
-  const Speech = (() => {
-    let currentUtt = null;
-    let voicesLoaded = false;
+  /* ============================================================
+     🛠️ أدوات نص
+     ============================================================ */
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+  const escapeAttr = escapeHtml;
 
-    function loadVoices(){
-      if (!window.speechSynthesis) return;
-      speechSynthesis.getVoices();
-      voicesLoaded = true;
+  /* ============================================================
+     📖 تحويل أي شكل من القصة إلى نص
+     ============================================================ */
+  function storyToText(story){
+    if (!story) return '';
+    if (typeof story === 'string') return story.trim();
+    if (Array.isArray(story)) {
+      return story.map(s => {
+        if (typeof s === 'string') return s;
+        if (s && typeof s === 'object') return s.text || s.caption || s.line || s.narration || '';
+        return '';
+      }).filter(Boolean).join('\n').trim();
     }
+    if (typeof story === 'object') {
+      if (typeof story.text === 'string') return story.text.trim();
+      if (typeof story.story === 'string') return story.story.trim();
+      if (typeof story.caption === 'string') return story.caption.trim();
+      if (Array.isArray(story.scenes)) {
+        return story.scenes.map(s => {
+          if (typeof s === 'string') return s;
+          if (s && typeof s === 'object') return s.text || s.caption || s.line || s.narration || '';
+          return '';
+        }).filter(Boolean).join('\n').trim();
+      }
+      for (const k in story) {
+        if (typeof story[k] === 'string' && story[k].trim()) return story[k].trim();
+      }
+    }
+    return String(story).trim();
+  }
+
+  /* ============================================================
+     🎨 تطبيق ثيم الرفيق على الصفحة
+     ============================================================ */
+  function hexToRgba(hex, alpha){
+    hex = (hex || '').replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+    const r = parseInt(hex.slice(0,2), 16) || 108;
+    const g = parseInt(hex.slice(2,4), 16) || 99;
+    const b = parseInt(hex.slice(4,6), 16) || 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function applyTheme(char){
+    if (!char) return;
+    const color = char.color || '#6c63ff';
+    const root = document.documentElement;
+    root.style.setProperty('--theme-accent', color);
+    root.style.setProperty('--theme-glow', hexToRgba(color, 0.35));
+    root.style.setProperty('--theme-soft', hexToRgba(color, 0.12));
+
+    // إضافة تدرج خفيف على خلفية الصفحة
+    const page = document.getElementById('demoPage');
+    if (page) {
+      page.style.background = `radial-gradient(circle at 50% 0%, ${hexToRgba(color, 0.10)}, transparent 55%)`;
+    }
+  }
+
+  /* ============================================================
+     🗣️ النطق
+     ============================================================ */
+  const Speech = (() => {
+    function loadVoices(){ if (window.speechSynthesis) speechSynthesis.getVoices(); }
     if (window.speechSynthesis) {
       loadVoices();
       speechSynthesis.onvoiceschanged = loadVoices;
     }
-
     function speak(text, opts = {}){
       if (!window.speechSynthesis || !text) return;
-      // أوقف أي نطق سابق
       try { speechSynthesis.cancel(); } catch(e){}
-
       const u = new SpeechSynthesisUtterance(String(text).trim());
       u.lang  = opts.lang  || 'ar-SA';
       u.rate  = opts.rate  || 1.05;
       u.pitch = opts.pitch || 1.1;
-
       const voices = speechSynthesis.getVoices() || [];
       const ar = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ar'));
       if (ar) u.voice = ar;
-
-      currentUtt = u;
       speechSynthesis.speak(u);
     }
-
-    function stop(){
-      if (!window.speechSynthesis) return;
-      try { speechSynthesis.cancel(); } catch(e){}
-      currentUtt = null;
-    }
-
+    function stop(){ if (window.speechSynthesis) try { speechSynthesis.cancel(); } catch(e){} }
     return { speak, stop };
   })();
 
-  /* ================= إدارة المراحل ================= */
+  /* ============================================================
+     🎬 إدارة المراحل
+     ============================================================ */
   const SECTIONS = ['demoWelcome','demoPick','demoMemory','demoName','demoStory','demoFinale'];
-  let currentSection = 'demoWelcome';
 
   function showSection(id){
     SECTIONS.forEach(s => {
       const el = document.getElementById(s);
       if (el) el.hidden = (s !== id);
     });
-    currentSection = id;
-    // scroll للأعلى
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e){ window.scrollTo(0,0); }
   }
 
   function updateProgress(step){
-    // step: 0..3
     const bars = $$('#demoProgress span');
     bars.forEach((b, i) => {
       b.classList.toggle('active', i === Math.min(step, 2));
@@ -924,17 +1055,13 @@ html, body{ overflow-x:hidden; max-width:100%; }
     });
   }
 
-  /* ================= قراءة مرشد القسم ================= */
   function speakGuideOf(sectionId){
     const section = document.getElementById(sectionId);
     if (!section) return;
     const txt = $('.js-guide-text', section);
-    if (txt && txt.textContent.trim()) {
-      Speech.speak(txt.textContent.trim(), { rate: 1.1 });
-    }
+    if (txt && txt.textContent.trim()) Speech.speak(txt.textContent.trim(), { rate: 1.1 });
   }
 
-  /* ================= تهيئة بطاقة المرشد لأي قسم ================= */
   function setupGuideAvatar(sectionId, char){
     const section = document.getElementById(sectionId);
     if (!section) return;
@@ -951,21 +1078,12 @@ html, body{ overflow-x:hidden; max-width:100%; }
     if (nameEl) nameEl.textContent = char.name || 'رفيقك';
   }
 
-  /* ================= أدوات نص ================= */
-  function escapeHtml(s){
-    return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[m]));
-  }
-  function escapeAttr(s){ return escapeHtml(s); }
-
   /* ============================================================
      (1) الترحيب
      ============================================================ */
   function initWelcome(){
     setupGuideAvatar('demoWelcome', DATA.guide);
-    // قراءة الرسالة بعد تحميل الأصوات
-    setTimeout(() => speakGuideOf('demoWelcome'), 600);
+    setTimeout(() => speakGuideOf('demoWelcome'), 700);
 
     const btn = $('#demoStart');
     if (btn) btn.addEventListener('click', () => {
@@ -1012,16 +1130,27 @@ html, body{ overflow-x:hidden; max-width:100%; }
   }
 
   function onCharacterChosen(c, grid){
-    // تحديد بصري
     $$('.demo-character', grid).forEach(b => b.classList.remove('selected'));
     const target = grid.querySelector(`.demo-character[data-slug="${c.slug}"]`);
     if (target) target.classList.add('selected');
 
     selectedChar = c;
+
+    /* 🎨 تطبيق الثيم على كل الصفحة */
+    applyTheme(c);
+
+    /* ✨ تحديث كل صور المرشد في كل الأقسام */
+    ['demoWelcome','demoPick','demoMemory','demoName','demoStory'].forEach(sec => {
+      setupGuideAvatar(sec, c);
+    });
+
+    /* 📌 إضافة class التوهج على بطاقة المرشد الحالية */
+    const pickGuide = $('#demoPick .demo-guide');
+    if (pickGuide) pickGuide.classList.add('is-active');
+
     Speech.speak(`اخترت ${c.name}. ${c.trait || ''}`, { rate: 1.1 });
 
-    // انتقال بعد لحظة بسيطة
-    setTimeout(() => startMemoryGame(), 900);
+    setTimeout(() => startMemoryGame(), 1000);
   }
 
   /* ============================================================
@@ -1041,7 +1170,6 @@ html, body{ overflow-x:hidden; max-width:100%; }
     showSection('demoMemory');
     updateProgress(2);
 
-    // بطاقة الشخصية المختارة
     const card = $('#memorySelectedCard');
     if (card) {
       card.innerHTML = `
@@ -1055,9 +1183,8 @@ html, body{ overflow-x:hidden; max-width:100%; }
       `;
     }
     setupGuideAvatar('demoMemory', selectedChar);
-
     buildMemoryBoard();
-    setTimeout(() => speakGuideOf('demoMemory'), 300);
+    setTimeout(() => speakGuideOf('demoMemory'), 350);
   }
 
   function buildMemoryBoard(){
@@ -1067,21 +1194,12 @@ html, body{ overflow-x:hidden; max-width:100%; }
     const msgEl = $('#memoryMessage');
     if (!grid) return;
 
-    // إعادة تهيئة الحالة
-    memoryState = {
-      deck: [],
-      flipped: [],
-      matched: 0,
-      moves: 0,
-      lock: false,
-      win: false,
-    };
+    memoryState = { deck: [], flipped: [], matched: 0, moves: 0, lock: false, win: false };
 
     if (scoreEl) scoreEl.textContent = '0';
     if (movesEl) movesEl.textContent = '0';
     if (msgEl) msgEl.textContent = 'اقلب بطاقتين متشابهتين.';
 
-    // بناء أزواج مضاعفة ومخلوطة
     const deck = [];
     MEMORY_PAIRS.forEach(p => {
       deck.push({ pairId: p.id, ico: p.ico, color: p.color });
@@ -1128,7 +1246,6 @@ html, body{ overflow-x:hidden; max-width:100%; }
       const cardB = s.deck[b.index];
 
       if (cardA.pairId === cardB.pairId) {
-        // تطابق
         setTimeout(() => {
           a.btn.classList.add('is-matched');
           b.btn.classList.add('is-matched');
@@ -1138,11 +1255,9 @@ html, body{ overflow-x:hidden; max-width:100%; }
           const scoreEl = $('#memoryScore');
           if (scoreEl) scoreEl.textContent = String(s.matched);
           s.flipped = [];
-
           if (s.matched === MEMORY_PAIRS.length) onMemoryWin();
         }, 350);
       } else {
-        // لا تطابق
         s.lock = true;
         setTimeout(() => {
           a.btn.classList.remove('is-open');
@@ -1159,15 +1274,14 @@ html, body{ overflow-x:hidden; max-width:100%; }
     s.win = true;
     const msgEl = $('#memoryMessage');
     if (msgEl) msgEl.textContent = '🎉 أحسنت! أنهيت اللعبة.';
-
     Speech.speak('أحسنت! لقد أنهيت اللعبة. الآن اختر اسم بطل القصة.', { rate: 1.1 });
-    spawnParticles(18);
+    spawnParticles(20);
 
     setTimeout(() => {
       showSection('demoName');
       updateProgress(3);
       setupGuideAvatar('demoName', selectedChar);
-      setTimeout(() => speakGuideOf('demoName'), 300);
+      setTimeout(() => speakGuideOf('demoName'), 350);
       focusNameInput();
     }, 1800);
   }
@@ -1190,13 +1304,11 @@ html, body{ overflow-x:hidden; max-width:100%; }
   function initNameForm(){
     const form = $('#demoNameForm');
     if (!form) return;
-
     form.addEventListener('submit', e => {
       e.preventDefault();
       const input = $('#demoChildName');
       const errEl = $('#demoNameError');
       const name = (input?.value || '').trim();
-
       if (!name || name.length < 2) {
         if (errEl) errEl.textContent = 'اكتب اسماً صحيحاً من حرفين على الأقل.';
         Speech.speak('اكتب اسمك أولاً.');
@@ -1211,10 +1323,10 @@ html, body{ overflow-x:hidden; max-width:100%; }
      (5) القصة
      ============================================================ */
   let storyTypingTimer = null;
+  let lastStoryText = '';
 
   function openStory(childName){
     if (!selectedChar) return;
-
     showSection('demoStory');
     updateProgress(3);
     setupGuideAvatar('demoStory', selectedChar);
@@ -1222,13 +1334,15 @@ html, body{ overflow-x:hidden; max-width:100%; }
     const guideText = $('#storyGuideText');
     if (guideText) guideText.textContent = 'استمع إلى قصتك الآن!';
 
-    const rawHtml = DATA.stories[selectedChar.slug] || 'مرحباً بك في مغامرتك!';
-    // إزالة الوسوم لأخذ النص فقط
-    const tmp = document.createElement('div');
-    tmp.innerHTML = rawHtml;
-    let fullText = (tmp.textContent || '').trim();
-    // استبدال كلمة "الاسم" بالاسم الفعلي
+    const rawStory = DATA.stories[selectedChar.slug];
+    let fullText = storyToText(rawStory);
+
+    if (!fullText) {
+      fullText = `في يوم من الأيام، كان ${childName} يسير في عالم ${selectedChar.name} السحري، وكانت المغامرة تنتظره.`;
+    }
+
     fullText = fullText.replace(/الاسم/g, childName);
+    lastStoryText = fullText;
 
     renderStoryScene({
       color: selectedChar.color || '#6c63ff',
@@ -1259,28 +1373,21 @@ html, body{ overflow-x:hidden; max-width:100%; }
       </div>
     `;
 
-    // إظهار الأزرار
     const actions = $('#storyActions');
     if (actions) actions.style.display = 'flex';
 
-    // بدء الكتابة
     typeStoryText(opts.text);
   }
 
   function typeStoryText(text){
     const caption = $('#storyCaption');
     if (!caption) return;
+    if (storyTypingTimer) { clearInterval(storyTypingTimer); storyTypingTimer = null; }
 
-    if (storyTypingTimer) {
-      clearInterval(storyTypingTimer);
-      storyTypingTimer = null;
-    }
-
-    // اقرأ النص بصوت كامل (بحيث لا ينقطع)
     Speech.speak(text, { rate: 1.0 });
 
     let i = 0;
-    const speed = Math.max(18, Math.min(45, Math.floor(2400 / Math.max(text.length, 1))));
+    const speed = 22;
 
     caption.textContent = '';
     storyTypingTimer = setInterval(() => {
@@ -1289,11 +1396,8 @@ html, body{ overflow-x:hidden; max-width:100%; }
         storyTypingTimer = null;
         return;
       }
-      // اكتب دفعة من الحروف لتسريع الكتابة للنصوص الطويلة
-      const batch = text.length > 200 ? 2 : 1;
-      const slice = text.slice(i, i + batch);
-      caption.textContent += slice;
-      i += batch;
+      caption.textContent += text.charAt(i);
+      i++;
     }, speed);
   }
 
@@ -1308,14 +1412,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
     });
 
     if (replay) replay.addEventListener('click', () => {
-      if (!selectedChar) return;
-      const nameInput = $('#demoChildName');
-      const childName = (nameInput?.value || '').trim() || 'البطل';
-      const rawHtml = DATA.stories[selectedChar.slug] || '';
-      const tmp = document.createElement('div');
-      tmp.innerHTML = rawHtml;
-      let fullText = (tmp.textContent || '').trim().replace(/الاسم/g, childName);
-      typeStoryText(fullText);
+      if (lastStoryText) typeStoryText(lastStoryText);
     });
   }
 
@@ -1325,28 +1422,28 @@ html, body{ overflow-x:hidden; max-width:100%; }
   function showFinale(){
     showSection('demoFinale');
     updateProgress(4);
-
-    const text = $('#finaleText');
-    if (text) {
-      setTimeout(() => {
-        Speech.speak(
-          'مبروك! أنهيت التجربة. سجل الآن ليصبح لكل يوم قصة ومهمة ورفيق.',
-          { rate: 1.05 }
-        );
-      }, 400);
-    }
-
-    spawnParticles(30);
+    setTimeout(() => {
+      Speech.speak('مبروك! أنهيت التجربة. سجل الآن ليصبح لكل يوم قصة ومهمة ورفيق.', { rate: 1.05 });
+    }, 450);
+    spawnParticles(35);
   }
 
   function initFinaleActions(){
     const tryAgain = $('#demoTryAgain');
     if (tryAgain) tryAgain.addEventListener('click', () => {
       Speech.stop();
-      // إعادة الضبط
       selectedChar = null;
+      lastStoryText = '';
       const nameInput = $('#demoChildName');
       if (nameInput) nameInput.value = '';
+
+      // رجّع الثيم الافتراضي
+      document.documentElement.style.setProperty('--theme-accent', '#6c63ff');
+      document.documentElement.style.setProperty('--theme-glow', 'rgba(108,99,255,.35)');
+      document.documentElement.style.setProperty('--theme-soft', 'rgba(108,99,255,.12)');
+      const page = document.getElementById('demoPage');
+      if (page) page.style.background = '';
+
       showSection('demoWelcome');
       updateProgress(0);
       setTimeout(() => speakGuideOf('demoWelcome'), 400);
@@ -1354,7 +1451,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
   }
 
   /* ============================================================
-     الجزيئات
+     ✨ الجزيئات
      ============================================================ */
   function spawnParticles(count){
     const host = $('#demoParticles');
@@ -1375,7 +1472,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
   }
 
   /* ============================================================
-     تشغيل عند الجاهزية
+     🚀 التهيئة
      ============================================================ */
   function init(){
     initWelcome();
