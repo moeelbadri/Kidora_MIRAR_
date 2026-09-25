@@ -13,15 +13,11 @@ if (!has_full_access($pdo, $child)) {
 }
 $progress = ensure_daily_progress($pdo, $child['id']);
 
-// ---------------- باكج اليوم: حتى 4 مهام نشطة، بلا فلتر عمر ----------------
 $taskPool = daily_task_pool($pdo, $child, $progress);
 $completedIds = array_map('intval', json_decode_safe($progress['completed_task_ids'], []));
 $doneCount = count($completedIds);
 $allTasksDone = $taskPool && $doneCount >= count($taskPool);
 
-// الإنجاز يمرّ عبر api/complete-task.php (بلا إعادة تحميل) — الرفيق يقود الباكج كلها
-// في الصفحة نفسها: المهمة → القصة → شخصية التراث وفيديوها (تلقائياً) → اللعبة → التالية.
-// انتهت الباكج؟ الرفيق يرسل الطفل إلى لعبة اليوم في قسم الألعاب.
 if ($allTasksDone) {
     header('Location: games.php?from=tasks'); exit;
 }
@@ -58,13 +54,13 @@ require_once __DIR__ . '/includes/navbar.php';
   .tk-video{ margin:16px auto 0; max-width:560px; border-radius:20px; overflow:hidden; box-shadow:0 14px 30px rgba(0,0,0,.2); background:#000; }
   .tk-video .ratio{ position:relative; padding-bottom:56.25%; height:0; }
   .tk-video iframe, .tk-video .yt-host{ position:absolute; inset:0; width:100%; height:100%; border:0; }
-  .tk-listen{ position:absolute; top:14px; inset-inline-start:14px; min-width:44px; min-height:44px; border-radius:999px; background:rgba(0,0,0,.05); font-size:20px; }
+  .tk-listen{ position:absolute; top:14px; inset-inline-start:14px; min-width:44px; min-height:44px; border-radius:999px; background:rgba(0,0,0,.05); font-size:20px; cursor:pointer; }
   .tk-celebrate{ background:linear-gradient(135deg,#f9d423,#ff4e50); border-radius:40px 18px 40px 18px; padding:18px 26px; margin:0 auto 16px; max-width:520px; text-align:center; color:#fff; box-shadow:0 10px 30px rgba(255,78,80,.4); animation:tkPulse 1.5s infinite alternate; }
   .tk-celebrate h2{ margin:0 0 4px; font-size:clamp(22px,3.4vw,30px); text-shadow:0 3px 10px rgba(0,0,0,.3); }
   .tk-celebrate .stars{ font-size:26px; letter-spacing:8px; }
   @keyframes tkPulse{ 0%{ transform:scale(1); } 100%{ transform:scale(1.03); } }
   .tk-story{ font-size:clamp(18px,2.6vw,22px); line-height:1.9; color:var(--ink); font-weight:800; white-space:pre-line; }
-  .tk-skip{ margin-top:12px; color:var(--ink-soft); font-weight:800; text-decoration:underline; text-underline-offset:4px; background:none; min-height:44px; }
+  .tk-skip{ margin-top:12px; color:var(--ink-soft); font-weight:800; text-decoration:underline; text-underline-offset:4px; background:none; min-height:44px; cursor:pointer; }
   .tk-figure-emoji{ font-size:64px; margin:6px 0; }
   #confetti-container{ position:fixed; inset:0; pointer-events:none; z-index:9999; overflow:hidden; }
   .confetti-piece{ position:absolute; width:12px; height:12px; border-radius:4px; animation:confetti-fall linear forwards; }
@@ -111,49 +107,79 @@ const TK = {
   let busy = false;
 
   /* ============================================================
-     ✅ أغلفة آمنة — تمنع انهيار الصفحة لو Companion غير معرّف
+     ✅ أغلفة آمنة — تستخدم Companion إن وُجد، وإلا SoundEngine مباشرة
      ============================================================ */
   const CMP = {
+    _speakRaw: (text, opts) => {
+      opts = opts || {};
+      return new Promise(resolve => {
+        try {
+          if (window.SoundEngine && typeof SoundEngine.speak === 'function') {
+            const char = window.KIDAURA_ACTIVE_CHARACTER || null;
+            let resolved = false;
+            const done = () => { if (!resolved) { resolved = true; resolve(); } };
+            const spoke = SoundEngine.speak(text, char, {
+              onEnd: done,
+              silentChime: opts.silentChime
+            });
+            if (!spoke) {
+              setTimeout(done, Math.min(2500, 800 + String(text || '').length * 30));
+            } else {
+              setTimeout(done, 15000);
+            }
+          } else {
+            setTimeout(resolve, Math.min(2500, 800 + String(text || '').length * 30));
+          }
+        } catch (e) {
+          console.warn('[Tasks] speak fallback failed:', e);
+          setTimeout(resolve, 1000);
+        }
+      });
+    },
+
     say: (text, opts) => {
       try {
         if (window.Companion && typeof Companion.say === 'function') {
           return Companion.say(text, opts);
         }
       } catch(e) { console.warn('[Tasks] Companion.say failed:', e); }
-      return new Promise(r => setTimeout(r, Math.min(2500, 800 + String(text || '').length * 30)));
+      return CMP._speakRaw(text, opts);
     },
+
     readAloud: (text, opts) => {
       try {
         if (window.Companion && typeof Companion.readAloud === 'function') {
           return Companion.readAloud(text, opts);
         }
       } catch(e) { console.warn('[Tasks] Companion.readAloud failed:', e); }
-      return Promise.resolve();
+      return CMP._speakRaw(text, Object.assign({ silentChime: true }, opts || {}));
     },
+
     celebrate: (text, opts) => {
       try {
         if (window.Companion && typeof Companion.celebrate === 'function') {
           return Companion.celebrate(text, opts);
         }
       } catch(e) { console.warn('[Tasks] Companion.celebrate failed:', e); }
-      return new Promise(r => setTimeout(r, 1800));
+      try {
+        if (window.SoundEngine && SoundEngine.sfx) SoundEngine.sfx('cheer');
+      } catch(e) {}
+      return CMP._speakRaw(text, opts);
     }
   };
 
-    const YT = {
+  const YT = {
     destroy: () => {
       try { if (window.KidoraYT && KidoraYT.destroy) KidoraYT.destroy(); } catch(e) {}
     },
     play: (hostId, videoId, opts) => {
       opts = opts || {};
-      // 1) جرّب KidoraYT الرسمي
       try {
         if (window.KidoraYT && typeof KidoraYT.play === 'function') {
           return KidoraYT.play(hostId, videoId, opts);
         }
       } catch(e) { console.warn('[Tasks] KidoraYT.play failed:', e); }
 
-      // 2) Fallback: نبني iframe مباشرة
       return new Promise(resolve => {
         const host = document.getElementById(hostId);
         if (!host) return resolve();
@@ -169,16 +195,10 @@ const TK = {
           allowfullscreen
           loading="lazy"></iframe>`;
 
-        // نراقب زر التخطي
         if (opts.skipId) {
           const skip = document.getElementById(opts.skipId);
           if (skip) skip.onclick = () => resolve();
         }
-
-        // ننتظر مدة الفيديو (fallback) أو انتهاء المستخدم
-        // (بدون API، ما نقدر نعرف متى يخلص الفيديو — فنسيب الطفل يضغط "التالي")
-        // نخزّن resolve عشان نقدر نستخدمه لو احتاج
-        window.__tkYTResolve = resolve;
       });
     }
   };
@@ -238,7 +258,6 @@ const TK = {
     TK.doneCount = data.done_count; dots();
     if (data.all_done) markDoneToday();
 
-    // القصة + الاحتفال
     confetti(80);
     await swap(`
       <div class="tk-celebrate"><h2>🌟 أحسنت يا ${esc(TK.childName)}! +${Number(data.points)} ⭐</h2><div class="stars">⭐ ⭐ ⭐</div></div>
@@ -247,7 +266,6 @@ const TK = {
     await CMP.say(data.story_line, { mood: 'talk', hold: 500 });
     await CMP.say(data.pair_line, { mood: 'talk', sidekick: true, hold: 500 });
 
-    // شخصية التراث: القصة تُقرأ أولاً، ثم الفيديو يبدأ وحده
     if (data.figure) {
       const f = data.figure;
       await CMP.say(`والآن نتعرّف على شخصية من تراثنا: ${f.name}.`, { mood: 'point', hold: 200 });
@@ -266,7 +284,6 @@ const TK = {
       }
     }
 
-    // اللعبة
     await CMP.say(data.all_done ? 'آخر لعبة صغيرة قبل المفاجأة!' : 'يلا نلعب لعبة قصيرة قبل المهمة التالية!', { mood: 'cheer', hold: 200 });
     await swap(`<div id="taskGameHost"></div>`);
     GamesEngine.run(data.game.type, document.getElementById('taskGameHost'), data.game.title, 'var(--coral)', async function(){
