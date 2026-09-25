@@ -1,5 +1,5 @@
 /* ============================================================
-   SoundEngine — صوت الرفيق (يعمل على الجوال واللاب)
+   SoundEngine — صوت الرفيق (نسخة iOS-compatible)
    ============================================================ */
 const SoundEngine = (function () {
   let voiceEnabled = localStorage.getItem("kidaura_voice") !== "off";
@@ -12,10 +12,12 @@ const SoundEngine = (function () {
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
   let unlocked = false;
-  const unlockQueue = [];
+  let pendingUtterance = null;   // 🎯 الجملة الوحيدة التي تنتظر unlock
+  let pendingDone = null;        // للـ onEnd
 
   /* ============================================================
-     🔓 فتح القفل — يُستدعى من أول لمسة/ضغطة/كيبورد
+     🔓 unlockAudio — يُستدعى SYNCHRONOUS داخل أول gesture
+     ينطق الجملة المعلّقة فوراً (بدون setTimeout)
      ============================================================ */
   function unlockAudio() {
     if (unlocked) return;
@@ -27,24 +29,19 @@ const SoundEngine = (function () {
       if (audioCtx.state === "suspended") audioCtx.resume();
     } catch (e) {}
 
-    // 2) iOS unlock — جملة حقيقية قصيرة جداً
-    if ("speechSynthesis" in window) {
+    // 2) النطق المعلّق — فوراً، بدون أي تأخير
+    if (pendingUtterance) {
+      const u = pendingUtterance;
+      const done = pendingDone;
+      pendingUtterance = null;
+      pendingDone = null;
       try {
         window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance("أهلاً");
-        u.lang = "ar-SA";
-        u.volume = 0.05;
-        u.rate = 2;
         window.speechSynthesis.speak(u);
-      } catch (e) {}
+      } catch (e) {
+        if (typeof done === "function") done();
+      }
     }
-
-    // 3) شغّل كل النطق المعلّق
-    setTimeout(() => {
-      const q = unlockQueue.slice();
-      unlockQueue.length = 0;
-      q.forEach(fn => { try { fn(); } catch (e) {} });
-    }, 150);
   }
 
   if (typeof document !== "undefined") {
@@ -144,10 +141,14 @@ const SoundEngine = (function () {
   function stop() {
     speakGen++;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    pendingUtterance = null;
+    pendingDone = null;
   }
 
   /* ============================================================
-     speak() — بسيط ومباشر
+     🎤 speak() — الطريقة الصحيحة لـ iOS
+     - مسموح (unlocked أو ديسكتوب): نطق SYNCHRONOUS فوراً
+     - جوال بدون unlock: احفظ الجملة، انطقها عند أول لمسة
      ============================================================ */
   function speak(text, charData, opts) {
     opts = opts || {};
@@ -170,32 +171,31 @@ const SoundEngine = (function () {
     if (musicTimer) { stopMusic(); musicPausedForSpeech = true; }
     if (!opts.silentChime) playChime();
 
-    // 🎯 النطق الفعلي
-    const fireNow = () => {
-      if (ended || gen !== speakGen) return;
-      const u = new SpeechSynthesisUtterance(clean);
-      u.lang = "ar-SA";
-      u.rate = opts.rate || 0.95;
-      u.pitch = opts.pitch || (charData && charData.slug === "spongebob" ? 1.15 : 1.05);
-      u.volume = 1;
-      const v = pickBestVoice();
-      if (v) { u.voice = v; u.lang = v.lang; }
-      u.onstart = () => { speaking = true; emit("start", clean); };
-      u.onend = done;
-      u.onerror = done;
+    // ابنِ الـ utterance
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = "ar-SA";
+    u.rate = opts.rate || 0.95;
+    u.pitch = opts.pitch || (charData && charData.slug === "spongebob" ? 1.15 : 1.05);
+    u.volume = 1;
+    const v = pickBestVoice();
+    if (v) { u.voice = v; u.lang = v.lang; }
+    u.onstart = () => { speaking = true; emit("start", clean); };
+    u.onend = done;
+    u.onerror = done;
 
+    // ============================================================
+    // 🎯 القرار الحاسم — بدون setTimeout على الجوال
+    // ============================================================
+    if (unlocked || !isMobile) {
+      // ✅ مسموح — انطقي SYNCHRONOUS (لا setTimeout)
       try {
         if (window.speechSynthesis.paused) window.speechSynthesis.resume();
         window.speechSynthesis.speak(u);
-      } catch (e) { done(); }
-    };
-
-    if (unlocked || !isMobile) {
-      // ✅ مسموح — نطق مباشر (بتأخير صغير لتفادي كتم Chrome/Safari)
-      setTimeout(fireNow, isMobile ? 30 : 70);
+      } catch (e) { done(); return false; }
     } else {
-      // 📱 iOS قبل unlock: انتظر أول لمسة
-      unlockQueue.push(fireNow);
+      // 📱 iOS قبل unlock — خزّنيها، ورح تنطق بأول لمسة
+      pendingUtterance = u;
+      pendingDone = done;
     }
 
     // حارس
