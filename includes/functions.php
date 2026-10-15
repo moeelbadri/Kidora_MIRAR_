@@ -511,7 +511,7 @@ function local_video_url(?string $id): ?string {
     $path = 'assets/videos/' . $id . '.mp4';
     $file = __DIR__ . '/../' . $path;
     return is_file($file) && is_readable($file) && filesize($file) > 0
-        ? BASE_PATH . '/' . $path : null;
+        ? BASE_PATH . '/' . $path . '?v=' . filemtime($file) : null;
 }
 
 /**
@@ -1030,4 +1030,3 @@ function kidora_peek_remember(PDO $pdo): ?array {
     }
     return $child;
 }
-

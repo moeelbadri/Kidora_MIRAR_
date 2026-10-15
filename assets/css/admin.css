@@ -19,4 +19,8 @@
 .admin-card-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
 .admin-item-card{ background:#fff; border-radius:16px; padding:16px; box-shadow:var(--shadow-soft); position:relative; }
 .admin-item-actions{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.video-upload-check{ display:flex; align-items:flex-start; gap:10px; margin:16px 0; }
+.admin-form .video-upload-check input{ width:auto; margin-top:6px; flex-shrink:0; }
+.video-library video{ display:block; width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; }
+.video-library h4{ overflow-wrap:anywhere; margin:0 0 12px; }
 @media(max-width:800px){ .admin-shell{ flex-direction:column; } .admin-sidebar{ width:100%; flex-direction:row; overflow-x:auto; } }

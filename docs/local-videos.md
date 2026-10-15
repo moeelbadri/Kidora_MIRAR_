@@ -18,6 +18,29 @@ in the import inventory too.
 Admin task/figure forms still accept source URLs or IDs, but saving a reference
 does **not** download it. Admin lists show whether its local file is present.
 
+### Upload from the admin panel
+
+Open **Admin → Videos (الفيديوهات)**. Enter the same source URL/11-character ID
+used by the task or figure, choose the file, confirm your publishing rights,
+and upload. For an original video without a source ID, choose a unique
+11-character ID using ASCII letters, digits, `-`, or `_`, then assign that ID
+to the task/figure. Uploading does not change database references automatically.
+
+Uploads accept MP4 with one H.264/yuv420p video stream and AAC audio (or no
+audio), up to **90 MiB**. The server checks actual codecs with `ffprobe`; it
+does not transcode. The Docker image includes ffprobe, a 90M PHP upload limit,
+and a 96M POST limit. Other hosting setups need those settings and the
+`ffprobe` and `timeout` executables too. Check proxy limits if uploads fail
+before reaching PHP; 90 MiB stays below a 100 MB request cap with form overhead.
+
+The library provides inline previews. To replace a video, choose its Replace
+link and explicitly tick the replacement checkbox. Validation completes before
+the new file atomically replaces the old one; rejected uploads leave the
+existing file unchanged. Player URLs include a version so replacements do not
+reuse the previous browser/CDN URL. Only authenticated admins with a valid
+session CSRF token can upload. Change the default admin credentials before
+exposing uploads on a public installation.
+
 ```bash
 # Report every referenced file that needs importing (exit 1 if any are missing).
 php scripts/import-videos.php
@@ -74,7 +97,7 @@ directory. It is not a folder inside the image or on your workstation.
    ```bash
    rsync -av --include='*.mp4' --exclude='*' assets/videos/ USER@HOST:/opt/kidora/videos/
    ```
-   On the server, make files readable by Apache without granting write access:
+   On the server, make files readable by Apache:
    ```bash
    sudo find /opt/kidora/videos -type f -name '*.mp4' -exec chmod 644 {} +
    ```
@@ -84,17 +107,16 @@ directory. It is not a folder inside the image or on your workstation.
    | --- | --- |
    | Host/source path | `/opt/kidora/videos` |
    | Container/target path | `/var/www/html/assets/videos` |
-   | Read only | Yes, if supported by your Dokploy version |
+   | Read only | No (admin uploads need write access) |
 
-   Dokploy v0.30.8 application mounts do not expose a read-only flag. For that
-   version, keep the folder root-owned and files mode 644 (directory mode 755),
-   so Apache/PHP running as `www-data` cannot modify them. This is filesystem
-   permission protection, not a Docker read-only mount. Compose and plain
-   Docker deployments can enforce the read-only mount shown below.
+   The entrypoint gives `www-data` ownership of the mounted video directory,
+   just like the existing upload directories. Dokploy v0.30.8 application
+   bind mounts are already writable. Do not mark this mount read-only if you
+   want to upload from the admin panel.
 
    Equivalent Docker option:
    ```bash
-   --mount type=bind,source=/opt/kidora/videos,target=/var/www/html/assets/videos,readonly
+   --mount type=bind,source=/opt/kidora/videos,target=/var/www/html/assets/videos
    ```
    For a Compose-based Dokploy application, add this under the PHP service:
    ```yaml
@@ -102,7 +124,7 @@ directory. It is not a folder inside the image or on your workstation.
      - type: bind
        source: /opt/kidora/videos
        target: /var/www/html/assets/videos
-       read_only: true
+       read_only: false
        bind:
          create_host_path: false
    ```
@@ -117,9 +139,9 @@ directory. It is not a folder inside the image or on your workstation.
    `Content-Range` header for the range request. Check playback and seeking in
    the browser too. Missing/empty/unreadable files remain unavailable to players.
 
-Keep the mount read-only: PHP never downloads or writes videos during web
-requests. Import on your workstation and copy new files to the host using the
-same process; no image rebuild is required for library updates. Back up the
+The mount is writable for authenticated admin uploads, but child playback never
+downloads or writes media. You can also import on your workstation and copy
+files to the host; no image rebuild is required for library updates. Back up the
 host folder separately from Git and the application database. If replicas run
 on multiple servers, each needs the same media at that path (or shared storage).
 
