@@ -68,19 +68,20 @@ require_once __DIR__ . '/includes/navbar.php';
   @keyframes listenPulse{ from{ transform:scale(1); } to{ transform:scale(1.12); } }
   .as-card[aria-busy="true"] .as-opt{ pointer-events:none; opacity:.6; }
 
-  /* ✨ تأثير تكبير وإضاءة الكلمات أثناء القراءة */
+  /* ✨ تأثير تكبير وإضاءة الكلمات أثناء القراءة (لون مريح للعين) */
   .read-word {
     display: inline-block;
-    transition: transform 0.2s ease, color 0.2s ease, text-shadow 0.2s ease, background 0.2s ease;
-    border-radius: 6px;
-    padding: 0 2px;
+    transition: transform 0.25s ease, color 0.25s ease, text-shadow 0.25s ease, background 0.25s ease;
+    border-radius: 8px;
+    padding: 0 4px;
+    margin: 0 -2px; /* لمنع تزاحم الكلمات عند التكبير */
   }
   .read-word.is-highlighted {
-    transform: scale(1.15);
-    color: #ffc93c;
-    text-shadow: 0 0 10px rgba(255, 201, 60, 0.8), 0 0 20px rgba(255, 201, 60, 0.5);
+    transform: scale(1.25); /* تكبير أكبر */
+    color: #2ec4b6; /* لون تركواز/أخضر مائي مريح جداً للعين */
+    text-shadow: 0 0 12px rgba(46, 196, 182, 0.6), 0 0 25px rgba(46, 196, 182, 0.4);
     font-weight: 900;
-    background: rgba(255, 201, 60, 0.15);
+    background: rgba(46, 196, 182, 0.15);
   }
 
   @media (max-height: 800px) {
@@ -158,7 +159,7 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
   let busy = false;
   let readTimer = null;
   let isSpeaking = false;
-  let highlightTimeout = null; // متغير جديد للتحكم في تسلسل الإضاءة
+  let highlightTimeout = null;
 
   function speechFor(){
     const qText = qEl.textContent.trim();
@@ -170,7 +171,7 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
     return parts.join('. ');
   }
 
-  // ✨ دالة بدء تسليط الضوء على الكلمات
+  // ✨ دالة بدء تسليط الضوء على الكلمات (تم تعديل التوقيت ليتناسب مع بطء الصوت)
   function startHighlighting() {
     stopHighlighting();
     const allWords = Array.from(document.querySelectorAll('.read-word'));
@@ -184,15 +185,19 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
       word.classList.add('is-highlighted');
       
       const text = word.textContent.trim();
-      // حساب مدة تقريبية لقراءة الكلمة (كل ما زاد عدد الأحرف زاد الوقت)
-      let duration = 200 + (text.length * 70);
-      // إضافة وقت إضافي عند وجود علامات ترقيم
-      if (/[،.؟!:؛]$/.test(text)) duration += 350;
+      
+      // ⏳ تم زيادة الأرقام هنا بشكل كبير لكي تتناسب مع سرعة قراءة الرفيق
+      // 1.5 ثانية أساس + وقت إضافي لكل حرف
+      let duration = 600 + (text.length * 150); 
+      
+      // إضافة وقت إضافي عند وجود علامات ترقيم (وقفة)
+      if (/[،.؟!:؛]$/.test(text)) duration += 800; 
 
       index++;
       highlightTimeout = setTimeout(highlightNext, duration);
     }
-    highlightNext();
+    // تأخير بسيط قبل البدء ليتزامن مع بداية نطق الصوت
+    highlightTimeout = setTimeout(highlightNext, 400); 
   }
 
   // ✨ دالة إيقاف تسليط الضوء
@@ -205,12 +210,11 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
     clearTimeout(readTimer);
     isSpeaking = false;
     if (listenBtn) listenBtn.classList.remove('is-speaking');
-    stopHighlighting(); // إيقاف الإضاءة عند التوقف
+    stopHighlighting();
     if (window.Companion) Companion.stop();
     else if (window.SoundEngine) SoundEngine.stop();
   }
 
-  // الرفيق يقرأ السؤال والخيارات مباشرة بصوته
   function readQuestion(delay){
     clearTimeout(readTimer);
     readTimer = setTimeout(() => {
@@ -222,10 +226,10 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
       const onDone = () => {
         isSpeaking = false;
         if (listenBtn) listenBtn.classList.remove('is-speaking');
-        stopHighlighting(); // إيقاف الإضاءة عند انتهاء القراءة
+        stopHighlighting();
       };
 
-      startHighlighting(); // بدء الإضاءة مع بدء الصوت
+      startHighlighting();
 
       if (window.Companion) {
         Companion.readAloud(speechFor()).then(onDone).catch(onDone);
@@ -253,10 +257,8 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
     setTimeout(() => {
       card.dataset.qid = next.id;
       
-      // تقسيم السؤال الجديد إلى كلمات
       qEl.innerHTML = next.question.split(/(\s+)/).map(part => part.trim() ? `<span class="read-word">${part}</span>` : part).join('');
       
-      // تقسيم الخيارات الجديدة إلى كلمات
       opts.innerHTML = next.options.map((o, i) => {
         const optWords = o.split(/(\s+)/).map(part => part.trim() ? `<span class="read-word">${part}</span>` : part).join('');
         return `
@@ -272,7 +274,6 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
       
       card.classList.remove('is-swapping');
       card.removeAttribute('aria-busy');
-      // قراءة فورية ومباشرة للسؤال الجديد
       readQuestion(300);
     }, 300);
   }
@@ -301,7 +302,6 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
     render(data.next);
   });
 
-  // قراءة مباشرة للسؤال الأول عند جاهزية الصفحة
   let hasSpoken = false;
   function startSpeaking(){
     if (hasSpoken) return;
@@ -315,7 +315,6 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
     document.addEventListener('DOMContentLoaded', startSpeaking);
   }
 
-  // دعم أول تفاعل لتخطي حظر الصوت التلقائي في بعض المتصفحات (Autoplay policy)
   const resumeOnFirstTouch = () => {
     if (!isSpeaking && !busy) {
       readQuestion(0);
