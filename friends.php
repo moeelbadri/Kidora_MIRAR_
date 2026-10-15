@@ -360,8 +360,9 @@ function playFriendVideo(slug, videoIndex){
       <div class="friend-video-frame">
         <div class="ratio">
           <iframe
-            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.id)}?rel=0&modestbranding=1&playsinline=1"
+            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.id)}?rel=0&modestbranding=1&playsinline=1&origin=${encodeURIComponent(location.origin)}"
             title="${escapeHtml(video.title)}"
+            referrerpolicy="strict-origin-when-cross-origin"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowfullscreen
             loading="lazy"></iframe>
