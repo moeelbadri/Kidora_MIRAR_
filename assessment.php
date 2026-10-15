@@ -68,6 +68,21 @@ require_once __DIR__ . '/includes/navbar.php';
   @keyframes listenPulse{ from{ transform:scale(1); } to{ transform:scale(1.12); } }
   .as-card[aria-busy="true"] .as-opt{ pointer-events:none; opacity:.6; }
 
+  /* ✨ تأثير تكبير وإضاءة الكلمات أثناء القراءة */
+  .read-word {
+    display: inline-block;
+    transition: transform 0.2s ease, color 0.2s ease, text-shadow 0.2s ease, background 0.2s ease;
+    border-radius: 6px;
+    padding: 0 2px;
+  }
+  .read-word.is-highlighted {
+    transform: scale(1.15);
+    color: #ffc93c;
+    text-shadow: 0 0 10px rgba(255, 201, 60, 0.8), 0 0 20px rgba(255, 201, 60, 0.5);
+    font-weight: 900;
+    background: rgba(255, 201, 60, 0.15);
+  }
+
   @media (max-height: 800px) {
     .section-head{ margin-bottom:12px; }
     .as-card{ padding:22px 20px 20px; border-radius:24px; }
@@ -87,10 +102,33 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
     <div class="card as-card" id="asCard" data-qid="<?php echo (int)$currentQuestion['id']; ?>">
       <button type="button" class="as-listen" id="asListen" title="اسمع السؤال بصوت رفيقك" aria-label="اسمع السؤال">🔊</button>
-      <h3 class="as-q" id="asQuestion"><?php echo h($currentQuestion['question']); ?></h3>
+      <h3 class="as-q" id="asQuestion">
+        <?php 
+        $qWords = preg_split('/(\s+)/', $currentQuestion['question']);
+        foreach ($qWords as $word) {
+          if (trim($word) === '') echo $word;
+          else echo '<span class="read-word">' . h($word) . '</span>';
+        }
+        ?>
+      </h3>
       <div class="as-opts" id="asOpts">
-        <?php for ($i = 1; $i <= 3; $i++): ?>
-          <button type="button" class="as-opt" data-opt="<?php echo $i; ?>"><span class="as-num"><?php echo $i; ?></span><span><?php echo h($currentQuestion["option_{$i}"]); ?></span></button>
+        <?php 
+        $ordinalsAr = ['الأول', 'الثاني', 'الثالث'];
+        for ($i = 1; $i <= 3; $i++): 
+        ?>
+          <button type="button" class="as-opt" data-opt="<?php echo $i; ?>">
+            <span class="as-num"><?php echo $i; ?></span>
+            <span>
+              <span class="read-word">الخيار <?php echo $ordinalsAr[$i-1]; ?>:</span> 
+              <?php 
+              $optWords = preg_split('/(\s+)/', $currentQuestion["option_{$i}"]);
+              foreach ($optWords as $word) {
+                if (trim($word) === '') echo $word;
+                else echo '<span class="read-word">' . h($word) . '</span>';
+              }
+              ?>
+            </span>
+          </button>
         <?php endfor; ?>
       </div>
     </div>
@@ -120,22 +158,54 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
   let busy = false;
   let readTimer = null;
   let isSpeaking = false;
+  let highlightTimeout = null; // متغير جديد للتحكم في تسلسل الإضاءة
 
   function speechFor(){
     const qText = qEl.textContent.trim();
     const parts = [qText];
-    opts.querySelectorAll('.as-opt').forEach((b, i) => {
-      const sp = b.querySelector('span:last-child') || b.lastElementChild;
-      const optText = sp ? sp.textContent.trim() : '';
-      parts.push(`الخيار ${ordinals[i] || (i + 1)}: ${optText}.`);
+    opts.querySelectorAll('.as-opt').forEach((b) => {
+      const sp = b.querySelector('span:last-child');
+      if (sp) parts.push(sp.textContent.trim());
     });
-    return parts.join(' ');
+    return parts.join('. ');
+  }
+
+  // ✨ دالة بدء تسليط الضوء على الكلمات
+  function startHighlighting() {
+    stopHighlighting();
+    const allWords = Array.from(document.querySelectorAll('.read-word'));
+    let index = 0;
+
+    function highlightNext() {
+      if (index >= allWords.length) return;
+      if (index > 0) allWords[index - 1].classList.remove('is-highlighted');
+      
+      const word = allWords[index];
+      word.classList.add('is-highlighted');
+      
+      const text = word.textContent.trim();
+      // حساب مدة تقريبية لقراءة الكلمة (كل ما زاد عدد الأحرف زاد الوقت)
+      let duration = 200 + (text.length * 70);
+      // إضافة وقت إضافي عند وجود علامات ترقيم
+      if (/[،.؟!:؛]$/.test(text)) duration += 350;
+
+      index++;
+      highlightTimeout = setTimeout(highlightNext, duration);
+    }
+    highlightNext();
+  }
+
+  // ✨ دالة إيقاف تسليط الضوء
+  function stopHighlighting() {
+    clearTimeout(highlightTimeout);
+    document.querySelectorAll('.read-word.is-highlighted').forEach(el => el.classList.remove('is-highlighted'));
   }
 
   function stopReading(){
     clearTimeout(readTimer);
     isSpeaking = false;
     if (listenBtn) listenBtn.classList.remove('is-speaking');
+    stopHighlighting(); // إيقاف الإضاءة عند التوقف
     if (window.Companion) Companion.stop();
     else if (window.SoundEngine) SoundEngine.stop();
   }
@@ -152,7 +222,10 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
       const onDone = () => {
         isSpeaking = false;
         if (listenBtn) listenBtn.classList.remove('is-speaking');
+        stopHighlighting(); // إيقاف الإضاءة عند انتهاء القراءة
       };
+
+      startHighlighting(); // بدء الإضاءة مع بدء الصوت
 
       if (window.Companion) {
         Companion.readAloud(speechFor()).then(onDone).catch(onDone);
@@ -179,9 +252,24 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
     card.classList.add('is-swapping');
     setTimeout(() => {
       card.dataset.qid = next.id;
-      qEl.textContent = next.question;
-      opts.innerHTML = next.options.map((o, i) => `<button type="button" class="as-opt" data-opt="${i + 1}"><span class="as-num">${i + 1}</span><span></span></button>`).join('');
-      opts.querySelectorAll('.as-opt span:last-child').forEach((sp, i) => sp.textContent = next.options[i]);
+      
+      // تقسيم السؤال الجديد إلى كلمات
+      qEl.innerHTML = next.question.split(/(\s+)/).map(part => part.trim() ? `<span class="read-word">${part}</span>` : part).join('');
+      
+      // تقسيم الخيارات الجديدة إلى كلمات
+      opts.innerHTML = next.options.map((o, i) => {
+        const optWords = o.split(/(\s+)/).map(part => part.trim() ? `<span class="read-word">${part}</span>` : part).join('');
+        return `
+          <button type="button" class="as-opt" data-opt="${i + 1}">
+            <span class="as-num">${i + 1}</span>
+            <span>
+              <span class="read-word">الخيار ${ordinals[i]}:</span> 
+              ${optWords}
+            </span>
+          </button>
+        `;
+      }).join('');
+      
       card.classList.remove('is-swapping');
       card.removeAttribute('aria-busy');
       // قراءة فورية ومباشرة للسؤال الجديد
