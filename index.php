@@ -468,7 +468,7 @@ require_once __DIR__ . '/includes/public-nav.php';
       <div class="public-video-frame">
         <?php if ($showcaseVideo): ?>
           <video src="<?php echo h($showcaseVideo); ?>" aria-label="فيديو تعريفي عن Kidora"
-            controls autoplay muted loop playsinline preload="metadata"></video>
+            autoplay muted loop playsinline preload="metadata"></video>
         <?php else: ?>
           <div class="public-video-unavailable" role="status">
             <h2>✨ مرحباً بك في Kidora</h2>
