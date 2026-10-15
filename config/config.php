@@ -42,6 +42,10 @@ if (!defined('BASE_PATH')) {
 // أيقونة تبويب المتصفح (شعار Kidora)
 define('KIDORA_FAVICON', 'https://i.ibb.co/Nzr63J7/Screenshot-2026-09-17-131732-removebg-preview.png');
 
+// Source IDs are retained for importing authorized copies into assets/videos/{id}.mp4.
+define('KIDORA_SHOWCASE_VIDEO_ID', '9yJF1CReRCQ');
+define('KIDORA_SAFETY_VIDEO_ID', 'FUC2yrD2Gz8');
+
 // بيانات دخول لوحة الإدارة
 define('ADMIN_EMAIL', 'admin@kidora.com');
 define('ADMIN_PASSWORD', 'admin123');

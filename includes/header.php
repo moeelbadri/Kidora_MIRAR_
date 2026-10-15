@@ -33,7 +33,7 @@ $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية'
 <link rel="stylesheet" href="<?php echo BASE_PATH; ?>/assets/css/main.css">
 <script src="<?php echo BASE_PATH; ?>/assets/js/theme-engine.js"></script>
 <script src="<?php echo BASE_PATH; ?>/assets/js/sound-engine.js?v=20260925"></script>
-<script src="<?php echo BASE_PATH; ?>/assets/js/companion.js?v=20260925"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/js/companion.js?v=20261015-local-video"></script>
 <script src="<?php echo BASE_PATH; ?>/assets/js/story-player.js"></script>
 <script src="<?php echo BASE_PATH; ?>/assets/js/games-engine.js"></script>
 </head>

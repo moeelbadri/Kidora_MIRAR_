@@ -1,0 +1,8 @@
+# Secrets — never commit browser/session exports
+cookies.txt
+*-cookies.txt
+youtube-cookies.txt
+
+# Local DB and uploads (see storage/.gitignore too)
+storage/*.sqlite
+storage/*.sqlite-*

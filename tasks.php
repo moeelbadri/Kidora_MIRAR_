@@ -27,7 +27,10 @@ if ($taskPool) {
     $in = implode(',', array_fill(0, count($taskPool), '?'));
     $st = $pdo->prepare("SELECT id, title, description, category, points, youtube_id FROM tasks WHERE id IN ($in)");
     $st->execute($taskPool);
-    foreach ($st->fetchAll() as $row) $tasksById[(int)$row['id']] = $row;
+    foreach ($st->fetchAll() as $row) {
+        $row['video_url'] = local_video_url($row['youtube_id']);
+        $tasksById[(int)$row['id']] = $row;
+    }
 }
 $orderedTasks = [];
 foreach ($taskPool as $tid) if (isset($tasksById[$tid])) $orderedTasks[] = $tasksById[$tid];
@@ -53,7 +56,7 @@ require_once __DIR__ . '/includes/navbar.php';
   .tk-done{ min-height:66px; font-size:20px; padding:16px 34px; margin-top:18px; }
   .tk-video{ margin:16px auto 0; max-width:560px; border-radius:20px; overflow:hidden; box-shadow:0 14px 30px rgba(0,0,0,.2); background:#000; }
   .tk-video .ratio{ position:relative; padding-bottom:56.25%; height:0; }
-  .tk-video iframe, .tk-video .yt-host{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .tk-video .video-host{ position:absolute; inset:0; width:100%; height:100%; border:0; }
   .tk-listen{ position:absolute; top:14px; inset-inline-start:14px; min-width:44px; min-height:44px; border-radius:999px; background:rgba(0,0,0,.05); font-size:20px; cursor:pointer; }
   .tk-celebrate{ background:linear-gradient(135deg,#f9d423,#ff4e50); border-radius:40px 18px 40px 18px; padding:18px 26px; margin:0 auto 16px; max-width:520px; text-align:center; color:#fff; box-shadow:0 10px 30px rgba(255,78,80,.4); animation:tkPulse 1.5s infinite alternate; }
   .tk-celebrate h2{ margin:0 0 4px; font-size:clamp(22px,3.4vw,30px); text-shadow:0 3px 10px rgba(0,0,0,.3); }
@@ -168,45 +171,10 @@ const TK = {
     }
   };
 
-  const YT = {
-    destroy: () => {
-      try { if (window.KidoraYT && KidoraYT.destroy) KidoraYT.destroy(); } catch(e) {}
-    },
-    play: (hostId, videoId, opts) => {
-      opts = opts || {};
-      try {
-        if (window.KidoraYT && typeof KidoraYT.play === 'function') {
-          return KidoraYT.play(hostId, videoId, opts);
-        }
-      } catch(e) { console.warn('[Tasks] KidoraYT.play failed:', e); }
-
-      return new Promise(resolve => {
-        const host = document.getElementById(hostId);
-        if (!host) return resolve();
-
-        const autoplay = opts.autoplay ? 1 : 0;
-        const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?rel=0&modestbranding=1&playsinline=1&autoplay=${autoplay}`;
-
-        host.innerHTML = `<iframe
-          src="${src}"
-          title="فيديو"
-          style="position:absolute;inset:0;width:100%;height:100%;border:0;"
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowfullscreen
-          loading="lazy"></iframe>`;
-
-        if (opts.skipId) {
-          const skip = document.getElementById(opts.skipId);
-          if (skip) skip.onclick = () => resolve();
-        }
-      });
-    }
-  };
-
   function swap(html){
     return new Promise(res => {
       view.classList.add('is-out');
-      setTimeout(() => { YT.destroy(); view.innerHTML = html; view.classList.remove('is-out'); res(); }, 320);
+      setTimeout(() => { KidoraVideo.destroy(); view.innerHTML = html; view.classList.remove('is-out'); res(); }, 320);
     });
   }
   function dots(){ document.querySelectorAll('#tkDots span').forEach((d, i) => { d.className = i < TK.doneCount ? 'done' : (i === TK.doneCount ? 'current' : ''); }); }
@@ -217,7 +185,7 @@ const TK = {
       p.style.backgroundColor = colors[i % colors.length]; p.style.width = p.style.height = (Math.random()*10+6)+'px'; p.style.borderRadius = Math.random() > .5 ? '50%' : '4px';
       p.style.animationDuration = (Math.random()*2+2)+'s'; p.style.animationDelay = (Math.random()*1.2)+'s'; c.appendChild(p); setTimeout(() => p.remove(), 4200); }
   }
-  const playVideo = (hostId, videoId, autoplay) => YT.play(hostId, videoId, { autoplay, skipId: hostId + '_skip' });
+  const playVideo = (hostId, url, autoplay) => KidoraVideo.play(hostId, url, { autoplay, skipId: hostId + '_skip' });
 
   // ---------- المرحلة 1: المهمة ----------
   async function showTask(){
@@ -231,13 +199,13 @@ const TK = {
         <h3>${esc(t.title)}</h3>
         <p>${esc(t.description)}</p>
         <div class="tk-pair"><span class="sk">${esc(TK.sidekick.icon)}</span><span>${esc(TK.pairLines[t.id] || '')}</span></div>
-        ${t.youtube_id ? `<div class="tk-video"><div class="ratio"><div class="yt-host" id="tkTaskVideo"></div></div></div>` : ''}
+        ${t.youtube_id ? `<div class="tk-video"><div class="ratio"><div class="video-host" id="tkTaskVideo"></div></div></div>` : ''}
         <button type="button" class="btn btn-primary tk-done" id="tkDone">أنجزت المهمة ✅ (+${Number(t.points)})</button>
       </div>`);
     const text = `${t.title}. ${t.description}`;
     document.getElementById('tkListen').onclick = () => CMP.readAloud(text);
     document.getElementById('tkDone').onclick = completeTask;
-    if (t.youtube_id) playVideo('tkTaskVideo', t.youtube_id, false);
+    if (t.youtube_id) playVideo('tkTaskVideo', t.video_url, false);
     await wait(TK._greeted ? 300 : 4000); TK._greeted = true;
     await CMP.say(text, { mood: 'talk', hold: 600 });
   }
@@ -275,12 +243,12 @@ const TK = {
           <h3>${esc(f.name)} — ${esc(f.title)}</h3>
           <p>${esc(f.description)}</p>
           <p style="color:var(--violet);font-weight:800;">✨ ${esc(f.story_line)}</p>
-          ${f.youtube_id ? `<div class="tk-video"><div class="ratio"><div class="yt-host" id="tkFigVideo"></div></div></div><button type="button" class="tk-skip" id="tkFigVideo_skip">⏭ التالي</button>` : '<div class="tk-figure-emoji">🕌</div>'}
+          ${f.youtube_id ? `<div class="tk-video"><div class="ratio"><div class="video-host" id="tkFigVideo"></div></div></div><button type="button" class="tk-skip" id="tkFigVideo_skip">⏭ التالي</button>` : '<div class="tk-figure-emoji">🕌</div>'}
         </div>`);
       await CMP.say(`${f.name}، ${f.title}. ${f.description} ${f.story_line}`, { mood: 'talk', hold: 300 });
       if (f.youtube_id) {
         await CMP.say('شاهد الفيديو الآن، وبعده لعبة قصيرة!', { mood: 'point', hold: 100 });
-        await playVideo('tkFigVideo', f.youtube_id, true);
+        await playVideo('tkFigVideo', f.video_url, true);
       }
     }
 

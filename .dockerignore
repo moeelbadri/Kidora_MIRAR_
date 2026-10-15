@@ -1,5 +1,10 @@
 .git
 .cursor
+.amp/in
+assets/videos
+cookies.txt
+*-cookies.txt
+youtube-cookies.txt
 storage/*.sqlite
 storage/*.sqlite-journal
 storage/*.sqlite-wal

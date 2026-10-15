@@ -11,6 +11,7 @@ COPY . /var/www/html
 RUN mkdir -p \
         uploads/photos \
         uploads/drawings \
+        assets/videos \
         assets/images/characters \
         assets/audio/characters \
         storage \

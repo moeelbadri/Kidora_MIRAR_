@@ -504,17 +504,14 @@ function game_is_calm_age(?int $age): bool {
     return true;
 }
 
-/**
- * رابط تضمين فيديو المهمة أو الشخصية.
- *
- * youtube-nocookie.com لا يزرع كوكيز التتبّع قبل التشغيل — وهذا هو الوضع
- * المطلوب في تطبيق يشاهده أطفال. rel=0 لا يُلغي المقترحات (غيّرت يوتيوب ذلك
- * سنة 2018) لكنه يحصرها في القناة نفسها، وهو أقصى ما تسمح به المنصة.
- * playsinline يمنع الفتح بملء الشاشة تلقائياً على أجهزة iOS.
- */
-function youtube_embed_url(string $id): string {
-    return 'https://www.youtube-nocookie.com/embed/' . rawurlencode($id)
-         . '?rel=0&modestbranding=1&playsinline=1';
+/** Existing YouTube IDs now identify locally hosted MP4 files, never remote embeds. */
+function local_video_url(?string $id): ?string {
+    $id = youtube_id_from_input($id);
+    if ($id === null) return null;
+    $path = 'assets/videos/' . $id . '.mp4';
+    $file = __DIR__ . '/../' . $path;
+    return is_file($file) && is_readable($file) && filesize($file) > 0
+        ? BASE_PATH . '/' . $path : null;
 }
 
 /**
@@ -524,7 +521,7 @@ function youtube_embed_url(string $id): string {
  *
  * كان الحقل يُخزَّن كما هو، فرابط Shorts كامل (60+ حرفاً) أسقط الطلب
  * بـ«Data too long for column youtube_id» على MySQL، ولو دخل لكان
- * youtube_embed_url() قد بنى رابطاً معطوباً منه.
+ * المشغّل قد بنى رابطاً معطوباً منه.
  *
  * يُعيد null للفراغ أو لما لا يشبه معرّف يوتيوب — لا يُقتطع الإدخال أبداً.
  */
@@ -1033,5 +1030,4 @@ function kidora_peek_remember(PDO $pdo): ?array {
     }
     return $child;
 }
-
 

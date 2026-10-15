@@ -196,8 +196,7 @@ $introVideo = [
     'poster' => is_file(__DIR__ . '/assets/video/intro-poster.webp'),
     'posterPath' => 'assets/video/intro-poster.webp',
 ];
-// $remoteVideoId = 'XIQBQk6F-ok';
-$remoteVideoId = '9yJF1CReRCQ';
+$showcaseVideo = local_video_url(KIDORA_SHOWCASE_VIDEO_ID);
 $shouldOpenRegister = isset($_GET['register']) || (bool)$registerError;
 $__pageTitle = 'Kidora — حيث تبدأ المغامرة';
 require_once __DIR__ . '/includes/header.php';
@@ -285,12 +284,13 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-video-showcase{padding-top:20px}
   .public-video-frame{position:relative;min-height:min(68svh,680px);overflow:hidden;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:#05030b;box-shadow:0 28px 70px rgba(0,0,0,.38)}
   .public-video-frame:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(10,6,26,.02),rgba(10,6,26,.5))}
-  .public-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .public-video-frame video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain}
+  .public-video-unavailable{display:grid;place-content:center;min-height:100svh;padding:24px;text-align:center;color:#fff;box-sizing:border-box}
 
   /* ✅ كان 100vw — صار 100% عشان ما يعمل scroll أفقي */
   .public-video-full{width:100%;max-width:100%;min-height:100svh;margin:0;padding:0;position:relative;overflow:hidden;background:#0a061a}
   .public-video-full .public-video-frame{position:absolute;inset:0;width:100%;height:100%;border:none;border-radius:0;box-shadow:none}
-  .public-video-full .public-video-frame iframe{width:100%;height:100%;border:0}
+  .public-video-full .public-video-frame video{width:100%;height:100%;border:0}
   .public-video-full .public-video-frame:after{display:none}
 
   .public-orbit{position:absolute;width:min(100%,430px);aspect-ratio:1;border:1px solid rgba(255,201,60,.22);border-radius:50%;box-shadow:0 0 80px rgba(91,141,239,.15) inset,0 0 80px rgba(255,105,170,.1);animation:publicOrbit 18s linear infinite}
@@ -465,14 +465,17 @@ require_once __DIR__ . '/includes/public-nav.php';
   <main>
     <!-- فيديو تعريفي بملء الشاشة -->
     <section class="public-video-full" id="videoShowcase">
-            <div class="public-video-frame">
-        <iframe
-          src="<?php echo h(youtube_embed_url($remoteVideoId) . '&autoplay=1&loop=1&playlist=' . rawurlencode($remoteVideoId) . '&controls=1'); ?>"
-          title="فيديو تعريفي عن Kidora"
-          loading="lazy"
-          referrerpolicy="strict-origin-when-cross-origin"
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowfullscreen></iframe>
+      <div class="public-video-frame">
+        <?php if ($showcaseVideo): ?>
+          <video src="<?php echo h($showcaseVideo); ?>" aria-label="فيديو تعريفي عن Kidora"
+            controls autoplay muted loop playsinline preload="metadata"></video>
+        <?php else: ?>
+          <div class="public-video-unavailable" role="status">
+            <h2>✨ مرحباً بك في Kidora</h2>
+            <p>الفيديو التعريفي غير متاح حالياً. اكتشف المغامرة أدناه!</p>
+            <a class="k-btn k-btn-gold" href="#hero">اكتشف المنصة ↓</a>
+          </div>
+        <?php endif; ?>
       </div>
     </section>
 

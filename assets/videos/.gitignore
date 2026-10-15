@@ -1,0 +1,3 @@
+# Runtime media lives on the host, not in source control.
+*
+!.gitignore

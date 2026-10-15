@@ -3,6 +3,12 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 $myChars = array_filter([get_character($pdo, $child['character_1']), get_character($pdo, $child['character_2'])]);
+$friendVideos = require __DIR__ . '/includes/friend-videos.php';
+foreach ($friendVideos as &$videos) {
+    foreach ($videos as &$video) $video['url'] = local_video_url($video['id']);
+    unset($video);
+}
+unset($videos);
 
 $__pageTitle = 'قصص أصدقائي — Kidora';
 $__pageLine = "تعال شوف قصصي المتحركة يا {$child['name']}! 🎥";
@@ -112,7 +118,7 @@ require_once __DIR__ . '/includes/navbar.php';
     padding-bottom:56.25%;
     height:0;
   }
-  .friend-video-frame iframe{
+  .friend-video-frame .video-host{
     position:absolute;
     inset:0;
     width:100%;
@@ -188,44 +194,8 @@ const MY_CHARS = <?php echo json_encode(array_values(array_map(fn($c)=>[
     'image'=>$c['image_path'],'icon'=>(character_icons($c)[0] ?? '✨')
 ], $myChars)), JSON_UNESCAPED_UNICODE); ?>;
 
-/* ============================================================
-   🎬 مكتبة الفيديوهات — أضيفي/عدّلي الروابط هنا
-   ------------------------------------------------------------
-   كل شخصية عندها مصفوفة فيديوهات.
-   كل فيديو فيه:
-     - title:  عنوان الفيديو
-     - id:     معرف يوتيوب (الجزء اللي بعد v= أو بعد youtu.be/)
-     - desc:   وصف مختصر (اختياري)
-   ============================================================ */
-const FRIEND_VIDEOS = {
-  spongebob: [
-    { id: "SN-CxJVsbyg", title: "سبونج بوب في قاع الهامور", desc: "مغامرات الفقاعات" },
-    { id: "ANG1Cq2fMl0", title: "يوم في مقرمشات سلطع", desc: "مغامرة طبخ" },
-  ],
-  dora: [
-    { id: "dOBGOlrUCM4", title: "دورا والمغامرة الكبيرة", desc: "استكشاف الغابة" },
-    { id: "unYS07FuDIU", title: "دورا والجبل المغنّي", desc: "الرحلة الشجاعة" },
-  ],
-  gumball: [
-    { id: "NQ3ugCFXuEk", title: "عالم غامبول العجيب", desc: "المدرسة والمغامرات" },
-    { id: "KP4Wmdf26ZE", title: "غامبول ودارون", desc: "الأخوّة والفوضى" },
-  ],
-  ladybug: [
-    { id: "NqW4hwGHIjc", title: "ليدي باج في باريس", desc: "الحكمة والشجاعة" },
-  ],
-  spiderman: [
-    { id: "B4OELaY0ink", title: "سبايدرمان والمسؤولية", desc: "البطولة اليومية" },
-  ],
-  batman: [
-    { id: "iBZR8lCCPf0", title: "باتمان وحماية المدينة", desc: "الشجاعة الهادئة" },
-  ],
-  ben10: [
-    { id: "34WNhf4wris", title: "بن تن والمغامرة الصيفية", desc: "الجدّ ماكس والطريق" },
-  ],
-  conan: [
-    { id: "6KrkLfekHrU", title: "كونان والمحققون الصغار", desc: "ألغاز صغيرة" },
-  ],
-};
+// Edit the source catalog in includes/friend-videos.php; playback is local only.
+const FRIEND_VIDEOS = <?php echo json_encode($friendVideos, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
 /* ============================================================
    القصص النصية المتحركة (Fallback)
@@ -328,7 +298,7 @@ if (grid) {
 }
 
 /* ============================================================
-   🎬 تشغيل فيديو يوتيوب
+   🎬 تشغيل فيديو محلي
    ============================================================ */
 function playFriendVideo(slug, videoIndex){
   const c = MY_CHARS.find(x => x.slug === slug);
@@ -350,6 +320,7 @@ function playFriendVideo(slug, videoIndex){
   ` : '';
 
   const box = document.getElementById('friendPlayerBox');
+  KidoraVideo.destroy();
   box.innerHTML = `
     <div class="friend-video-wrap">
       <h3 class="friend-video-title">
@@ -359,13 +330,7 @@ function playFriendVideo(slug, videoIndex){
       ${video.desc ? `<p style="text-align:center;color:#b9abd4;margin:0 0 12px;font-size:.9rem;">${escapeHtml(video.desc)}</p>` : ''}
       <div class="friend-video-frame">
         <div class="ratio">
-          <iframe
-            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.id)}?rel=0&modestbranding=1&playsinline=1&origin=${encodeURIComponent(location.origin)}"
-            title="${escapeHtml(video.title)}"
-            referrerpolicy="strict-origin-when-cross-origin"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen
-            loading="lazy"></iframe>
+          <div class="video-host" id="friendVideo"></div>
         </div>
       </div>
       ${videoListHTML}
@@ -376,6 +341,7 @@ function playFriendVideo(slug, videoIndex){
     </div>
   `;
 
+  KidoraVideo.play('friendVideo', video.url);
   box.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
@@ -396,6 +362,7 @@ function playFriendStory(slug, index){
   };
 
   const box = document.getElementById('friendPlayerBox');
+  KidoraVideo.destroy();
   box.innerHTML = `
     <div class="friend-video-wrap">
       <h3 class="friend-video-title">
@@ -418,6 +385,7 @@ function playFriendStory(slug, index){
 }
 
 function closeFriendPlayer(){
+  KidoraVideo.destroy();
   const box = document.getElementById('friendPlayerBox');
   if (box) box.innerHTML = '';
 }

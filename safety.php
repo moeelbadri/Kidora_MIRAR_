@@ -32,9 +32,14 @@ if (!$lessons) {
   $lessons = [[
     'id'=>0,'type'=>'video','title'=>'جسدي ملكي',
     'description'=>'جسمك لك وحدك، وهناك مناطق خاصة لا يجوز لأحد لمسها.',
-    'youtube_id'=>'FUC2yrD2Gz8','game_type'=>'body'
+    'youtube_id'=>KIDORA_SAFETY_VIDEO_ID,'game_type'=>'body'
   ]];
 }
+
+foreach ($lessons as &$lesson) {
+  $lesson['video_url'] = local_video_url($lesson['youtube_id']);
+}
+unset($lesson);
 
 $progress = ensure_daily_progress($pdo, $child['id']);
 $__pageTitle = 'بطل الأمان — Kidora';
@@ -65,7 +70,7 @@ require_once __DIR__ . '/includes/navbar.php';
 .sf-story{background:rgba(255,201,60,.08);border:2px dashed rgba(255,201,60,.4);border-radius:16px;padding:1rem 1.1rem;text-align:right;font-size:1.02rem;line-height:1.9;color:#fff;margin:0 0 1rem}
 .sf-story-emoji{font-size:2.2rem;text-align:center;margin-bottom:.5rem}
 .sf-ratio{position:relative;padding-top:56.25%;border-radius:16px;overflow:hidden;background:#000;margin-bottom:1rem}
-.sf-ratio iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.sf-ratio .video-host{position:absolute;inset:0;width:100%;height:100%;border:0}
 .sf-actions{display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap;margin-top:.8rem}
 .sf-btn{background:linear-gradient(135deg,#ffc93c,#f5a623);border:none;color:#241645;font-weight:900;padding:.65rem 1.3rem;border-radius:50px;cursor:pointer;transition:.2s;font-family:inherit;font-size:.9rem;box-shadow:0 6px 20px rgba(255,201,60,.25)}
 .sf-btn:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(255,201,60,.4)}
@@ -320,7 +325,7 @@ function setStep(n){
 function swapView(html){
   return new Promise(res => {
     view.classList.add('is-out');
-    setTimeout(() => { view.innerHTML = html; view.classList.remove('is-out'); res(); }, 300);
+    setTimeout(() => { KidoraVideo.destroy(); view.innerHTML = html; view.classList.remove('is-out'); res(); }, 300);
   });
 }
 
@@ -416,8 +421,7 @@ async function goStep0(){
 /* ---------- الخطوة 1: القاعدة + الفيديو ---------- */
 async function goStep1(){
   const L = todayLesson;
-  const ytid = String(L.youtube_id || '').trim();
-  const hasYT = ytid !== '';
+  const hasVideo = String(L.youtube_id || '').trim() !== '';
 
   setStep(1);
   await swapView(`
@@ -425,15 +429,9 @@ async function goStep1(){
     <div class="sf-hero-emoji">🛡️</div>
     <h2 class="sf-title">${esc(L.title)}</h2>
     <p class="sf-rule">${esc(L.description)}</p>
-    ${hasYT ? `
+    ${hasVideo ? `
       <div class="sf-ratio">
-        <iframe
-          src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(ytid)}?rel=0&modestbranding=1&playsinline=1&origin=${encodeURIComponent(location.origin)}"
-          title="${esc(L.title)}"
-          referrerpolicy="strict-origin-when-cross-origin"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-          allowfullscreen
-          loading="lazy"></iframe>
+        <div class="video-host" id="sfVideo"></div>
       </div>
       <p style="text-align:center;color:#b9abd4;font-size:.85rem;margin:.3rem 0 1rem;">📺 اضغط زر التشغيل لمشاهدة الفيديو</p>
     ` : ''}
@@ -442,9 +440,14 @@ async function goStep1(){
     </div>
   `);
   document.getElementById('sfNext1').onclick = goStep2;
+  if (hasVideo) {
+    KidoraVideo.play('sfVideo', L.video_url, { skipId: 'sfNext1' }).then(() => {
+      if (step === 1) goStep2();
+    });
+  }
 
   await say(`${CHILD.name}، قاعدة اليوم: ${L.title}. ${L.description}`, 'talk');
-  if (hasYT){
+  if (hasVideo){
     await new Promise(r => setTimeout(r, 600));
     await say('شاهد معي هذه القصة القصيرة.', 'cheer');
   }

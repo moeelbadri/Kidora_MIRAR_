@@ -83,12 +83,13 @@ $form = $editTask ?: [
     'story_line' => '', 'youtube_id' => '', 'points' => 5, 'game_type' => 'catch',
     'game_title' => '', 'figure_id' => '',
 ];
-$missingVideo = count(array_filter($tasks, fn($row) => empty($row['youtube_id'])));
+$missingVideo = count(array_filter($tasks, fn($row) => local_video_url($row['youtube_id']) === null));
 ?>
 <h2>إدارة المهام</h2>
 <p style="color:var(--ink-soft);max-width:720px;">
   هذه هي مهام الموقع المباشرة — ليست ملف SQLite. عدّلي أي مهمة موجودة من زر «تعديل»
-  والصقي رابط يوتيوب (watch أو Shorts أو youtu.be). يُحفظ المعرّف فقط، فيظهر الفيديو للطفل داخل باكج المهمة.
+  والصقي رابط الفيديو المصدر أو معرّفه. يجب استيراد نسخة مرخّصة إلى
+  <code>assets/videos/{id}.mp4</code> قبل تشغيلها؛ لا يتصل مشغّل الطفل بيوتيوب ولا ينزّل الحفظُ الفيديو تلقائياً.
 </p>
 <p style="color:var(--ink-soft);max-width:720px;">
   باكج المهمة = عنوان + وصف يُقرأ بصوت الشخصية + فيديو + شخصية تاريخية + لعبة قصيرة.
@@ -112,7 +113,7 @@ $missingVideo = count(array_filter($tasks, fn($row) => empty($row['youtube_id'])
       <input name="story_line" placeholder="قصة السطرين عند الإنجاز" style="grid-column:span 2;" value="<?php echo h((string)$form['story_line']); ?>">
     </div>
     <div class="row">
-      <input name="youtube_id" placeholder="الصقي رابط يوتيوب أو المعرّف — مثال: https://youtube.com/shorts/…" value="<?php echo h((string)($form['youtube_id'] ?? '')); ?>">
+      <input name="youtube_id" aria-label="معرّف الفيديو المحلي" placeholder="رابط المصدر أو معرّفه — يلزم استيراد الملف المحلي" value="<?php echo h((string)($form['youtube_id'] ?? '')); ?>">
       <input name="points" type="number" placeholder="النقاط" value="<?php echo h((string)$form['points']); ?>">
       <select name="game_type">
         <?php foreach (game_types() as $slug => $label): ?>
@@ -138,12 +139,12 @@ $missingVideo = count(array_filter($tasks, fn($row) => empty($row['youtube_id'])
   </form>
 </div>
 <table class="admin-table">
-  <thead><tr><th>العنوان</th><th>التصنيف</th><th>الفئة العمرية</th><th>يوتيوب</th><th>الشخصية التاريخية</th><th>اللعبة</th><th>الحالة</th><th></th></tr></thead>
+  <thead><tr><th>العنوان</th><th>التصنيف</th><th>الفئة العمرية</th><th>الفيديو المحلي</th><th>الشخصية التاريخية</th><th>اللعبة</th><th>الحالة</th><th></th></tr></thead>
   <tbody>
     <?php foreach ($tasks as $t): ?>
       <tr style="<?php echo $editTask && (int)$editTask['id'] === (int)$t['id'] ? 'outline:3px solid var(--gold);outline-offset:-3px;' : ''; ?>">
         <td><?php echo h($t['title']); ?></td><td><?php echo h($t['category']); ?></td><td><?php echo (int)$t['age_min']; ?>-<?php echo (int)$t['age_max']; ?></td>
-        <td><?php echo $t['youtube_id'] ? '<code style="font-size:12px;">'.h($t['youtube_id']).'</code>' : '<span style="color:var(--ink-soft);">بدون فيديو</span>'; ?></td>
+        <td><?php echo $t['youtube_id'] ? '<code style="font-size:12px;">'.h($t['youtube_id']).'</code><br>' . (local_video_url($t['youtube_id']) ? '✅ محلي' : '⚠️ الملف غير مستورد') : '<span style="color:var(--ink-soft);">بدون فيديو</span>'; ?></td>
         <td><?php echo $t['figure_name'] ? h($t['figure_name']) : '<span style="color:var(--ink-soft);">تلقائي</span>'; ?></td>
         <td><?php echo h(game_types()[$t['game_type']] ?? ($t['game_type'] ?: 'catch')); ?></td>
         <td><?php echo $t['active'] ? '<span style="color:var(--mint);">مفعّلة</span>' : '<span style="color:var(--coral);">معطّلة</span>'; ?></td>

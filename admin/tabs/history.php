@@ -65,7 +65,8 @@ $form = $editFigure ?: [
 ?>
 <h2>شخصيات تاريخية عربية وإسلامية</h2>
 <p style="color:var(--ink-soft);max-width:720px;">
-  البيانات هنا من قاعدة الموقع المباشرة. لتعديل فيديو شخصية موجودة اضغطي «تعديل» والصقي رابط يوتيوب.
+  البيانات هنا من قاعدة الموقع المباشرة. لتعديل فيديو شخصية موجودة اضغطي «تعديل» وأدخلي معرّف المصدر.
+  يلزم استيراد نسخة مرخّصة إلى <code>assets/videos/{id}.mp4</code>؛ الحفظ لا ينزّل الملف ولا يستخدم تضمين يوتيوب.
   الشخصية المرتبطة بالمهمة مباشرةً (من تبويب المهام) لها الأولوية، وإلا تُختار من نفس تصنيف المهمة.
 </p>
 <div class="admin-form" id="figureForm">
@@ -76,7 +77,7 @@ $form = $editFigure ?: [
       <input name="name" placeholder="الاسم" required value="<?php echo h((string)$form['name']); ?>">
       <input name="title" placeholder="اللقب/الوصف القصير" value="<?php echo h((string)$form['title']); ?>">
       <input name="category" placeholder="التصنيف (يطابق تصنيف المهمة)" value="<?php echo h((string)$form['category']); ?>">
-      <input name="youtube_id" placeholder="الصقي رابط يوتيوب أو المعرّف (اختياري)" value="<?php echo h((string)($form['youtube_id'] ?? '')); ?>">
+      <input name="youtube_id" aria-label="معرّف الفيديو المحلي" placeholder="معرّف المصدر — يلزم ملف محلي (اختياري)" value="<?php echo h((string)($form['youtube_id'] ?? '')); ?>">
     </div>
     <div class="row">
       <input name="description" placeholder="وصف تعريفي قصير" style="grid-column:span 2;" required value="<?php echo h((string)$form['description']); ?>">
@@ -99,6 +100,7 @@ $form = $editFigure ?: [
       <?php if (!empty($f['category'])): ?><span class="pill"><?php echo h($f['category']); ?></span><?php endif; ?>
       <?php if ($f['youtube_id']): ?>
         <p style="font-size:11px;color:var(--mint);">🎬 <?php echo h($f['youtube_id']); ?></p>
+        <p><?php echo local_video_url($f['youtube_id']) ? '✅ محلي' : '⚠️ الملف غير مستورد'; ?></p>
       <?php else: ?>
         <p style="font-size:11px;color:var(--ink-soft);">بدون فيديو</p>
       <?php endif; ?>

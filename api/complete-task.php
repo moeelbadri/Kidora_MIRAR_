@@ -45,6 +45,7 @@ echo json_encode([
     'figure'     => $figure ? [
         'name' => $figure['name'], 'title' => $figure['title'], 'description' => $figure['description'],
         'story_line' => $figure['story_line'], 'youtube_id' => $figure['youtube_id'] ?: null,
+        'video_url' => local_video_url($figure['youtube_id']),
     ] : null,
     'game'       => ['type' => $task['game_type'] ?: 'catch', 'title' => $task['game_title'] ?: $task['title'], 'category' => (string)$task['category']],
     'done_count' => count($completed),

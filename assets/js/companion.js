@@ -156,47 +156,64 @@ const Companion = (function () {
   return { say, readAloud, sequence, celebrate, guideTo, mood, pin, stop, sidekick: () => theme().sidekick || null, theme, character: char };
 })();
 
-/* ============================================================
-   KidoraYT — يوتيوب IFrame API
-   ============================================================ */
-const KidoraYT = (function () {
-  let ready = null, current = null;
-  function load() {
-    if (ready) return ready;
-    ready = new Promise(res => {
-      if (window.YT && YT.Player) return res();
-      const prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => { if (prev) prev(); res(); };
-      const s = document.createElement("script"); s.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(s);
-      setTimeout(res, 6000);
-    });
-    return ready;
+/* Locally hosted video only: no third-party player, tracking, or recommendations. */
+const KidoraVideo = (function () {
+  let current = null;
+  function destroy() {
+    if (!current) return;
+    if (current.video) {
+      current.video.pause();
+      current.video.removeAttribute('src');
+      current.video.load();
+    }
+    current.done();
+    current = null;
   }
-  function destroy() { if (current) { try { current.destroy(); } catch (e) {} current = null; } }
-  function play(hostId, videoId, opts) {
+  function play(hostId, url, opts) {
     opts = opts || {};
-    return new Promise(async res => {
-      await load();
+    destroy();
+    return new Promise(res => {
       const host = document.getElementById(hostId);
-      if (!host || !(window.YT && YT.Player)) return res();
-      let finished = false; const done = () => { if (!finished) { finished = true; res(); } };
-      const skip = opts.skipId && document.getElementById(opts.skipId); if (skip) skip.onclick = done;
-      destroy();
-      current = new YT.Player(hostId, {
-        videoId, host: "https://www.youtube-nocookie.com",
-        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, autoplay: opts.autoplay ? 1 : 0 },
-        events: {
-          onReady: e => { if (opts.autoplay) { try { e.target.playVideo(); } catch (err) {} } },
-          onStateChange: e => { if (e.data === YT.PlayerState.ENDED) done(); },
-          onError: done,
-        },
-      });
+      if (!host) return res();
+      const skip = opts.skipId && document.getElementById(opts.skipId);
+      let finished = false;
+      const done = () => {
+        if (finished) return;
+        finished = true;
+        if (skip) skip.removeEventListener('click', done);
+        res();
+      };
+      const unavailable = () => {
+        host.textContent = 'الفيديو غير متاح حالياً. يمكنك المتابعة إلى النشاط التالي.';
+        host.style.cssText = 'display:grid;place-items:center;padding:1rem;color:white;text-align:center;box-sizing:border-box;';
+      };
+      host.replaceChildren();
+      if (skip) skip.addEventListener('click', done);
+      current = { video: null, done };
+      if (!url) {
+        unavailable();
+        if (!skip) done();
+        return;
+      }
+      const video = document.createElement('video');
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.setAttribute('aria-label', 'فيديو تعليمي');
+      video.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;';
+      video.addEventListener('ended', done, { once: true });
+      video.addEventListener('error', () => { unavailable(); if (!skip) done(); }, { once: true });
+      video.src = url;
+      host.appendChild(video);
+      current = { video, done };
+      // Autoplay with sound may be blocked; native controls remain available.
+      if (opts.autoplay) video.play().catch(() => {});
     });
   }
-  return { play, destroy, load };
+  return { play, destroy };
 })();
 
-// الصفحات الأخرى تفحص window.Companion / window.KidoraYT.
+// الصفحات الأخرى تفحص window.Companion / window.KidoraVideo.
 // const في سكربت عادي لا يُنشئ خاصية على window، فيُتخطى الصوت كله.
 window.Companion = Companion;
-window.KidoraYT = KidoraYT;
+window.KidoraVideo = KidoraVideo;
