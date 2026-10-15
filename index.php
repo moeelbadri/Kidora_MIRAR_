@@ -465,11 +465,12 @@ require_once __DIR__ . '/includes/public-nav.php';
   <main>
     <!-- فيديو تعريفي بملء الشاشة -->
     <section class="public-video-full" id="videoShowcase">
-      <div class="public-video-frame">
+            <div class="public-video-frame">
         <iframe
           src="<?php echo h(youtube_embed_url($remoteVideoId) . '&autoplay=1&loop=1&playlist=' . rawurlencode($remoteVideoId) . '&controls=1'); ?>"
           title="فيديو تعريفي عن Kidora"
           loading="lazy"
+          referrerpolicy="strict-origin-when-cross-origin"
           allow="autoplay; encrypted-media; picture-in-picture"
           allowfullscreen></iframe>
       </div>
