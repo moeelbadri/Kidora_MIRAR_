@@ -1,0 +1,14 @@
+.kidora-player{ --shaka-font-family:'Cairo',sans-serif; direction:ltr; background:#080511; border-radius:inherit; overflow:hidden; }
+.kidora-player video{ display:block; width:100%; height:100%; object-fit:contain; background:#080511; }
+.kidora-player .shaka-controls-container{ background:linear-gradient(transparent 45%,rgba(12,6,27,.88)); }
+.kidora-player .shaka-bottom-controls{ box-sizing:border-box; width:100%; padding:10px 14px; background:linear-gradient(transparent,rgba(12,6,27,.9)); }
+.kidora-player .shaka-overflow-menu,.kidora-player .shaka-settings-menu{ border-radius:14px; max-width:calc(100% - 16px); background:rgba(20,12,36,.98); }
+.kidora-player .shaka-overflow-menu button,.kidora-player .shaka-settings-menu button{ gap:8px; }
+.kidora-player .shaka-overflow-menu label,.kidora-player .shaka-settings-menu label{ direction:rtl; }
+.kidora-player .shaka-play-button{ background:rgba(28,16,53,.8); box-shadow:0 6px 24px #0006; }
+.kidora-player .shaka-range-element:focus-visible,.kidora-player button:focus-visible{ outline:3px solid #ffc93c; outline-offset:2px; }
+.kidora-preview{ position:relative; aspect-ratio:16/9; border-radius:10px; }
+.video-library{ grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr)); }
+.kidora-preview-button{ position:absolute; inset:0; width:100%; color:#fff; background:linear-gradient(135deg,#251443,#100a21); border:0; font:700 16px 'Cairo',sans-serif; cursor:pointer; }
+.kidora-preview-button:disabled{ cursor:wait; }
+@media(max-width:600px){ .kidora-player .shaka-volume-bar-container{ display:none; } .kidora-player .shaka-bottom-controls{ padding:6px; } }

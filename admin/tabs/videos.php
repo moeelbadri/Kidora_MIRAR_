@@ -41,7 +41,10 @@ sort($videoFiles);
   ?>
     <article class="admin-item-card">
       <h4 dir="ltr"><?php echo h($videoId); ?></h4>
-      <video controls playsinline preload="none" aria-label="معاينة <?php echo h($videoId); ?>" src="<?php echo h($videoUrl); ?>"></video>
+      <div class="kidora-player kidora-preview" data-kidora-preview>
+        <video playsinline preload="none" aria-label="معاينة <?php echo h($videoId); ?>" data-src="<?php echo h($videoUrl); ?>"></video>
+        <button type="button" class="kidora-preview-button" aria-label="معاينة <?php echo h($videoId); ?>">▶ معاينة الفيديو</button>
+      </div>
       <p><?php echo number_format(filesize($videoFile) / 1048576, 1); ?> MiB · MP4</p>
       <a class="btn btn-sm btn-gold" href="?tab=videos&amp;video_id=<?php echo h($videoId); ?>#videoUploadForm">استبدال هذا الفيديو</a>
     </article>

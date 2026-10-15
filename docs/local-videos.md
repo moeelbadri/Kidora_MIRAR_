@@ -1,6 +1,7 @@
 # Locally hosted videos
 
-All former YouTube players now use native HTML5 video. There is no YouTube
+All former YouTube players now use locally hosted HTML5 video with Google's
+Shaka Player UI (5.2.13, bundled locally under Apache-2.0). There is no YouTube
 iframe, player API, or remote playback fallback. Existing `youtube_id` database
 columns remain source references, so no database migration is needed.
 
@@ -151,8 +152,11 @@ separately coordinated history rewrite; do not force-push as part of deployment.
 
 ## Playback behavior
 
-The landing-page video starts muted to satisfy browser autoplay rules. Lesson
-videos retain native controls if audible autoplay is blocked. Historical-figure
+The landing-page video loops muted without controls to keep the hero clean.
+Lesson and admin preview videos use Shaka's Arabic controls for playback,
+seeking, volume, speed, and fullscreen; admin previews load only when selected.
+No external player CDN, Cast SDK, or remote video fallback is used.
+Lesson videos retain a play button if audible autoplay is blocked. Historical-figure
 and safety videos advance when playback ends or the child chooses Next. Missing
 or unplayable lesson files show an Arabic message and keep Next available;
 tasks without video references continue to work without a player.

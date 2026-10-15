@@ -156,16 +156,15 @@ const Companion = (function () {
   return { say, readAloud, sequence, celebrate, guideTo, mood, pin, stop, sidekick: () => theme().sidekick || null, theme, character: char };
 })();
 
-/* Locally hosted video only: no third-party player, tracking, or recommendations. */
+/* Locally hosted video with Google's Shaka UI; no embeds or recommendations. */
 const KidoraVideo = (function () {
   let current = null;
   function destroy() {
     if (!current) return;
     if (current.video) {
       current.video.pause();
-      current.video.removeAttribute('src');
-      current.video.load();
     }
+    if (current.ui) current.ui.destroy();
     current.done();
     current = null;
   }
@@ -196,18 +195,29 @@ const KidoraVideo = (function () {
         return;
       }
       const video = document.createElement('video');
-      video.controls = true;
       video.playsInline = true;
       video.preload = 'metadata';
       video.setAttribute('aria-label', 'فيديو تعليمي');
       video.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;';
       video.addEventListener('ended', done, { once: true });
-      video.addEventListener('error', () => { unavailable(); if (!skip) done(); }, { once: true });
-      video.src = url;
+      video.addEventListener('error', () => {
+        if (current?.video !== video) return;
+        unavailable();
+        if (!skip) done();
+      }, { once: true });
       host.appendChild(video);
-      current = { video, done };
-      // Autoplay with sound may be blocked; native controls remain available.
-      if (opts.autoplay) video.play().catch(() => {});
+      const session = { video, done, ui: null };
+      current = session;
+      KidoraPlayer.mount(host, video, url).then(ui => {
+        if (current !== session) { ui.destroy(); return; }
+        session.ui = ui;
+        // Audible autoplay may be blocked; Shaka's play button remains available.
+        if (opts.autoplay) video.play().catch(() => {});
+      }).catch(() => {
+        if (current !== session) return;
+        unavailable();
+        if (!skip) done();
+      });
     });
   }
   return { play, destroy };
