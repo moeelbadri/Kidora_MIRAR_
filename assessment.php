@@ -14,8 +14,6 @@ if (!has_full_access($pdo, $child)) {
 
 $dueNow = needs_assessment($child);
 
-// جلسة أسئلة التحليل (10 أسئلة تبقى نفسها حتى تكتمل). الإجابات عبر api/assess-answer.php
-// بلا إعادة تحميل، بلا تعليق، بلا مؤشر تقدّم — النتائج للأدمن فقط.
 if ($dueNow) {
     if (empty($_SESSION['assess_qids']) || ($_SESSION['assess_child_id'] ?? 0) != $child['id']) {
         $ids = array_column($pdo->query("SELECT id FROM quiz_questions WHERE active = 1")->fetchAll(), 'id');
@@ -36,7 +34,6 @@ if ($dueNow && $remaining) {
     $currentQuestion = $st->fetch();
 }
 if ($dueNow && !$remaining && $qSet) {
-    // كل الأسئلة أُجيبت في جلسة سابقة ولم يُسجَّل الإكمال — أكمِله وانطلق
     $pdo->prepare("UPDATE children SET last_assessment_at = CURRENT_TIMESTAMP WHERE id = ?")->execute([$child['id']]);
     unset($_SESSION['assess_qids'], $_SESSION['assess_answered'], $_SESSION['assess_child_id']);
     header('Location: tasks.php'); exit;
@@ -68,20 +65,20 @@ require_once __DIR__ . '/includes/navbar.php';
   @keyframes listenPulse{ from{ transform:scale(1); } to{ transform:scale(1.12); } }
   .as-card[aria-busy="true"] .as-opt{ pointer-events:none; opacity:.6; }
 
-  /* ✨ تأثير تكبير وإضاءة الكلمات أثناء القراءة (لون مريح للعين) */
+  /* ✨ تأثير تكبير وإضاءة الكلمات (لون تركوازي مريح للعين) */
   .read-word {
     display: inline-block;
-    transition: transform 0.25s ease, color 0.25s ease, text-shadow 0.25s ease, background 0.25s ease;
+    transition: transform 0.18s ease, color 0.18s ease, text-shadow 0.18s ease, background 0.18s ease;
     border-radius: 8px;
     padding: 0 4px;
-    margin: 0 -2px; /* لمنع تزاحم الكلمات عند التكبير */
+    margin: 0 -2px;
   }
   .read-word.is-highlighted {
-    transform: scale(1.25); /* تكبير أكبر */
-    color: #2ec4b6; /* لون تركواز/أخضر مائي مريح جداً للعين */
-    text-shadow: 0 0 12px rgba(46, 196, 182, 0.6), 0 0 25px rgba(46, 196, 182, 0.4);
+    transform: scale(1.3); /* تكبير أكبر */
+    color: #2ec4b6; /* تركوازي هادئ ومريح للعين */
+    text-shadow: 0 0 12px rgba(46, 196, 182, 0.7), 0 0 25px rgba(46, 196, 182, 0.45);
     font-weight: 900;
-    background: rgba(46, 196, 182, 0.15);
+    background: rgba(46, 196, 182, 0.18);
   }
 
   @media (max-height: 800px) {
@@ -120,7 +117,7 @@ require_once __DIR__ . '/includes/navbar.php';
           <button type="button" class="as-opt" data-opt="<?php echo $i; ?>">
             <span class="as-num"><?php echo $i; ?></span>
             <span>
-              <span class="read-word">الخيار <?php echo $ordinalsAr[$i-1]; ?>:</span> 
+              <span class="read-word">الخيار</span> <span class="read-word"><?php echo $ordinalsAr[$i-1]; ?>:</span> 
               <?php 
               $optWords = preg_split('/(\s+)/', $currentQuestion["option_{$i}"]);
               foreach ($optWords as $word) {
@@ -145,8 +142,28 @@ require_once __DIR__ . '/includes/navbar.php';
 </main>
 </div>
 <footer class="site-footer">Kidora © 2026</footer>
+
+<!-- ✨ Hook عام لأحداث الصوت — يُثبّت مرة واحدة قبل أي قراءة -->
 <script>
-window.KIDAURA_SILENT_PAGE = true; // الرفيق يقرأ السؤال مباشرة بصوته بدلاً من رسالة الصفحة العامة
+(function(){
+  if (!window.speechSynthesis || window.__kidoraSpeechHooked) return;
+  window.__kidoraSpeechHooked = true;
+  const origSpeak = window.speechSynthesis.speak.bind(window.speechSynthesis);
+  window.speechSynthesis.speak = function(utt){
+    try {
+      utt.addEventListener('boundary', function(e){
+        if (typeof window.__kidoraBoundaryFn === 'function') {
+          window.__kidoraBoundaryFn(e);
+        }
+      });
+    } catch(_) {}
+    return origSpeak(utt);
+  };
+})();
+</script>
+
+<script>
+window.KIDAURA_SILENT_PAGE = true;
 window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;
 <?php if ($currentQuestion): ?>
 (function(){
@@ -156,61 +173,87 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
   const listenBtn = document.getElementById('asListen');
   const childName = <?php echo json_encode($child['name'], JSON_UNESCAPED_UNICODE); ?>;
   const ordinals = ['الأول', 'الثاني', 'الثالث', 'الرابع'];
+
   let busy = false;
   let readTimer = null;
   let isSpeaking = false;
-  let highlightTimeout = null;
 
-  function speechFor(){
-    const qText = qEl.textContent.trim();
-    const parts = [qText];
-    opts.querySelectorAll('.as-opt').forEach((b) => {
-      const sp = b.querySelector('span:last-child');
-      if (sp) parts.push(sp.textContent.trim());
+  // متغيرات نظام الإضاءة
+  let allWordSpans = [];
+  let boundaryIndex = 0;
+  let boundaryEnabled = false;
+  let boundaryFiredOnce = false;
+  let fallbackTimer = null;
+  let fallbackActive = false;
+
+  // ===== أدوات الإضاءة =====
+  function setHighlightedIndex(idx) {
+    allWordSpans.forEach((el, i) => {
+      el.classList.toggle('is-highlighted', i === idx);
     });
-    return parts.join('. ');
+  }
+  function clearHighlight() {
+    allWordSpans.forEach(el => el.classList.remove('is-highlighted'));
   }
 
-  // ✨ دالة بدء تسليط الضوء على الكلمات (تم تعديل التوقيت ليتناسب مع بطء الصوت)
-  function startHighlighting() {
-    stopHighlighting();
-    const allWords = Array.from(document.querySelectorAll('.read-word'));
-    let index = 0;
+  // ===== معالج أحداث الصوت (Boundary) — التزامن الحقيقي =====
+  window.__kidoraBoundaryFn = function(e) {
+    if (!boundaryEnabled) return;
+    if (e.name !== 'word') return; // نتجاهل أحداث الجُمل والترقيم
+    boundaryFiredOnce = true;
+    if (boundaryIndex >= allWordSpans.length) return;
+    setHighlightedIndex(boundaryIndex);
+    boundaryIndex++;
+  };
 
-    function highlightNext() {
-      if (index >= allWords.length) return;
-      if (index > 0) allWords[index - 1].classList.remove('is-highlighted');
-      
-      const word = allWords[index];
-      word.classList.add('is-highlighted');
-      
-      const text = word.textContent.trim();
-      
-      // ⏳ تم زيادة الأرقام هنا بشكل كبير لكي تتناسب مع سرعة قراءة الرفيق
-      // 1.5 ثانية أساس + وقت إضافي لكل حرف
-      let duration = 600 + (text.length * 150); 
-      
-      // إضافة وقت إضافي عند وجود علامات ترقيم (وقفة)
-      if (/[،.؟!:؛]$/.test(text)) duration += 800; 
-
-      index++;
-      highlightTimeout = setTimeout(highlightNext, duration);
+  // ===== النظام الاحتياطي (يعمل فقط إذا لم يصل أي boundary خلال 700ms) =====
+  function startFallback() {
+    if (fallbackActive) return;
+    fallbackActive = true;
+    let i = 0;
+    function next() {
+      if (boundaryFiredOnce) return;
+      if (i >= allWordSpans.length) return;
+      setHighlightedIndex(i);
+      const text = allWordSpans[i].textContent.trim();
+      let dur = 250 + text.length * 90;
+      if (/[،.؟!:؛]$/.test(text)) dur += 350;
+      i++;
+      fallbackTimer = setTimeout(next, dur);
     }
-    // تأخير بسيط قبل البدء ليتزامن مع بداية نطق الصوت
-    highlightTimeout = setTimeout(highlightNext, 400); 
+    fallbackTimer = setTimeout(next, 700);
   }
 
-  // ✨ دالة إيقاف تسليط الضوء
-  function stopHighlighting() {
-    clearTimeout(highlightTimeout);
-    document.querySelectorAll('.read-word.is-highlighted').forEach(el => el.classList.remove('is-highlighted'));
+  function resetHighlighting() {
+    clearTimeout(fallbackTimer);
+    fallbackActive = false;
+    boundaryFiredOnce = false;
+    boundaryIndex = 0;
+    boundaryEnabled = false;
+    clearHighlight();
+  }
+
+  function startHighlightingSync() {
+    allWordSpans = Array.from(document.querySelectorAll('.read-word'));
+    boundaryIndex = 0;
+    boundaryFiredOnce = false;
+    boundaryEnabled = true;
+    startFallback();
+  }
+
+  // ===== بناء النص المقروء (بنفس ترتيب كلمات الشاشة تماماً) =====
+  function speechFor(){
+    return Array.from(document.querySelectorAll('.read-word'))
+      .map(w => w.textContent.trim())
+      .filter(Boolean)
+      .join(' ');
   }
 
   function stopReading(){
     clearTimeout(readTimer);
     isSpeaking = false;
     if (listenBtn) listenBtn.classList.remove('is-speaking');
-    stopHighlighting();
+    resetHighlighting();
     if (window.Companion) Companion.stop();
     else if (window.SoundEngine) SoundEngine.stop();
   }
@@ -226,10 +269,11 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
       const onDone = () => {
         isSpeaking = false;
         if (listenBtn) listenBtn.classList.remove('is-speaking');
-        stopHighlighting();
+        resetHighlighting();
       };
 
-      startHighlighting();
+      // تجهيز الإضاءة قبل بدء الصوت
+      startHighlightingSync();
 
       if (window.Companion) {
         Companion.readAloud(speechFor()).then(onDone).catch(onDone);
@@ -243,11 +287,8 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
 
   if (listenBtn) {
     listenBtn.addEventListener('click', () => {
-      if (isSpeaking) {
-        stopReading();
-      } else {
-        readQuestion(0);
-      }
+      if (isSpeaking) stopReading();
+      else readQuestion(0);
     });
   }
 
@@ -256,22 +297,22 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
     card.classList.add('is-swapping');
     setTimeout(() => {
       card.dataset.qid = next.id;
-      
+
       qEl.innerHTML = next.question.split(/(\s+)/).map(part => part.trim() ? `<span class="read-word">${part}</span>` : part).join('');
-      
+
       opts.innerHTML = next.options.map((o, i) => {
         const optWords = o.split(/(\s+)/).map(part => part.trim() ? `<span class="read-word">${part}</span>` : part).join('');
         return `
           <button type="button" class="as-opt" data-opt="${i + 1}">
             <span class="as-num">${i + 1}</span>
             <span>
-              <span class="read-word">الخيار ${ordinals[i]}:</span> 
+              <span class="read-word">الخيار</span> <span class="read-word">${ordinals[i]}:</span>
               ${optWords}
             </span>
           </button>
         `;
       }).join('');
-      
+
       card.classList.remove('is-swapping');
       card.removeAttribute('aria-busy');
       readQuestion(300);
@@ -316,9 +357,7 @@ window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UN
   }
 
   const resumeOnFirstTouch = () => {
-    if (!isSpeaking && !busy) {
-      readQuestion(0);
-    }
+    if (!isSpeaking && !busy) readQuestion(0);
   };
   document.addEventListener('pointerdown', resumeOnFirstTouch, { once: true });
 })();
