@@ -342,9 +342,15 @@ const EG = (function () {
      ============================================================ */
   const SORT_SETS = [
     { q: 'صحي أم غير صحي؟', a: ['🥗 صحي', '#2ec4b6'], b: ['🍭 غير صحي', '#ff6fa5'],
-      items: [['🍎', 0], ['🥕', 0], ['🥦', 0], ['💧', 0], ['🍌', 0], ['🥛', 0], ['🍟', 1], ['🍭', 1], ['🥤', 1], ['🍩', 1], ['🍫', 1], ['🍬', 1]] },
+      items: [
+        ['🍎', 0, 'تفاحة'], ['🥕', 0, 'جزر'], ['🥦', 0, 'بروكلي'], ['💧', 0, 'ماء'], ['🍌', 0, 'موز'], ['🥛', 0, 'حليب'],
+        ['🍟', 1, 'بطاطس مقلية'], ['🍭', 1, 'مصاصة'], ['🥤', 1, 'مشروب غازي'], ['🍩', 1, 'دونات'], ['🍫', 1, 'شوكولاتة'], ['🍬', 1, 'حلوى']
+      ] },
     { q: 'يُعاد تدويره أم لا؟', a: ['♻️ يُعاد تدويره', '#2ec4b6'], b: ['🗑️ نفايات', '#6c63ff'],
-      items: [['📰', 0], ['🍾', 0], ['🥫', 0], ['📦', 0], ['🧴', 0], ['📄', 0], ['🍌', 1], ['🍎', 1], ['🧻', 1], ['🍕', 1], ['🥚', 1], ['🌽', 1]] },
+      items: [
+        ['📰', 0, 'صحيفة'], ['🍾', 0, 'قنينة زجاج'], ['🥫', 0, 'علبة معدنية'], ['📦', 0, 'كرتون'], ['🧴', 0, 'عبوة بلاستيك'], ['📄', 0, 'ورقة'],
+        ['🍌', 1, 'قشرة موز'], ['🍎', 1, 'بقايا تفاحة'], ['🧻', 1, 'مناديل مستعملة'], ['🍕', 1, 'بقايا بيتزا'], ['🥚', 1, 'قشر بيض'], ['🌽', 1, 'عرنوس ذرة']
+      ] },
   ];
   const Sort = {
     title: '🧺 فرّز بذكاء', total: 10,
@@ -352,8 +358,10 @@ const EG = (function () {
     baskets() { const bw = Math.min(W * .34, 260), bh = Math.min(H * .34, 150); return [{ x: W * .04, y: H - bh - 12, w: bw, h: bh, k: 0 }, { x: W - bw - W * .04, y: H - bh - 12, w: bw, h: bh, k: 1 }]; },
     next() {
       if (!this.queue.length) return;
-      const [icon, k] = this.queue[0]; this.item = { icon, k, x: W / 2, y: H * .3, r: Math.min(56, W / 9) };
-      ask(`${this.set.q} أين نضع ${icon}؟ اسحبه إلى سلّته.`); $('egQ').textContent = `${this.set.q}  ${icon}`;
+      const [icon, k, name] = this.queue[0]; // استخراج الاسم
+      this.item = { icon, k, name, x: W / 2, y: H * .3, r: Math.min(56, W / 9) }; // إضافة الاسم للعنصر
+      ask(`${this.set.q} أين نضع ${name || icon}؟ اسحبه إلى سلّته.`); 
+      $('egQ').textContent = `${this.set.q}  ${name || icon}`;
     },
     drop(k) {
       const it = this.item; if (!it) return;
@@ -375,9 +383,41 @@ const EG = (function () {
         ctx.strokeStyle = lab[1]; ctx.lineWidth = 4; ctx.setLineDash([12, 8]); ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 22); ctx.stroke(); ctx.setLineDash([]);
         ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.min(24, b.w / 9)}px Cairo, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(lab[0], b.x + b.w / 2, b.y + b.h / 2); ctx.restore();
       });
+      
       const it = this.item;
-      if (it) { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 20; ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-        ctx.font = `${Math.round(it.r * 1.3)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(it.icon, it.x, it.y + 4); ctx.restore(); }
+      if (it) { 
+          ctx.save(); 
+          // 1. تغميق الدائرة الخلفية للعنصر
+          ctx.shadowColor = 'rgba(0,0,0,.6)'; 
+          ctx.shadowBlur = 25; 
+          ctx.fillStyle = 'rgba(0,0,0,.45)'; // خلفية داكنة بدلاً من الشفافة
+          ctx.beginPath(); 
+          ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2); 
+          ctx.fill(); 
+          
+          // 2. إضافة حدود خفيفة للدائرة
+          ctx.strokeStyle = 'rgba(255,255,255,.25)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          
+          // 3. رسم الإيموجي بحجم أكبر ووضوح تام
+          ctx.globalAlpha = 1;
+          ctx.font = `${Math.round(it.r * 1.4)}px sans-serif`; 
+          ctx.textAlign = 'center'; 
+          ctx.textBaseline = 'middle'; 
+          ctx.fillText(it.icon, it.x, it.y - 12); // رفعه قليلاً للأعلى
+          
+          // 4. رسم اسم المنتج بالأسفل
+          if (it.name) {
+              ctx.fillStyle = '#ffffff';
+              ctx.font = `900 ${Math.round(it.r * 0.4)}px Cairo, sans-serif`;
+              ctx.fillText(it.name, it.x, it.y + it.r * 0.6);
+          }
+          ctx.restore(); 
+      }
+      
       ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '800 15px Cairo, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('اسحب الشيء إلى السلّة، أو اضغط السلّة', W / 2, 10);
       drawFx();
     }
