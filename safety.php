@@ -428,8 +428,9 @@ async function goStep1(){
     ${hasYT ? `
       <div class="sf-ratio">
         <iframe
-          src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(ytid)}?rel=0&modestbranding=1&playsinline=1"
+          src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(ytid)}?rel=0&modestbranding=1&playsinline=1&origin=${encodeURIComponent(location.origin)}"
           title="${esc(L.title)}"
+          referrerpolicy="strict-origin-when-cross-origin"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
           allowfullscreen
           loading="lazy"></iframe>
