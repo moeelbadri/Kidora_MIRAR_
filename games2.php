@@ -387,33 +387,40 @@ const EG = (function () {
       const it = this.item;
       if (it) { 
           ctx.save(); 
-          // 1. تغميق الدائرة الخلفية للعنصر
-          ctx.shadowColor = 'rgba(0,0,0,.6)'; 
-          ctx.shadowBlur = 25; 
-          ctx.fillStyle = 'rgba(0,0,0,.45)'; // خلفية داكنة بدلاً من الشفافة
+          // 1. تغميق الدائرة الخلفية للعنصر بشكل أكبر
+          ctx.shadowColor = 'rgba(0,0,0,.8)'; 
+          ctx.shadowBlur = 30; 
+          ctx.fillStyle = 'rgba(0,0,0,.65)'; // خلفية داكنة جداً
           ctx.beginPath(); 
           ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2); 
           ctx.fill(); 
           
-          // 2. إضافة حدود خفيفة للدائرة
-          ctx.strokeStyle = 'rgba(255,255,255,.25)';
-          ctx.lineWidth = 3;
+          // 2. إضافة حدود بيضاء خفيفة للدائرة لتحديدها
+          ctx.strokeStyle = 'rgba(255,255,255,.4)';
+          ctx.lineWidth = 4;
           ctx.stroke();
 
           ctx.shadowBlur = 0;
           
-          // 3. رسم الإيموجي بحجم أكبر ووضوح تام
+          // 3. رسم الإيموجي بحجم أكبر ووضوح تام مع تظليل أبيض ل يوضح اكتر
           ctx.globalAlpha = 1;
-          ctx.font = `${Math.round(it.r * 1.4)}px sans-serif`; 
+          ctx.shadowColor = 'rgba(255,255,255,.8)'; // توهج أبيض لإبراز الإيموجي
+          ctx.shadowBlur = 15;
+          ctx.font = `${Math.round(it.r * 1.5)}px sans-serif`; // تكبير أكثر
           ctx.textAlign = 'center'; 
           ctx.textBaseline = 'middle'; 
-          ctx.fillText(it.icon, it.x, it.y - 12); // رفعه قليلاً للأعلى
+          ctx.fillText(it.icon, it.x, it.y - 15); // رفعه قليلاً للأعلى
           
-          // 4. رسم اسم المنتج بالأسفل
+          // إعادة الظل للوضع الطبيعي للنص
+          ctx.shadowColor = 'rgba(0,0,0,.8)';
+          ctx.shadowBlur = 6;
+
+          // 4. رسم اسم المنتج بخط أصغر وأحلى
           if (it.name) {
               ctx.fillStyle = '#ffffff';
-              ctx.font = `900 ${Math.round(it.r * 0.4)}px Cairo, sans-serif`;
-              ctx.fillText(it.name, it.x, it.y + it.r * 0.6);
+              // استخدام خط Baloo Bhaijaan 2 أو Cairo بوزن 700 وحجم أصغر
+              ctx.font = `700 ${Math.round(it.r * 0.28)}px "Baloo Bhaijaan 2", Cairo, sans-serif`;
+              ctx.fillText(it.name, it.x, it.y + it.r * 0.75);
           }
           ctx.restore(); 
       }
