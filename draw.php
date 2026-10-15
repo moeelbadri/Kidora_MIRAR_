@@ -59,6 +59,59 @@ require_once __DIR__ . '/includes/navbar.php';
   .draw-saved{ position:absolute; inset:0; display:none; place-items:center; background:rgba(255,255,255,.88); z-index:3; text-align:center; padding:20px; }
   .draw-saved.show{ display:grid; }
   @media(min-width:900px){ .draw-shell{ grid-template-columns:1fr 230px; align-items:start; } .draw-side{ position:sticky; top:90px; } }
+
+  /* ============================================================
+     🎓 الجولة التعليمية التفاعلية
+     ============================================================ */
+  .tour-overlay{ position:fixed; inset:0; z-index:99999; pointer-events:none; }
+  .tour-overlay[hidden]{ display:none; }
+  .tour-blocker{ position:absolute; inset:0; pointer-events:auto; }
+  .tour-spot{
+    position:fixed; border-radius:18px;
+    box-shadow:0 0 0 9999px rgba(5,3,20,.78), 0 0 0 4px #ffc93c, 0 0 34px 10px rgba(255,201,60,.55);
+    transition:left .35s ease, top .35s ease, width .35s ease, height .35s ease, opacity .25s ease;
+    pointer-events:none; opacity:1;
+    animation:tourPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes tourPulse{
+    0%,100%{ box-shadow:0 0 0 9999px rgba(5,3,20,.78), 0 0 0 4px #ffc93c, 0 0 34px 10px rgba(255,201,60,.55); }
+    50%{ box-shadow:0 0 0 9999px rgba(5,3,20,.78), 0 0 0 5px #ffe99a, 0 0 50px 16px rgba(255,201,60,.85); }
+  }
+  .tour-tip{
+    position:fixed; left:50%; transform:translateX(-50%);
+    width:min(500px, calc(100% - 24px));
+    background:linear-gradient(160deg,#2a1b5e,#160a30);
+    border:2px solid #ffc93c; border-radius:24px;
+    padding:16px 18px 14px; color:#fff;
+    box-shadow:0 24px 60px rgba(0,0,0,.6), 0 0 40px rgba(255,201,60,.18) inset;
+    pointer-events:auto; z-index:2;
+    font-family:inherit;
+  }
+  .tour-tip.at-bottom{ bottom:16px; top:auto; }
+  .tour-tip.at-top{ top:16px; bottom:auto; }
+  .tour-tip.at-center{ top:50%; bottom:auto; transform:translate(-50%,-50%); }
+  .tour-tip-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+  .tour-tip-head h4{ margin:0; color:#ffe99a; font-family:var(--font-display,inherit); font-size:clamp(1.05rem,3.5vw,1.3rem); font-weight:900; }
+  .tour-skip{ background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); color:#d9d0ff; border-radius:999px; padding:5px 12px; font:inherit; font-weight:800; font-size:.82rem; cursor:pointer; transition:.2s; }
+  .tour-skip:hover{ background:rgba(255,255,255,.18); color:#fff; }
+  .tour-tip-body{ color:#e8e2ff; font-size:.98rem; line-height:1.75; margin:0 0 12px; min-height:3.2em; }
+  .tour-tip-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .tour-progress{ color:#8ff5e6; font-weight:900; font-size:.85rem; letter-spacing:.5px; }
+  .tour-next{
+    background:linear-gradient(135deg,#ffe99a,#ffc93c); color:#241645;
+    border:none; border-radius:999px; padding:11px 22px;
+    font:inherit; font-weight:900; font-size:1rem; cursor:pointer;
+    box-shadow:0 8px 22px rgba(255,201,60,.4);
+    transition:transform .15s, box-shadow .2s;
+  }
+  .tour-next:hover{ transform:translateY(-2px); box-shadow:0 12px 30px rgba(255,201,60,.6); }
+  .tour-next:active{ transform:translateY(0); }
+
+  @media(max-width:640px){
+    .tour-tip{ padding:14px 14px 12px; border-radius:20px; }
+    .tour-tip-body{ font-size:.92rem; }
+    .tour-next{ padding:10px 18px; font-size:.95rem; }
+  }
 </style>
 <div class="page-body">
 <main class="container" style="padding-top:26px;">
@@ -106,6 +159,9 @@ require_once __DIR__ . '/includes/navbar.php';
         <button class="btn btn-ghost" id="drawDownload">⬇️ نزّل الصورة</button>
       </div>
       <p class="draw-hint" id="drawHint">أول لوحة تحفظها اليوم تُحسب من ألعاب اليوم 🎮</p>
+      <div style="text-align:center;margin-top:10px;">
+        <button class="btn btn-sm" id="drawReplayTour" type="button" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">🎓 أعِد الشرح</button>
+      </div>
     </div>
 
     <aside class="draw-side">
@@ -136,6 +192,24 @@ require_once __DIR__ . '/includes/navbar.php';
 </main>
 </div>
 <footer class="site-footer">Kidora © 2026</footer>
+
+<!-- 🎓 الجولة التعليمية (Overlay) -->
+<div class="tour-overlay" id="tourOverlay" hidden aria-hidden="true">
+  <div class="tour-blocker"></div>
+  <div class="tour-spot" id="tourSpot"></div>
+  <div class="tour-tip at-bottom" id="tourTip" role="dialog" aria-live="polite">
+    <div class="tour-tip-head">
+      <h4 id="tourTitle"></h4>
+      <button type="button" class="tour-skip" id="tourSkip">تخطي ✕</button>
+    </div>
+    <p class="tour-tip-body" id="tourText"></p>
+    <div class="tour-tip-foot">
+      <span class="tour-progress" id="tourProgress"></span>
+      <button type="button" class="tour-next" id="tourNext">التالي ←</button>
+    </div>
+  </div>
+</div>
+
 <script>window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;</script>
 <script>
 (function () {
@@ -203,7 +277,6 @@ require_once __DIR__ . '/includes/navbar.php';
     const b = document.createElement('button');
     b.className = 'draw-bg' + (i === 0 ? ' on' : ''); b.textContent = bg.label; b.title = bg.key; b.dataset.bg = bg.key;
     b.onclick = () => {
-      // تغيير الخلفية بعد الرسم يمسح اللوحة، فنطلب تأكيداً فقط إن كان هناك رسم
       if (dirty && !confirm('تغيير الخلفية يبدأ لوحة جديدة. متابعة؟')) return;
       bgs.querySelectorAll('.draw-bg').forEach(x => x.classList.toggle('on', x === b));
       paintBg(bg, true); dirty = false;
@@ -291,7 +364,6 @@ require_once __DIR__ . '/includes/navbar.php';
 
   // ---- حفظ / تنزيل / مشاركة
   const flatten = () => {
-    // الممحاة تُفرغ البكسلات؛ نُسطّح على أبيض حتى تخرج PNG بلا شفافية
     const out = document.createElement('canvas'); out.width = W; out.height = H;
     const oc = out.getContext('2d'); oc.fillStyle = '#fff'; oc.fillRect(0, 0, W, H); oc.drawImage(canvas, 0, 0);
     return out.toDataURL('image/png');
@@ -321,7 +393,203 @@ require_once __DIR__ . '/includes/navbar.php';
   $('drawAgain').onclick = () => { $('drawSaved').classList.remove('show'); undo = []; redo = []; syncHistoryButtons(); BGS[0].paint(ctx); bgs.querySelectorAll('.draw-bg').forEach((x, i) => x.classList.toggle('on', i === 0)); dirty = false; $('drawTitle').value = ''; };
 
   BGS[0].paint(ctx);
-  window.KidoraDraw = { canvas, isDirty: () => dirty }; // للاختبارات الآلية
+  window.KidoraDraw = { canvas, isDirty: () => dirty };
+})();
+</script>
+
+<!-- 🎓 سكربت الجولة التعليمية -->
+<script>
+(function(){
+  const STEPS = [
+    {
+      target: null,
+      title: '🎨 أهلاً بك في لوحتك!',
+      text: 'هيا نتعلم سوا كيف ترسم. اضغط "التالي" عشان نبدأ الجولة.',
+      speak: 'أهلاً يا فنان! هون لوحتك الخاصة. خليني أوريك كيف تستعمل كل أداة.'
+    },
+    {
+      target: '#drawCanvas',
+      title: '🖼️ لوحتك البيضاء',
+      text: 'هون بترسم بإصبعك أو الفأرة. جرب ترسم خط.',
+      speak: 'هذه لوحتك. هون بترسم أي شي في بالك.'
+    },
+    {
+      target: '[data-tool="brush"]',
+      title: '🖌️ الفرشاة',
+      text: 'لرسم خطوط عادية وواضحة. هذا الخيار الافتراضي.',
+      speak: 'هذه الفرشاة. لما تضغط عليها بترسم خط عادي وواضح.'
+    },
+    {
+      target: '[data-tool="marker"]',
+      title: '🖍️ القلم العريض',
+      text: 'للرسم بخط عريض وشفاف شوي — مثالي لتلوين المساحات.',
+      speak: 'هذا القلم العريض. للتلوين والخطوط الواسعة.'
+    },
+    {
+      target: '[data-tool="spray"]',
+      title: '💨 الرشّاش',
+      text: 'لعمل نقاط متطايرة، مثل رشة ألوان.',
+      speak: 'هذا الرشاش. يرش نقاط ملونة على اللوحة.'
+    },
+    {
+      target: '[data-tool="eraser"]',
+      title: '🧽 الممحاة',
+      text: 'لحذف أي خط ما عجبك. مرّرها على الرسمة.',
+      speak: 'هذه الممحاة. امسح فيها الخطأ أو أي شي ما بدك ياه.'
+    },
+    {
+      target: '[data-tool="stamp"]',
+      title: '⭐ الطوابع',
+      text: 'اختار من الجانب نجمة أو قلب، وحطه على اللوحة بضغطة.',
+      speak: 'هذه الطوابع. حط نجوم وقلوب ورسمات جاهزة على لوحتك.'
+    },
+    {
+      target: '#drawSize',
+      title: '📏 الحجم',
+      text: 'حرّك الشريط لتكبير أو تصغير حجم الفرشاة.',
+      speak: 'من هون تكبّر أو تصغّر حجم الفرشاة.'
+    },
+    {
+      target: '#drawPalette',
+      title: '🌈 الألوان',
+      text: 'اختار اللون اللي يعجبك، أو جرّب قوس قزح!',
+      speak: 'هون الألوان. اضغط أي لون لترسم فيه. وفي كمان لون قوس قزح.'
+    },
+    {
+      target: '#drawStamps',
+      title: '⭐ الطوابع',
+      text: 'اضغط أي طابع لتحطه على لوحتك.',
+      speak: 'هذه طوابع جاهزة. نجمة، قلب، قمر... اضغط أي واحد.'
+    },
+    {
+      target: '#drawBgs',
+      title: '🖼️ الخلفيات',
+      text: 'بدّل خلفية اللوحة: بيضاء، ليل، بحر، عشب... تنبيه: تغيير الخلفية يمسح الرسمة.',
+      speak: 'هون الخلفيات. بدّل خلفية لوحتك. بس انتبه، تغيير الخلفية بمسح الرسم.'
+    },
+    {
+      target: '#drawSave',
+      title: '💾 الحفظ',
+      text: 'بعد ما تخلص، اضغط هنا لحفظ لوحتك في ملفك.',
+      speak: 'بعد ما تخلص من الرسم، اضغط هنا ليحفظوا لوحتك في ملفك.'
+    },
+    {
+      target: null,
+      title: '🎉 يلا ابدأ!',
+      text: 'تعلمت كل شي. هلق ارسم أي شي بدك ياه، وأنا معك!',
+      speak: 'خلصنا! يلا ابدأ ارسم. أنا معك!'
+    }
+  ];
+
+  let index = 0;
+  let active = false;
+  const overlay = document.getElementById('tourOverlay');
+  const spot = document.getElementById('tourSpot');
+  const tip = document.getElementById('tourTip');
+  const tipTitle = document.getElementById('tourTitle');
+  const tipText = document.getElementById('tourText');
+  const tipNext = document.getElementById('tourNext');
+  const tipSkip = document.getElementById('tourSkip');
+  const tipProgress = document.getElementById('tourProgress');
+
+  function speak(t){
+    if (window.Companion && typeof Companion.say === 'function') {
+      try { Companion.say(t, { mood: 'talk' }); return; } catch(_){}
+    }
+    if (window.companionSay) { try { window.companionSay(t); return; } catch(_){} }
+    if (window.SoundEngine && typeof SoundEngine.speak === 'function') {
+      try { SoundEngine.speak(t, window.KIDAURA_ACTIVE_CHARACTER); } catch(_){}
+    }
+  }
+
+  function clearSpot(){
+    spot.style.opacity = '0';
+  }
+
+  function showSpot(el){
+    if (!el) { clearSpot(); return; }
+    const r = el.getBoundingClientRect();
+    const pad = 10;
+    spot.style.left = (r.left - pad) + 'px';
+    spot.style.top = (r.top - pad) + 'px';
+    spot.style.width = (r.width + pad * 2) + 'px';
+    spot.style.height = (r.height + pad * 2) + 'px';
+    spot.style.opacity = '1';
+    // مرّر العنصر للوسط إذا كان خارج الشاشة
+    if (r.top < 80 || r.bottom > window.innerHeight - 160) {
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_) { el.scrollIntoView(); }
+    }
+  }
+
+  function positionTip(el){
+    // ضع التلميح في الأسفل إذا كان العنصر في النصف العلوي، والعكس
+    tip.classList.remove('at-top','at-bottom','at-center');
+    if (!el) { tip.classList.add('at-center'); return; }
+    const r = el.getBoundingClientRect();
+    if (r.top > window.innerHeight / 2) tip.classList.add('at-top');
+    else tip.classList.add('at-bottom');
+  }
+
+  function render(){
+    const step = STEPS[index];
+    tipTitle.textContent = step.title;
+    tipText.textContent = step.text;
+    tipProgress.textContent = (index + 1) + ' / ' + STEPS.length;
+    tipNext.textContent = (index === STEPS.length - 1) ? '🎨 ابدأ الرسم' : 'التالي ←';
+    const el = step.target ? document.querySelector(step.target) : null;
+    positionTip(el);
+    // تأخير بسيط ليستقر الـ scroll ثم نضع الإضاءة
+    setTimeout(() => showSpot(el), 60);
+    speak(step.speak || step.text);
+  }
+
+  function next(){
+    index++;
+    if (index >= STEPS.length) { finish(); return; }
+    render();
+  }
+
+  function finish(){
+    active = false;
+    overlay.hidden = true;
+    try { sessionStorage.setItem('kidora_draw_tour_done', '1'); } catch(_){}
+  }
+
+  function start(force){
+    if (!force) {
+      try { if (sessionStorage.getItem('kidora_draw_tour_done') === '1') return; } catch(_){}
+    }
+    index = 0; active = true;
+    overlay.hidden = false;
+    render();
+  }
+
+  tipNext.addEventListener('click', next);
+  tipSkip.addEventListener('click', finish);
+
+  // أعد ضبط الموضع عند تغيّر حجم النافذة أو عند التمرير
+  function reposition(){
+    if (!active) return;
+    const step = STEPS[index];
+    const el = step.target ? document.querySelector(step.target) : null;
+    showSpot(el);
+    positionTip(el);
+  }
+  window.addEventListener('resize', reposition);
+  window.addEventListener('scroll', reposition, { passive: true });
+
+  // ابدأ الجولة بعد تحميل الصفحة (700ms لتهدأ الواجهة)
+  function boot(){
+    setTimeout(() => start(), 800);
+  }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') boot();
+  else document.addEventListener('DOMContentLoaded', boot);
+
+  // زر "أعِد الشرح"
+  const replay = document.getElementById('drawReplayTour');
+  if (replay) replay.addEventListener('click', () => start(true));
+
+  window.KidoraTour = { start: () => start(true), finish };
 })();
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
