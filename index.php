@@ -207,7 +207,7 @@ require_once __DIR__ . '/includes/public-nav.php';
 <?php if ($introVideo['mp4'] || $introVideo['webm'] || $introVideo['poster']): ?>
   <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
     <?php if ($introVideo['mp4'] || $introVideo['webm']): ?>
-      <video class="public-intro-media" id="introVideo" autoplay muted playsinline preload="auto"<?php echo $introVideo['poster'] ? ' poster="' . h(BASE_PATH . '/' . $introVideo['posterPath']) . '"' : ''; ?>>
+      <video class="public-intro-media" id="introVideo" autoplay muted playsinline preload="auto" data-has-audio="1"<?php echo $introVideo['poster'] ? ' poster="' . h(BASE_PATH . '/' . $introVideo['posterPath']) . '"' : ''; ?>>
         <?php if ($introVideo['webm']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['webmPath']); ?>" type="video/webm"><?php endif; ?>
         <?php if ($introVideo['mp4']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['mp4Path']); ?>" type="video/mp4"><?php endif; ?>
       </video>
@@ -223,6 +223,7 @@ require_once __DIR__ . '/includes/public-nav.php';
       <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
       <div class="public-intro-actions">
         <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
+        <button type="button" class="k-btn k-btn-ghost" id="introUnmute" aria-label="تشغيل الصوت" hidden>🔇 تشغيل الصوت</button>
         <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
       </div>
     </div>
@@ -284,13 +285,13 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-video-showcase{padding-top:20px}
   .public-video-frame{position:relative;min-height:min(68svh,680px);overflow:hidden;border:1px solid rgba(255,255,255,.16);border-radius:30px;background:#05030b;box-shadow:0 28px 70px rgba(0,0,0,.38)}
   .public-video-frame:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(10,6,26,.02),rgba(10,6,26,.5))}
-  .public-video-frame video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain}
+  .public-video-frame video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;object-position:center}
   .public-video-unavailable{display:grid;place-content:center;min-height:100svh;padding:24px;text-align:center;color:#fff;box-sizing:border-box}
 
   /* ✅ كان 100vw — صار 100% عشان ما يعمل scroll أفقي */
   .public-video-full{width:100%;max-width:100%;min-height:100svh;margin:0;padding:0;position:relative;overflow:hidden;background:#0a061a}
   .public-video-full .public-video-frame{position:absolute;inset:0;width:100%;height:100%;border:none;border-radius:0;box-shadow:none}
-  .public-video-full .public-video-frame video{width:100%;height:100%;border:0}
+  .public-video-full .public-video-frame video{width:100%;height:100%;border:0;object-fit:cover}
   .public-video-full .public-video-frame:after{display:none}
 
   .public-orbit{position:absolute;width:min(100%,430px);aspect-ratio:1;border:1px solid rgba(255,201,60,.22);border-radius:50%;box-shadow:0 0 80px rgba(91,141,239,.15) inset,0 0 80px rgba(255,105,170,.1);animation:publicOrbit 18s linear infinite}
@@ -342,18 +343,39 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-footer{padding:26px 0 32px;border-top:1px solid rgba(255,255,255,.1);color:#b9abd4;text-align:center;font-size:13px}
   .public-modal{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(3,2,13,.78);backdrop-filter:blur(12px)}.public-modal.open{display:flex}.public-modal-card{position:relative;width:min(520px,100%);max-height:calc(100vh - 36px);overflow:auto;padding:28px;border:1px solid rgba(255,255,255,.2);border-radius:28px;background:linear-gradient(160deg,#241645,#100920);box-shadow:0 30px 80px rgba(0,0,0,.5);text-align:center}.public-modal-close{position:absolute;top:12px;left:12px;width:37px;height:37px;border:1px solid rgba(255,255,255,.18);border-radius:50%;color:#fff;background:rgba(255,255,255,.08);font-size:20px}.public-modal-visual{width:125px;height:125px;margin:2px auto 15px;border-radius:35%;display:grid;place-items:center;background:linear-gradient(145deg,var(--modal-color,#6c63ff),rgba(10,6,26,.8));font-size:65px;overflow:hidden}.public-modal-visual img{width:100%;height:100%;object-fit:cover}.public-modal-card h2{margin:0;font-family:var(--font-display);font-size:32px}.public-modal-card p{color:#d9d0ff;line-height:1.8}.public-modal-trait{color:#ffe99a;font-weight:800}.public-modal-icons{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:16px 0;font-size:23px}.public-modal-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.public-modal-actions .k-btn{min-height:44px;font-size:14px}
 
-  /* ✅ intro overlay — max-width آمن */
-  .public-intro{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:#0a061a;overflow:hidden;max-width:100vw}
-  .public-intro.is-hidden{pointer-events:none}
-  .public-intro-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.72}
-  .public-intro-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,6,26,.2),rgba(10,6,26,.92))}
+  /* ✅ intro overlay — max-width آمن + شفافية محسّنة */
+  .public-intro{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:#0a061a;overflow:hidden;max-width:100vw;transition:opacity .5s ease}
+  .public-intro.is-hidden{pointer-events:none;opacity:0}
+  .public-intro-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1}
+  .public-intro-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,6,26,.05) 0%,rgba(10,6,26,.25) 55%,rgba(10,6,26,.75) 100%)}
   .public-intro-content{position:relative;z-index:1;width:min(700px,calc(100% - 32px));text-align:center}
   .public-intro-logo{font-family:var(--font-display);font-size:clamp(56px,13vw,120px);font-weight:900;background-image:linear-gradient(135deg,#fff,#ffc93c);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .public-intro-line{margin:8px 0 24px;color:#f1f5f9;font-size:clamp(18px,3vw,28px);font-weight:800}
+  .public-intro-line{margin:8px 0 24px;color:#f1f5f9;font-size:clamp(18px,3vw,28px);font-weight:800;text-shadow:0 2px 12px rgba(0,0,0,.7)}
   .public-intro-fallback{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;min-height:85px;margin-bottom:20px}
   .public-intro-fallback span{display:grid;place-items:center;width:64px;height:64px;border-radius:22px;background:linear-gradient(145deg,var(--char-color),rgba(255,255,255,.08));font-size:36px;box-shadow:0 0 26px color-mix(in srgb,var(--char-color) 35%,transparent)}
   .public-intro-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}
   .public-intro-skip{border:1px solid rgba(255,255,255,.25);color:#fff;background:rgba(255,255,255,.08)}
+  #introUnmute{font-size:14px;min-height:44px;padding:8px 18px}
+
+  /* ✅ زر الصوت العائم لفيديو العرض */
+  .video-sound-toggle{
+    position:absolute;
+    top:18px;
+    left:18px;
+    z-index:3;
+    width:48px;height:48px;
+    display:grid;place-items:center;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,.28);
+    background:rgba(10,6,26,.62);
+    color:#fff;
+    font-size:20px;
+    cursor:pointer;
+    backdrop-filter:blur(8px);
+    transition:transform .2s ease,background .2s ease;
+  }
+  .video-sound-toggle:hover{transform:scale(1.08);background:rgba(10,6,26,.85)}
+  .video-sound-toggle.is-on{background:rgba(255,201,60,.9);color:#241645}
 
   @media(max-width:900px){
     .public-hero{grid-template-columns:1fr;text-align:center;padding-top:52px}
@@ -381,6 +403,7 @@ require_once __DIR__ . '/includes/public-nav.php';
     .public-stat strong{font-size:22px}
     .public-intro-fallback span{width:48px;height:48px;font-size:26px;border-radius:16px}
     .public-hero-character{width:min(65vw,220px)}
+    .video-sound-toggle{top:12px;left:12px;width:42px;height:42px;font-size:18px}
   }
   @media(prefers-reduced-motion:reduce){
     .public-orbit,.public-hero-character{animation:none}
@@ -467,8 +490,10 @@ require_once __DIR__ . '/includes/public-nav.php';
     <section class="public-video-full" id="videoShowcase">
       <div class="public-video-frame">
         <?php if ($showcaseVideo): ?>
-          <video src="<?php echo h($showcaseVideo); ?>" aria-label="فيديو تعريفي عن Kidora"
-            autoplay muted loop playsinline preload="metadata"></video>
+          <video src="<?php echo h($showcaseVideo); ?>" id="showcaseVideo" aria-label="فيديو تعريفي عن Kidora"
+            autoplay muted loop playsinline preload="auto" data-has-audio="1"></video>
+          <button type="button" class="video-sound-toggle" id="showcaseUnmute"
+            aria-label="تشغيل الصوت" hidden>🔇</button>
         <?php else: ?>
           <div class="public-video-unavailable" role="status">
             <h2>✨ مرحباً بك في Kidora</h2>
@@ -703,6 +728,101 @@ function showLoginForm(){
   if (card) card.scrollIntoView({behavior:'smooth', block:'center'});
 }
 </script>
+
+<!-- ============================================================
+     ✅ التحكم بالصوت لفيديوهات الصفحة الرئيسية
+     ============================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* ---------- 1) فيديو العرض (Showcase) ---------- */
+  const showcase  = document.getElementById('showcaseVideo');
+  const unmuteBtn = document.getElementById('showcaseUnmute');
+
+  if (showcase && unmuteBtn) {
+    // أظهر الزر فقط إذا كان للفيديو مسار صوتي
+    unmuteBtn.hidden = false;
+
+    unmuteBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const turningOn = showcase.muted;
+      showcase.muted = !turningOn;
+      if (turningOn) {
+        showcase.volume = 1;
+        showcase.play().catch(() => {});
+      }
+      unmuteBtn.textContent = turningOn ? '🔊' : '🔇';
+      unmuteBtn.classList.toggle('is-on', turningOn);
+      unmuteBtn.setAttribute('aria-label', turningOn ? 'كتم الصوت' : 'تشغيل الصوت');
+    });
+
+    // نقرة على الفيديو = كتم/تشغيل
+    showcase.addEventListener('click', function () {
+      showcase.muted = !showcase.muted;
+      if (!showcase.muted) showcase.volume = 1;
+      unmuteBtn.textContent = showcase.muted ? '🔇' : '🔊';
+      unmuteBtn.classList.toggle('is-on', !showcase.muted);
+    });
+  }
+
+  /* ---------- 2) فيديو المقدمة (Intro) ---------- */
+  const intro       = document.getElementById('introVideo');
+  const introUnmute = document.getElementById('introUnmute');
+  const introStart  = document.getElementById('introStart');
+  const introSkip   = document.getElementById('introSkip');
+  const overlay     = document.getElementById('introOverlay');
+
+  function revealIntro() {
+    if (!overlay) return;
+    overlay.classList.add('is-hidden');
+    setTimeout(function () {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, 550);
+  }
+
+  // زر "تشغيل الصوت" في المقدمة
+  if (introUnmute && intro) {
+    introUnmute.hidden = false;
+    introUnmute.addEventListener('click', function (e) {
+      e.stopPropagation();
+      intro.muted = false;
+      intro.volume = 1;
+      intro.play().catch(() => {});
+      introUnmute.textContent = '🔊 الصوت مفعّل';
+      introUnmute.disabled = true;
+    });
+  }
+
+  // زر ابدأ المغامرة
+  if (introStart) {
+    introStart.addEventListener('click', function () {
+      // شغّل الصوت عند النقر (تفاعل مستخدم = مسموح)
+      if (intro) {
+        intro.muted = false;
+        intro.volume = 1;
+      }
+      revealIntro();
+      const hero = document.getElementById('hero');
+      if (hero) {
+        setTimeout(function () {
+          hero.scrollIntoView({ behavior: 'smooth' });
+        }, 200);
+      }
+    });
+  }
+
+  // زر تخطي
+  if (introSkip) {
+    introSkip.addEventListener('click', function () {
+      if (intro) {
+        intro.pause();
+      }
+      revealIntro();
+    });
+  }
+});
+</script>
+
 <script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/gsap.min.js'); ?>"></script>
 <script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/ScrollTrigger.min.js'); ?>"></script>
 <script src="<?php echo h(BASE_PATH . '/assets/js/landing.js'); ?>"></script>
