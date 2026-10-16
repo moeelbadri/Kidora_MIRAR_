@@ -19,12 +19,11 @@ if (isset($_GET['logout'])) {
 }
 
 /* ============================================================
-   الدخول التلقائي — للطفل اللي سجّل قبل (كوكي "تذكرني")
+   الدخول التلقائي — للطفل اللي سجّل قبل (كويك "تذكرني")
    ============================================================ */
 $rememberChild = null;
 
 if (empty($_SESSION['child_id'])) {
-
     if (isset($_GET['continue'])) {
         $autoChild = kidora_try_auto_login($pdo);
         if ($autoChild) {
@@ -38,9 +37,6 @@ if (empty($_SESSION['child_id'])) {
 
 $showContinue = ($rememberChild && $_SERVER['REQUEST_METHOD'] !== 'POST');
 
-/* ============================================================
-   إذا عندو جلسة أصلية — روح للداشبورد
-   ============================================================ */
 if (!empty($_SESSION['child_id'])) {
     $chk = $pdo->prepare("SELECT * FROM children WHERE id = ?");
     $chk->execute([$_SESSION['child_id']]);
@@ -67,9 +63,6 @@ if (!$prefillChar && !empty($_GET['char']) && preg_match('/^[a-z0-9_-]+$/i', (st
 $prefillCharRow = $prefillChar ? get_character($pdo, $prefillChar) : null;
 if (!$prefillCharRow) $prefillChar = 0;
 
-/* ============================================================
-   تسجيل الدخول
-   ============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -97,9 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     }
 }
 
-/* ============================================================
-   إنشاء الحساب
-   ============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $name = trim($_POST['child_name'] ?? '');
     $age = normalize_child_age($_POST['child_age'] ?? 0);
@@ -250,9 +240,6 @@ require_once __DIR__ . '/includes/public-nav.php';
 <style>
   :root{--k-gold:#ffc93c;--k-gold-deep:#f5a623;--k-blue:#5b8def;--k-pink:#ff6fa5;--k-cyan:#2ec4b6;--k-ink:#241645;--k-card:rgba(255,255,255,.07);--k-line:rgba(255,255,255,.14)}
 
-  /* ============================================================
-     ✅ إصلاح السكرول الأفقي — على الجوال
-     ============================================================ */
   html,body{
     overflow-x:hidden;
     max-width:100%;
@@ -284,7 +271,7 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-hero-art{position:relative;min-height:420px;display:grid;place-items:center;max-width:100%}
 
   /* ============================================================
-     🎬 فيديو الـ Showcase — مشغّل مخصّص مع tap-anywhere-to-toggle
+     🎬 فيديو الـ Showcase
      ============================================================ */
   .public-video-full{
     width:100%;max-width:100%;
@@ -312,10 +299,9 @@ require_once __DIR__ . '/includes/public-nav.php';
     object-fit:contain;
     background:#000;
     display:block;
-    pointer-events:none; /* النقر يُلتقط بواسطة الطبقة الشفافة */
+    pointer-events:none;
   }
 
-  /* طبقة شفافة تلتقط النقر على أي مكان بالفيديو */
   .video-tap-layer{
     position:absolute;
     inset:0;
@@ -325,7 +311,6 @@ require_once __DIR__ . '/includes/public-nav.php';
     -webkit-tap-highlight-color:transparent;
   }
 
-  /* زر التشغيل الكبير في المنتصف (يظهر عند الإيقاف) */
   .video-big-play{
     position:absolute;
     top:50%;left:50%;
@@ -348,7 +333,6 @@ require_once __DIR__ . '/includes/public-nav.php';
     transform:translate(-50%,-50%) scale(1);
   }
 
-  /* شريط التحكم السفلي المخصّص */
   .video-controls{
     position:absolute;
     left:0;right:0;bottom:0;
@@ -359,7 +343,7 @@ require_once __DIR__ . '/includes/public-nav.php';
     padding:10px 12px;
     background:linear-gradient(transparent, rgba(10,6,26,.92));
     transition:transform .3s ease, opacity .3s ease;
-    direction:ltr; /* للحفاظ على ترتيب أزرار قياسي */
+    direction:ltr;
   }
   .video-shell.is-idle .video-controls{
     transform:translateY(100%);
@@ -430,7 +414,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-section-head p{margin:0;color:#b9abd4;font-size:16px;line-height:1.9}
   .public-section-kicker{color:#ffe99a;font-size:13px;font-weight:900;letter-spacing:.5px}
 
-  /* ✅ carousel — منع الفيض */
   .public-carousel-shell{position:relative;max-width:100%;overflow:hidden}
   .public-carousel-window{overflow:hidden;margin:0 38px;padding:15px 5px 24px;max-width:calc(100% - 76px)}
   .public-carousel-track{display:flex;direction:rtl;gap:18px;will-change:transform;perspective:1200px;max-width:100%}
@@ -465,7 +448,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-footer{padding:26px 0 32px;border-top:1px solid rgba(255,255,255,.1);color:#b9abd4;text-align:center;font-size:13px}
   .public-modal{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(3,2,13,.78);backdrop-filter:blur(12px)}.public-modal.open{display:flex}.public-modal-card{position:relative;width:min(520px,100%);max-height:calc(100vh - 36px);overflow:auto;padding:28px;border:1px solid rgba(255,255,255,.2);border-radius:28px;background:linear-gradient(160deg,#241645,#100920);box-shadow:0 30px 80px rgba(0,0,0,.5);text-align:center}.public-modal-close{position:absolute;top:12px;left:12px;width:37px;height:37px;border:1px solid rgba(255,255,255,.18);border-radius:50%;color:#fff;background:rgba(255,255,255,.08);font-size:20px}.public-modal-visual{width:125px;height:125px;margin:2px auto 15px;border-radius:35%;display:grid;place-items:center;background:linear-gradient(145deg,var(--modal-color,#6c63ff),rgba(10,6,26,.8));font-size:65px;overflow:hidden}.public-modal-visual img{width:100%;height:100%;object-fit:cover}.public-modal-card h2{margin:0;font-family:var(--font-display);font-size:32px}.public-modal-card p{color:#d9d0ff;line-height:1.8}.public-modal-trait{color:#ffe99a;font-weight:800}.public-modal-icons{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:16px 0;font-size:23px}.public-modal-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.public-modal-actions .k-btn{min-height:44px;font-size:14px}
 
-  /* ✅ intro overlay — max-width آمن + شفافية محسّنة */
   .public-intro{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:#0a061a;overflow:hidden;max-width:100vw;transition:opacity .5s ease}
   .public-intro.is-hidden{pointer-events:none;opacity:0}
   .public-intro-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1}
@@ -504,8 +486,6 @@ require_once __DIR__ . '/includes/public-nav.php';
     .public-stat strong{font-size:22px}
     .public-intro-fallback span{width:48px;height:48px;font-size:26px;border-radius:16px}
     .public-hero-character{width:min(65vw,220px)}
-
-    /* تصغير الأزرار على الجوال */
     .vc-btn{width:36px;height:36px;flex:0 0 36px;font-size:15px}
     .vc-time{font-size:11px;min-width:70px}
     .video-big-play{width:64px;height:64px;font-size:26px}
@@ -515,14 +495,8 @@ require_once __DIR__ . '/includes/public-nav.php';
     .public-feature{opacity:1;transform:none}
   }
 
-  /* ============================================================
-     🖥️ على الشاشات الكبيرة فقط: هامش أنيق وزوايا ناعمة
-     ============================================================ */
   @media (min-width: 1024px){
-    .public-video-full{
-      padding: 24px 0;
-      background:#0a061a;
-    }
+    .public-video-full{ padding: 24px 0; background:#0a061a; }
     .public-video-frame{
       width:min(1280px, calc(100% - 48px));
       margin:0 auto;
@@ -533,9 +507,6 @@ require_once __DIR__ . '/includes/public-nav.php';
     }
   }
 
-/* ============================================================
-   شاشة "متابعة كـ ريمان"
-   ============================================================ */
 .continue-card{
   max-width:480px;margin:0 auto;padding:36px 28px;
   border:1px solid rgba(255,255,255,.16);border-radius:32px;
@@ -609,7 +580,6 @@ require_once __DIR__ . '/includes/public-nav.php';
 
 <div class="public-page">
   <main>
-    <!-- 🎬 فيديو تعريفي بمشغّل مخصّص -->
     <section class="public-video-full" id="videoShowcase">
       <div class="public-video-frame">
         <?php if ($showcaseVideo): ?>
@@ -622,15 +592,12 @@ require_once __DIR__ . '/includes/public-nav.php';
                    preload="auto"
                    data-has-audio="1"></video>
 
-            <!-- طبقة شفافة: النقر في أي مكان يشغّل/يوقف -->
             <div class="video-tap-layer" id="videoTapLayer"
                  role="button" tabindex="0"
                  aria-label="اضغط لتشغيل أو إيقاف الفيديو"></div>
 
-            <!-- زر التشغيل الكبير في المنتصف (يظهر عند الإيقاف) -->
             <div class="video-big-play" id="videoBigPlay" aria-hidden="true">▶</div>
 
-            <!-- شريط التحكم المخصّص -->
             <div class="video-controls" id="videoControls">
               <button type="button" class="vc-btn vc-play" id="vcPlay" aria-label="تشغيل">▶</button>
               <div class="vc-seek-wrap">
@@ -653,7 +620,6 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
-    <!-- البطل الرئيسي -->
     <section class="public-container public-hero" id="hero">
       <div>
         <span class="public-eyebrow">✨ منصة آمنة تصنع مغامرات حقيقية</span>
@@ -681,7 +647,6 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
-    <!-- الشخصيات -->
     <section class="public-section public-container" id="characters">
       <div class="public-section-head">
         <span class="public-section-kicker">رفقاء الرحلة</span>
@@ -708,7 +673,6 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
-    <!-- الميزات -->
     <section class="public-section public-container" id="features">
       <div class="public-section-head">
         <span class="public-section-kicker">لماذا Kidora؟</span>
@@ -725,7 +689,6 @@ require_once __DIR__ . '/includes/public-nav.php';
       </div>
     </section>
 
-    <!-- الخطط -->
     <section class="public-section public-container" id="plans">
       <div class="public-section-head">
         <span class="public-section-kicker">خطط بسيطة</span>
@@ -748,7 +711,6 @@ require_once __DIR__ . '/includes/public-nav.php';
     </section>
 
     <?php if ($showContinue): ?>
-      <!-- 🎬 شاشة "متابعة كـ ريمان" -->
       <section class="public-auth-section public-container" id="continue">
         <div class="continue-card">
           <div class="continue-avatar"
@@ -776,7 +738,6 @@ require_once __DIR__ . '/includes/public-nav.php';
       </section>
     <?php endif; ?>
 
-    <!-- تسجيل الدخول / التسجيل -->
     <section class="public-auth-section public-container" id="auth">
       <div class="public-section-head">
         <span class="public-section-kicker">خطوتك الأولى</span>
@@ -839,7 +800,6 @@ require_once __DIR__ . '/includes/public-nav.php';
     </section>
   </main>
 
-  <!-- مودال الشخصية -->
   <div class="public-modal" id="characterModal" role="dialog" aria-modal="true" aria-labelledby="modalCharacterName" aria-hidden="true">
     <div class="public-modal-card">
       <button type="button" class="public-modal-close" id="modalClose" aria-label="إغلاق">×</button>
@@ -879,16 +839,27 @@ function showLoginForm(){
 </script>
 
 <!-- ============================================================
-     🎬 مشغّل الفيديو المخصّص + التشغيل التلقائي بصوت
+     🎬 مشغّل الفيديو + فتح الصوت تلقائيًا عند أول تفاعل
      ============================================================ -->
 <script>
 (function(){
   'use strict';
 
   /* ============================================================
-     🎬 تشغيل تلقائي بصوت — يحاول أولاً، ثم يفتح عند أول تفاعل
+     🔊 فتح الصوت على الفيديو بأقصى سرعة ممكنة
      ============================================================ */
-  function autoplayUnmuted(video, onSoundChange){
+  function forceUnmute(video){
+    if (!video) return false;
+    try {
+      video.muted  = false;
+      video.volume = 1;
+      const p = video.play();
+      if (p && typeof p.catch === 'function') p.catch(function(){});
+      return !video.muted;
+    } catch(e) { return false; }
+  }
+
+  function tryAutoplayUnmuted(video, onSoundChange){
     if (!video) return;
     video.muted  = false;
     video.volume = 1;
@@ -901,206 +872,245 @@ function showLoginForm(){
         video.muted = true;
         video.play().catch(function(){});
         if (onSoundChange) onSoundChange(false);
-        unlockOnFirstInteraction(video, onSoundChange);
       });
     } else {
       video.muted = true;
       if (onSoundChange) onSoundChange(false);
-      unlockOnFirstInteraction(video, onSoundChange);
     }
-  }
-
-  function unlockOnFirstInteraction(video, onSoundChange){
-    let unlocked = false;
-    function unlock(){
-      if (unlocked || !video) return;
-      unlocked = true;
-      video.muted  = false;
-      video.volume = 1;
-      const p = video.play();
-      if (p && typeof p.catch === 'function') p.catch(function(){});
-      if (onSoundChange) onSoundChange(true);
-      document.removeEventListener('click',      unlock);
-      document.removeEventListener('touchstart', unlock);
-      document.removeEventListener('keydown',    unlock);
-      document.removeEventListener('scroll',     unlock, true);
-      document.removeEventListener('wheel',      unlock);
-    }
-    document.addEventListener('click',      unlock, { once:true, passive:true });
-    document.addEventListener('touchstart', unlock, { once:true, passive:true });
-    document.addEventListener('keydown',    unlock, { once:true });
-    document.addEventListener('scroll',     unlock, { once:true, capture:true, passive:true });
-    document.addEventListener('wheel',      unlock, { once:true, passive:true });
   }
 
   /* ============================================================
-     🎬 بناء مشغّل الفيديو المخصّص
+     🎬 مشغّل الفيديو المخصّص
      ============================================================ */
-  function initShowcasePlayer(){
-    const video = document.getElementById('showcaseVideo');
-    if (!video) return;
+  const player = {
+    video: null,
+    shell: null,
+    tapLayer: null,
+    playBtn: null,
+    seek: null,
+    timeEl: null,
+    muteBtn: null,
+    fsBtn: null,
+    idleTimer: null,
+    isReady: false,
 
-    const shell     = document.getElementById('videoShell');
-    const tapLayer  = document.getElementById('videoTapLayer');
-    const playBtn   = document.getElementById('vcPlay');
-    const seek      = document.getElementById('vcSeek');
-    const timeEl    = document.getElementById('vcTime');
-    const muteBtn   = document.getElementById('vcMute');
-    const fsBtn     = document.getElementById('vcFullscreen');
+    init: function(){
+      this.video   = document.getElementById('showcaseVideo');
+      if (!this.video) return;
 
-    /* ---------- دالة مساعدة: تحويل الثواني إلى دقائق:ثواني ---------- */
-    function fmt(s){
-      s = Math.max(0, Math.floor(s || 0));
-      const m = Math.floor(s / 60);
-      const r = s % 60;
-      return m + ':' + String(r).padStart(2, '0');
-    }
+      this.shell   = document.getElementById('videoShell');
+      this.tapLayer= document.getElementById('videoTapLayer');
+      this.playBtn = document.getElementById('vcPlay');
+      this.seek    = document.getElementById('vcSeek');
+      this.timeEl  = document.getElementById('vcTime');
+      this.muteBtn = document.getElementById('vcMute');
+      this.fsBtn   = document.getElementById('vcFullscreen');
 
-    /* ---------- تبديل تشغيل/إيقاف ---------- */
-    function togglePlay(){
-      if (video.paused || video.ended) {
-        video.play().catch(function(){});
-      } else {
-        video.pause();
+      const self = this;
+
+      /* --- تبديل التشغيل --- */
+      function togglePlay(){
+        if (self.video.paused || self.video.ended) {
+          self.video.play().catch(function(){});
+        } else {
+          self.video.pause();
+        }
       }
-    }
 
-    /* ---------- النقر في أي مكان بالفيديو (جوال + لاب) ---------- */
-    if (tapLayer) {
-      tapLayer.addEventListener('click', function(e){
-        e.stopPropagation();
-        togglePlay();
-        showControls();
-      });
-      // دعم لوحة المفاتيح
-      tapLayer.addEventListener('keydown', function(e){
-        if (e.key === ' ' || e.key === 'Enter') {
-          e.preventDefault();
+      if (this.tapLayer) {
+        this.tapLayer.addEventListener('click', function(e){
+          e.stopPropagation();
           togglePlay();
-        }
-      });
-    }
-
-    /* ---------- زر التشغيل/الإيقاف في شريط التحكم ---------- */
-    if (playBtn) {
-      playBtn.addEventListener('click', function(e){
-        e.stopPropagation();
-        togglePlay();
-        showControls();
-      });
-    }
-
-    /* ---------- مزامنة حالة الفيديو مع الواجهة ---------- */
-    video.addEventListener('play', function(){
-      shell.classList.remove('is-paused');
-      if (playBtn) playBtn.textContent = '⏸';
-      if (playBtn) playBtn.setAttribute('aria-label', 'إيقاف');
-    });
-    video.addEventListener('pause', function(){
-      shell.classList.add('is-paused');
-      if (playBtn) playBtn.textContent = '▶';
-      if (playBtn) playBtn.setAttribute('aria-label', 'تشغيل');
-    });
-    video.addEventListener('ended', function(){
-      shell.classList.add('is-paused');
-      if (playBtn) playBtn.textContent = '▶';
-    });
-
-    /* ---------- شريط التقدم ---------- */
-    function updateSeek(){
-      if (!isFinite(video.duration) || video.duration <= 0) {
-        if (seek) seek.value = 0;
-        if (seek) seek.style.setProperty('--progress', '0%');
-        if (timeEl) timeEl.textContent = '0:00 / 0:00';
-        return;
+          self.showControls();
+        });
+        this.tapLayer.addEventListener('keydown', function(e){
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            togglePlay();
+          }
+        });
       }
-      const pct = (video.currentTime / video.duration) * 100;
-      if (seek) {
-        seek.value = pct;
-        seek.style.setProperty('--progress', pct + '%');
+
+      if (this.playBtn) {
+        this.playBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          togglePlay();
+          self.showControls();
+        });
       }
-      if (timeEl) timeEl.textContent = fmt(video.currentTime) + ' / ' + fmt(video.duration);
-    }
 
-    video.addEventListener('timeupdate', updateSeek);
-    video.addEventListener('loadedmetadata', updateSeek);
-    video.addEventListener('durationchange', updateSeek);
-    video.addEventListener('progress', updateSeek);
-
-    if (seek) {
-      seek.addEventListener('input', function(){
-        if (!isFinite(video.duration) || video.duration <= 0) return;
-        const newTime = (parseFloat(seek.value) / 100) * video.duration;
-        video.currentTime = newTime;
+      /* --- مزامنة الحالة --- */
+      this.video.addEventListener('play', function(){
+        self.shell.classList.remove('is-paused');
+        if (self.playBtn) self.playBtn.textContent = '⏸';
+        if (self.playBtn) self.playBtn.setAttribute('aria-label', 'إيقاف');
       });
-      // منع النقر على شريط التقدم من التأثير على طبقة النقر
-      seek.addEventListener('click', function(e){ e.stopPropagation(); });
-    }
-
-    /* ---------- زر الصوت ---------- */
-    if (muteBtn) {
-      muteBtn.addEventListener('click', function(e){
-        e.stopPropagation();
-        video.muted = !video.muted;
-        if (!video.muted) video.volume = 1;
-        muteBtn.textContent = video.muted ? '🔇' : '🔊';
-        muteBtn.setAttribute('aria-label', video.muted ? 'تشغيل الصوت' : 'كتم الصوت');
-        showControls();
+      this.video.addEventListener('pause', function(){
+        self.shell.classList.add('is-paused');
+        if (self.playBtn) self.playBtn.textContent = '▶';
+        if (self.playBtn) self.playBtn.setAttribute('aria-label', 'تشغيل');
       });
-      // مزامنة الحالة الأولية
-      muteBtn.textContent = video.muted ? '🔇' : '🔊';
-    }
+      this.video.addEventListener('ended', function(){
+        self.shell.classList.add('is-paused');
+        if (self.playBtn) self.playBtn.textContent = '▶';
+      });
 
-    /* ---------- زر ملء الشاشة ---------- */
-    if (fsBtn) {
-      fsBtn.addEventListener('click', function(e){
-        e.stopPropagation();
-        const target = shell || video;
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(function(){});
-        } else if (target.requestFullscreen) {
-          target.requestFullscreen().catch(function(){});
-        } else if (video.webkitEnterFullscreen) {
-          // iOS Safari (فيديو فقط)
-          video.webkitEnterFullscreen();
+      /* --- شريط التقدم --- */
+      function fmt(s){
+        s = Math.max(0, Math.floor(s || 0));
+        return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+      }
+      function updateSeek(){
+        if (!isFinite(self.video.duration) || self.video.duration <= 0) {
+          if (self.seek) self.seek.value = 0;
+          if (self.seek) self.seek.style.setProperty('--progress', '0%');
+          if (self.timeEl) self.timeEl.textContent = '0:00 / 0:00';
+          return;
         }
-        showControls();
+        const pct = (self.video.currentTime / self.video.duration) * 100;
+        if (self.seek) {
+          self.seek.value = pct;
+          self.seek.style.setProperty('--progress', pct + '%');
+        }
+        if (self.timeEl) self.timeEl.textContent = fmt(self.video.currentTime) + ' / ' + fmt(self.video.duration);
+      }
+      this.video.addEventListener('timeupdate', updateSeek);
+      this.video.addEventListener('loadedmetadata', updateSeek);
+      this.video.addEventListener('durationchange', updateSeek);
+      this.video.addEventListener('progress', updateSeek);
+
+      if (this.seek) {
+        this.seek.addEventListener('input', function(){
+          if (!isFinite(self.video.duration) || self.video.duration <= 0) return;
+          self.video.currentTime = (parseFloat(self.seek.value) / 100) * self.video.duration;
+        });
+        this.seek.addEventListener('click', function(e){ e.stopPropagation(); });
+      }
+
+      /* --- زر الصوت --- */
+      if (this.muteBtn) {
+        this.muteBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          self.video.muted = !self.video.muted;
+          if (!self.video.muted) self.video.volume = 1;
+          self.muteBtn.textContent = self.video.muted ? '🔇' : '🔊';
+          self.muteBtn.setAttribute('aria-label', self.video.muted ? 'تشغيل الصوت' : 'كتم الصوت');
+          self.showControls();
+        });
+        this.muteBtn.textContent = this.video.muted ? '🔇' : '🔊';
+      }
+
+      /* --- ملء الشاشة --- */
+      if (this.fsBtn) {
+        this.fsBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          const target = self.shell || self.video;
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(function(){});
+          } else if (target.requestFullscreen) {
+            target.requestFullscreen().catch(function(){});
+          } else if (self.video.webkitEnterFullscreen) {
+            self.video.webkitEnterFullscreen();
+          }
+          self.showControls();
+        });
+      }
+
+      /* --- الخمول --- */
+      this.shell.addEventListener('mousemove', function(){ self.showControls(); });
+      this.shell.addEventListener('touchstart', function(){ self.showControls(); }, { passive: true });
+      this.shell.addEventListener('mouseleave', function(){
+        clearTimeout(self.idleTimer);
+        if (!self.video.paused) self.shell.classList.add('is-idle');
       });
 
-      // دعم Escape من ملء الشاشة
-      document.addEventListener('fullscreenchange', function(){
-        fsBtn.setAttribute('aria-label', document.fullscreenElement ? 'خروج من ملء الشاشة' : 'ملء الشاشة');
+      /* --- التشغيل التلقائي (سيفشل بالصوت أول مرة) --- */
+      tryAutoplayUnmuted(this.video, function(soundOn){
+        if (self.muteBtn) self.muteBtn.textContent = self.video.muted ? '🔇' : '🔊';
       });
-    }
 
-    /* ---------- إخفاء الأزرار عند الخمول ---------- */
-    let idleTimer = null;
-    function showControls(){
-      shell.classList.remove('is-idle');
-      clearTimeout(idleTimer);
-      if (!video.paused && !video.ended) {
-        idleTimer = setTimeout(function(){
-          shell.classList.add('is-idle');
+      this.shell.classList.toggle('is-paused', this.video.paused);
+      updateSeek();
+      this.showControls();
+      this.isReady = true;
+    },
+
+    showControls: function(){
+      if (!this.shell) return;
+      this.shell.classList.remove('is-idle');
+      clearTimeout(this.idleTimer);
+      const self = this;
+      if (!this.video.paused && !this.video.ended) {
+        this.idleTimer = setTimeout(function(){
+          self.shell.classList.add('is-idle');
         }, 3200);
       }
+    },
+
+    /* يُستدعى عند أول تفاعل لفتح الصوت */
+    unlockSound: function(){
+      if (!this.video) return;
+      const wasMuted = this.video.muted;
+      forceUnmute(this.video);
+      if (this.muteBtn) this.muteBtn.textContent = this.video.muted ? '🔇' : '🔊';
+      // إذا كان الفيديو متوقف، لا نجبره على التشغيل
+      if (!wasMuted) return;
     }
-    shell.addEventListener('mousemove', showControls);
-    shell.addEventListener('touchstart', showControls, { passive: true });
-    shell.addEventListener('mouseleave', function(){
-      clearTimeout(idleTimer);
-      if (!video.paused) shell.classList.add('is-idle');
-    });
+  };
 
-    /* ---------- التشغيل التلقائي بصوت ---------- */
-    autoplayUnmuted(video, function(soundOn){
-      if (muteBtn) muteBtn.textContent = video.muted ? '🔇' : '🔊';
-      // يمكن استخدام soundOn لإظهار إشعار إن أردت
-    });
+  /* ============================================================
+     🔊 مراقبة أي تفاعل من المستخدم → فتح الصوت على الفور
+     ============================================================ */
+  function installSoundUnlocker(){
+    let unlocked = false;
 
-    /* ---------- تحديث أولي ---------- */
-    shell.classList.toggle('is-paused', video.paused);
-    updateSeek();
-    showControls();
+    function unlockAll(){
+      if (unlocked) return;
+      unlocked = true;
+
+      // افتح صوت فيديو العرض
+      if (player && player.video) {
+        player.unlockSound();
+      }
+
+      // افتح صوت فيديو المقدمة إن وُجد
+      const intro = document.getElementById('introVideo');
+      if (intro) {
+        intro.muted = false;
+        intro.volume = 1;
+        const p = intro.play();
+        if (p && typeof p.catch === 'function') p.catch(function(){});
+      }
+
+      // حدّث زر كتم المقدمة
+      const iu = document.getElementById('introUnmute');
+      if (iu && !iu.disabled) {
+        iu.textContent = '🔊 الصوت مفعّل';
+        iu.disabled = true;
+      }
+
+      // حدّث زر كتم الفيديو
+      const mb = document.getElementById('vcMute');
+      if (mb) mb.textContent = '🔊';
+
+      // أزل كل المستمعين
+      document.removeEventListener('click',      unlockAll, true);
+      document.removeEventListener('touchstart', unlockAll, true);
+      document.removeEventListener('keydown',    unlockAll, true);
+      document.removeEventListener('scroll',     unlockAll, true);
+      document.removeEventListener('wheel',      unlockAll, true);
+      document.removeEventListener('mousemove',  unlockAll, true);
+      window.removeEventListener('scroll',       unlockAll, true);
+    }
+
+    // نستخدم capture: true لالتقاط الحدث قبل أي معالج آخر
+    document.addEventListener('click',      unlockAll, { capture:true, passive:true });
+    document.addEventListener('touchstart', unlockAll, { capture:true, passive:true });
+    document.addEventListener('keydown',    unlockAll, { capture:true });
+    document.addEventListener('scroll',     unlockAll, { capture:true, passive:true });
+    document.addEventListener('wheel',      unlockAll, { capture:true, passive:true });
+    document.addEventListener('mousemove',  unlockAll, { capture:true, passive:true, once:true });
+    window.addEventListener('scroll',       unlockAll, { capture:true, passive:true, once:true });
   }
 
   /* ============================================================
@@ -1113,23 +1123,15 @@ function showLoginForm(){
     const introSkip   = document.getElementById('introSkip');
     const overlay     = document.getElementById('introOverlay');
 
-    function revealIntro() {
+    function revealIntro(){
       if (!overlay) return;
       overlay.classList.add('is-hidden');
-      setTimeout(function () {
+      setTimeout(function(){
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       }, 550);
     }
 
-    if (intro) {
-      autoplayUnmuted(intro, function(soundOn){
-        if (!introUnmute) return;
-        introUnmute.hidden = false;
-        introUnmute.textContent = soundOn ? '🔊 الصوت مفعّل' : '🔇 تشغيل الصوت';
-        introUnmute.disabled = !!soundOn;
-      });
-    }
-
+    // زر "تشغيل الصوت" الصريح
     if (introUnmute && intro) {
       introUnmute.hidden = false;
       introUnmute.addEventListener('click', function(e){
@@ -1142,11 +1144,27 @@ function showLoginForm(){
       });
     }
 
+    // زر "ابدأ المغامرة" — أول تفاعل مؤكّد، نفتح فيه كل الأصوات
     if (introStart) {
       introStart.addEventListener('click', function(){
+        // افتح صوت المقدمة
         if (intro) {
           intro.muted  = false;
           intro.volume = 1;
+        }
+        // افتح صوت فيديو العرض فورًا
+        if (player && player.video) {
+          player.video.muted = false;
+          player.video.volume = 1;
+          const p = player.video.play();
+          if (p && typeof p.catch === 'function') p.catch(function(){});
+          const mb = document.getElementById('vcMute');
+          if (mb) mb.textContent = '🔊';
+        }
+        // حدّث زر المقدمة
+        if (introUnmute) {
+          introUnmute.textContent = '🔊 الصوت مفعّل';
+          introUnmute.disabled = true;
         }
         revealIntro();
         const hero = document.getElementById('hero');
@@ -1165,12 +1183,19 @@ function showLoginForm(){
   }
 
   /* ============================================================
-     التشغيل عند جهوزية الصفحة
+     🚀 التشغيل
      ============================================================ */
-  document.addEventListener('DOMContentLoaded', function(){
-    initShowcasePlayer();
+  function boot(){
+    player.init();
     initIntroVideo();
-  });
+    installSoundUnlocker();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 
 })();
 </script>
