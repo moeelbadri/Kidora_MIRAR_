@@ -57,6 +57,11 @@ require_once __DIR__ . '/includes/navbar.php';
   .tk-video{ margin:16px auto 0; max-width:560px; border-radius:20px; overflow:hidden; box-shadow:0 14px 30px rgba(0,0,0,.2); background:#000; }
   .tk-video .ratio{ position:relative; padding-bottom:56.25%; height:0; }
   .tk-video .video-host{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  /* ✅ دعم YouTube IFrame API — يستبدل الـ div بـ iframe */
+  .tk-video .ratio iframe,
+  .tk-video .ratio > div{
+    position:absolute; inset:0; width:100%; height:100%; border:0;
+  }
   .tk-listen{ position:absolute; top:14px; inset-inline-start:14px; min-width:44px; min-height:44px; border-radius:999px; background:rgba(0,0,0,.05); font-size:20px; cursor:pointer; }
   .tk-celebrate{ background:linear-gradient(135deg,#f9d423,#ff4e50); border-radius:40px 18px 40px 18px; padding:18px 26px; margin:0 auto 16px; max-width:520px; text-align:center; color:#fff; box-shadow:0 10px 30px rgba(255,78,80,.4); animation:tkPulse 1.5s infinite alternate; }
   .tk-celebrate h2{ margin:0 0 4px; font-size:clamp(22px,3.4vw,30px); text-shadow:0 3px 10px rgba(0,0,0,.3); }
@@ -111,41 +116,91 @@ const TK = {
   let busy = false;
 
   /* ============================================================
-     🎬 مولّد رابط تضمين يوتيوب من معرّف الفيديو
-     - يقبل معرّفات بأطوال 6–20 حرفًا (a-z A-Z 0-9 _ -)
-     - يعيد null إذا لم يكن المعرّف صالحًا
+     ✅ التحقق من صلاحية معرّف يوتيوب (11 حرفًا — المعيار الرسمي)
      ============================================================ */
-  function ytEmbed(id){
-    id = String(id || '').trim();
-    if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) return null;
-    const params = new URLSearchParams({
-      rel: '0',
-      modestbranding: '1',
-      playsinline: '1',
-      // autoplay: '1'  ← فعّلها لو أردت التشغيل التلقائي (سيكون مكتومًا)
-    });
-    return 'https://www.youtube.com/embed/' + id + '?' + params.toString();
+  function isValidYtId(id){
+    return /^[A-Za-z0-9_-]{11}$/.test(String(id || '').trim());
   }
 
   /* ============================================================
-     🎬 يبني بلوك الفيديو (iframe) — أو يعيد '' إذا لا يوجد معرّف صالح
+     🎬 YouTube IFrame API — لعب الفيديو وانتظار انتهائه فعليًا
      ============================================================ */
-  function videoBlock(youtubeId, title){
-    const url = ytEmbed(youtubeId);
-    if (!url) return '';
-    return `
-      <div class="tk-video">
-        <div class="ratio">
-          <iframe class="video-host"
-                  src="${esc(url)}"
-                  title="${esc(title || 'فيديو')}"
-                  frameborder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowfullscreen
-                  loading="lazy"
-                  referrerpolicy="strict-origin-when-cross-origin"></iframe>
-        </div>
-      </div>`;
+  let ytApiPromise = null;
+  function loadYouTubeAPI(){
+    if (ytApiPromise) return ytApiPromise;
+    ytApiPromise = new Promise(resolve => {
+      if (window.YT && window.YT.Player) { resolve(); return; }
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = function(){
+        if (typeof prev === 'function') { try { prev(); } catch(e){} }
+        resolve();
+      };
+      if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+        const s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(s);
+      }
+    });
+    return ytApiPromise;
+  }
+
+  let currentYTPlayer = null;
+  function destroyCurrentYTPlayer(){
+    if (currentYTPlayer) {
+      try { if (typeof currentYTPlayer.destroy === 'function') currentYTPlayer.destroy(); } catch(e){}
+      currentYTPlayer = null;
+    }
+  }
+
+  /**
+   * يشغّل فيديو يوتيوب في الحاوية المعطاة، وينتظر حتى ينتهي.
+   * يعيد Promise ينتهي عند ENDED، أو عند خطأ، أو بعد 5 دقائق كحد أقصى.
+   */
+  async function playYouTube(containerId, videoId){
+    await loadYouTubeAPI();
+    destroyCurrentYTPlayer();
+
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    return new Promise(resolve => {
+      let resolved = false;
+      const safeResolve = () => { if (!resolved) { resolved = true; resolve(); } };
+      const maxTimeout = setTimeout(safeResolve, 5 * 60 * 1000); // 5 دقائق
+
+      try {
+        currentYTPlayer = new YT.Player(containerId, {
+          videoId: videoId,
+          playerVars: {
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            autoplay: 1,
+            controls: 1,
+            fs: 1,
+          },
+          events: {
+            onReady: (e) => {
+              try { e.target.playVideo(); } catch(err) {}
+            },
+            onStateChange: (e) => {
+              if (e.data === YT.PlayerState.ENDED) {
+                clearTimeout(maxTimeout);
+                safeResolve();
+              }
+            },
+            onError: () => {
+              clearTimeout(maxTimeout);
+              safeResolve();
+            }
+          }
+        });
+      } catch(e) {
+        console.warn('[YouTube] player init failed:', e);
+        clearTimeout(maxTimeout);
+        safeResolve();
+      }
+    });
   }
 
   /* ============================================================
@@ -215,27 +270,54 @@ const TK = {
       view.classList.add('is-out');
       setTimeout(() => {
         try { if (window.KidoraVideo && typeof KidoraVideo.destroy === 'function') KidoraVideo.destroy(); } catch(e){}
+        destroyCurrentYTPlayer();
         view.innerHTML = html;
         view.classList.remove('is-out');
         res();
       }, 320);
     });
   }
-  function dots(){ document.querySelectorAll('#tkDots span').forEach((d, i) => { d.className = i < TK.doneCount ? 'done' : (i === TK.doneCount ? 'current' : ''); }); }
-  function markDoneToday(){ try { localStorage.setItem('kidora_done_tasks_' + new Date().toISOString().slice(0,10), '1'); } catch(e){} }
-  function confetti(count){
-    const c = document.getElementById('confetti-container'); const colors = ['#FF6B6B','#4ECDC4','#FFE66D','#A8E6CF','#FF8A5C','#6C5CE7','#FD79A8'];
-    for (let i = 0; i < count; i++) { const p = document.createElement('div'); p.className = 'confetti-piece'; p.style.left = Math.random()*100+'%'; p.style.top = '-10px';
-      p.style.backgroundColor = colors[i % colors.length]; p.style.width = p.style.height = (Math.random()*10+6)+'px'; p.style.borderRadius = Math.random() > .5 ? '50%' : '4px';
-      p.style.animationDuration = (Math.random()*2+2)+'s'; p.style.animationDelay = (Math.random()*1.2)+'s'; c.appendChild(p); setTimeout(() => p.remove(), 4200); }
+
+  function dots(){
+    document.querySelectorAll('#tkDots span').forEach((d, i) => {
+      d.className = i < TK.doneCount ? 'done' : (i === TK.doneCount ? 'current' : '');
+    });
   }
 
-  // ---------- المرحلة 1: المهمة ----------
+  function markDoneToday(){
+    try { localStorage.setItem('kidora_done_tasks_' + new Date().toISOString().slice(0,10), '1'); } catch(e){}
+  }
+
+  function confetti(count){
+    const c = document.getElementById('confetti-container');
+    const colors = ['#FF6B6B','#4ECDC4','#FFE66D','#A8E6CF','#FF8A5C','#6C5CE7','#FD79A8'];
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      p.style.left = Math.random()*100+'%';
+      p.style.top = '-10px';
+      p.style.backgroundColor = colors[i % colors.length];
+      p.style.width = p.style.height = (Math.random()*10+6)+'px';
+      p.style.borderRadius = Math.random() > .5 ? '50%' : '4px';
+      p.style.animationDuration = (Math.random()*2+2)+'s';
+      p.style.animationDelay = (Math.random()*1.2)+'s';
+      c.appendChild(p);
+      setTimeout(() => p.remove(), 4200);
+    }
+  }
+
+  /* ============================================================
+     المرحلة 1: المهمة
+     التدفق: نص → كلام الرفيق → (بعد انتهائه) فيديو → (بعد انتهائه) زر الإنجاز
+     ============================================================ */
   async function showTask(){
     const t = TK.tasks[TK.doneCount];
     if (!t) return;
     dots();
-    const taskVideo = videoBlock(t.youtube_id, t.title);
+
+    const hasVideo = isValidYtId(t.youtube_id);
+
+    // 1) عرض بطاقة المهمة بدون فيديو — زر الإنجاز مخفي إن كان هناك فيديو
     await swap(`
       <div class="card task-card tk-card">
         <button type="button" class="tk-listen" id="tkListen" title="اسمع المهمة">🔊</button>
@@ -243,33 +325,67 @@ const TK = {
         <h3>${esc(t.title)}</h3>
         <p>${esc(t.description)}</p>
         <div class="tk-pair"><span class="sk">${esc(TK.sidekick.icon)}</span><span>${esc(TK.pairLines[t.id] || '')}</span></div>
-        ${taskVideo}
-        ${taskVideo ? '<p class="tk-video-hint">اضغط ▶ داخل الفيديو للمشاهدة</p>' : ''}
-        <button type="button" class="btn btn-primary tk-done" id="tkDone">أنجزت المهمة ✅ (+${Number(t.points)})</button>
+        <div id="tkVideoSlot"></div>
+        ${hasVideo ? '<p class="tk-video-hint" id="tkVideoHint" style="display:none">⏳ سيظهر زر الإنجاز بعد انتهاء الفيديو</p>' : ''}
+        <button type="button" class="btn btn-primary tk-done" id="tkDone" style="display:${hasVideo ? 'none' : ''}">أنجزت المهمة ✅ (+${Number(t.points)})</button>
       </div>`);
+
     const text = `${t.title}. ${t.description}`;
     const listenBtn = document.getElementById('tkListen');
     if (listenBtn) listenBtn.onclick = () => CMP.readAloud(text);
     const doneBtn = document.getElementById('tkDone');
     if (doneBtn) doneBtn.onclick = completeTask;
-    await wait(TK._greeted ? 300 : 4000); TK._greeted = true;
+
+    // 2) الرفيق يقرأ المهمة — بدون فيديو بعد
+    await wait(TK._greeted ? 300 : 4000);
+    TK._greeted = true;
     await CMP.say(text, { mood: 'talk', hold: 600 });
+
+    // 3) بعد انتهاء القراءة — نعرض الفيديو تلقائيًا ونشغّله
+    if (hasVideo) {
+      const slot = document.getElementById('tkVideoSlot');
+      if (slot) {
+        slot.innerHTML = `<div class="tk-video"><div class="ratio"><div id="tkYTPlayer"></div></div></div>`;
+      }
+      const hint = document.getElementById('tkVideoHint');
+      if (hint) hint.style.display = '';
+
+      await CMP.say('شاهد الفيديو الآن.', { mood: 'point', hold: 100 });
+      await playYouTube('tkYTPlayer', t.youtube_id);
+
+      // 4) بعد انتهاء الفيديو — نعرض زر الإنجاز
+      if (hint) hint.style.display = 'none';
+      const btn = document.getElementById('tkDone');
+      if (btn) btn.style.display = '';
+    }
   }
 
-  // ---------- المرحلة 2: إنجاز → قصة → شخصية التراث → لعبة ----------
+  /* ============================================================
+     المرحلة 2: إنجاز → قصة → شخصية التراث → لعبة
+     ============================================================ */
   async function completeTask(){
     if (busy) return; busy = true;
     const t = TK.tasks[TK.doneCount];
-    const btn = document.getElementById('tkDone'); if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    const btn = document.getElementById('tkDone');
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
     let data = null;
-    try { data = await (await fetch(TK.base + '/api/complete-task.php', { method: 'POST', body: new URLSearchParams({ task_id: t.id }) })).json(); } catch(e){}
+    try {
+      data = await (await fetch(TK.base + '/api/complete-task.php', {
+        method: 'POST',
+        body: new URLSearchParams({ task_id: t.id })
+      })).json();
+    } catch(e){}
+
     if (!data || !data.ok) {
       busy = false;
       if (btn) { btn.disabled = false; btn.textContent = 'أنجزت المهمة ✅'; }
       CMP.say('حدث خطأ صغير… جرّب مرة أخرى.', { mood: 'think' });
       return;
     }
-    TK.doneCount = data.done_count; dots();
+
+    TK.doneCount = data.done_count;
+    dots();
     if (data.all_done) markDoneToday();
 
     confetti(80);
@@ -280,45 +396,80 @@ const TK = {
     await CMP.say(data.story_line, { mood: 'talk', hold: 500 });
     await CMP.say(data.pair_line, { mood: 'talk', sidekick: true, hold: 500 });
 
+    /* ============================================================
+       شخصية التراث — نفس التدفق:
+       نص → كلام الرفيق → (بعد انتهائه) فيديو → (بعد انتهائه) زر "التالي"
+       ============================================================ */
     if (data.figure) {
       const f = data.figure;
+      const hasFigVideo = isValidYtId(f.youtube_id);
+
       await CMP.say(`والآن نتعرّف على شخصية من تراثنا: ${f.name}.`, { mood: 'point', hold: 200 });
 
-      const figVideo = videoBlock(f.youtube_id, f.name);
+      // عرض بطاقة الشخصية بدون فيديو — زر "التالي" مخفي إن كان هناك فيديو
       await swap(`
         <div class="card tk-card">
           <div class="eyebrow">شخصية من تراثنا</div>
           <h3>${esc(f.name)} — ${esc(f.title)}</h3>
           <p>${esc(f.description)}</p>
           <p style="color:var(--violet);font-weight:800;">✨ ${esc(f.story_line)}</p>
-          ${figVideo || '<div class="tk-figure-emoji">🕌</div>'}
-          ${figVideo ? '<button type="button" class="tk-skip" id="tkFigVideo_skip">⏭ التالي</button>' : ''}
+          ${hasFigVideo
+            ? '<div id="tkFigVideoSlot"></div><p class="tk-video-hint" id="tkFigHint" style="display:none">⏳ سيظهر زر «التالي» بعد انتهاء الفيديو</p>'
+            : '<div class="tk-figure-emoji">🕌</div>'}
+          <button type="button" class="tk-skip" id="tkFigVideo_skip" style="display:${hasFigVideo ? 'none' : ''}">⏭ التالي</button>
         </div>`);
+
+      // قراءة الرفيق لبطاقة الشخصية
       await CMP.say(`${f.name}، ${f.title}. ${f.description} ${f.story_line}`, { mood: 'talk', hold: 300 });
 
-      if (figVideo) {
-        await CMP.say('شاهد الفيديو الآن، وبعده لعبة قصيرة!', { mood: 'point', hold: 100 });
-        // ملاحظة: تشغيل iframe يوتيوب برمجيًا غير مسموح من المتصفح،
-        // لذا نترك الطفل يضغط ▶ بنفسه. زر "التالي" متاح للانتقال.
+      // بعد القراءة — نعرض الفيديو تلقائيًا ونشغّله
+      if (hasFigVideo) {
+        const slot = document.getElementById('tkFigVideoSlot');
+        if (slot) {
+          slot.innerHTML = `<div class="tk-video"><div class="ratio"><div id="tkFigYTPlayer"></div></div></div>`;
+        }
+        const hint = document.getElementById('tkFigHint');
+        if (hint) hint.style.display = '';
+
+        await CMP.say('شاهد الفيديو الآن.', { mood: 'point', hold: 100 });
+        await playYouTube('tkFigYTPlayer', f.youtube_id);
+
+        // بعد انتهاء الفيديو — نعرض زر "التالي"
+        if (hint) hint.style.display = 'none';
+        const nextBtn = document.getElementById('tkFigVideo_skip');
+        if (nextBtn) nextBtn.style.display = '';
       }
     }
 
-    await CMP.say(data.all_done ? 'آخر لعبة صغيرة قبل المفاجأة!' : 'يلا نلعب لعبة قصيرة قبل المهمة التالية!', { mood: 'cheer', hold: 200 });
+    await CMP.say(
+      data.all_done ? 'آخر لعبة صغيرة قبل المفاجأة!' : 'يلا نلعب لعبة قصيرة قبل المهمة التالية!',
+      { mood: 'cheer', hold: 200 }
+    );
     await swap(`<div id="taskGameHost"></div>`);
-    GamesEngine.run(data.game.type, document.getElementById('taskGameHost'), data.game.title, 'var(--coral)', async function(){
-      fetch(TK.base + '/api/play-game.php', { method: 'POST' });
-      busy = false;
-      if (data.all_done) {
-        await CMP.celebrate(`${TK.childName}! أنجزت مهامك كلها لليوم! يلا إلى قسم الألعاب لنرى لعبة اليوم المقترحة لك.`);
-        location.href = 'games.php?from=tasks';
-      } else {
-        await CMP.say('ممتاز! المهمة التالية…', { mood: 'point', hold: 100 });
-        showTask();
-      }
-    }, { category: data.game.category });
+
+    GamesEngine.run(
+      data.game.type,
+      document.getElementById('taskGameHost'),
+      data.game.title,
+      'var(--coral)',
+      async function(){
+        fetch(TK.base + '/api/play-game.php', { method: 'POST' });
+        busy = false;
+        if (data.all_done) {
+          await CMP.celebrate(`${TK.childName}! أنجزت مهامك كلها لليوم! يلا إلى قسم الألعاب لنرى لعبة اليوم المقترحة لك.`);
+          location.href = 'games.php?from=tasks';
+        } else {
+          await CMP.say('ممتاز! المهمة التالية…', { mood: 'point', hold: 100 });
+          showTask();
+        }
+      },
+      { category: data.game.category }
+    );
   }
 
-  document.addEventListener('DOMContentLoaded', () => { if (TK.tasks.length) showTask(); });
+  document.addEventListener('DOMContentLoaded', () => {
+    if (TK.tasks.length) showTask();
+  });
 })();
 </script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
