@@ -28,7 +28,7 @@ if ($taskPool) {
     $st = $pdo->prepare("SELECT id, title, description, category, points, youtube_id FROM tasks WHERE id IN ($in)");
     $st->execute($taskPool);
     foreach ($st->fetchAll() as $row) {
-        $row['video_url'] = local_video_url($row['youtube_id']);
+        // نُبقي youtube_id كما هو، والـ JS يبني رابط التضمين
         $tasksById[(int)$row['id']] = $row;
     }
 }
@@ -65,6 +65,7 @@ require_once __DIR__ . '/includes/navbar.php';
   .tk-story{ font-size:clamp(18px,2.6vw,22px); line-height:1.9; color:var(--ink); font-weight:800; white-space:pre-line; }
   .tk-skip{ margin-top:12px; color:var(--ink-soft); font-weight:800; text-decoration:underline; text-underline-offset:4px; background:none; min-height:44px; cursor:pointer; }
   .tk-figure-emoji{ font-size:64px; margin:6px 0; }
+  .tk-video-hint{ margin:8px 0 0; font-size:13px; color:var(--ink-soft); font-weight:700; }
   #confetti-container{ position:fixed; inset:0; pointer-events:none; z-index:9999; overflow:hidden; }
   .confetti-piece{ position:absolute; width:12px; height:12px; border-radius:4px; animation:confetti-fall linear forwards; }
   @keyframes confetti-fall{ 0%{ opacity:1; transform:translateY(-20px) rotate(0) scale(1); } 100%{ opacity:0; transform:translateY(100vh) rotate(720deg) scale(.4); } }
@@ -108,6 +109,44 @@ const TK = {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const wait = ms => new Promise(r => setTimeout(r, ms));
   let busy = false;
+
+  /* ============================================================
+     🎬 مولّد رابط تضمين يوتيوب من معرّف الفيديو
+     - يقبل معرّفات بأطوال 6–20 حرفًا (a-z A-Z 0-9 _ -)
+     - يعيد null إذا لم يكن المعرّف صالحًا
+     ============================================================ */
+  function ytEmbed(id){
+    id = String(id || '').trim();
+    if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) return null;
+    const params = new URLSearchParams({
+      rel: '0',
+      modestbranding: '1',
+      playsinline: '1',
+      // autoplay: '1'  ← فعّلها لو أردت التشغيل التلقائي (سيكون مكتومًا)
+    });
+    return 'https://www.youtube.com/embed/' + id + '?' + params.toString();
+  }
+
+  /* ============================================================
+     🎬 يبني بلوك الفيديو (iframe) — أو يعيد '' إذا لا يوجد معرّف صالح
+     ============================================================ */
+  function videoBlock(youtubeId, title){
+    const url = ytEmbed(youtubeId);
+    if (!url) return '';
+    return `
+      <div class="tk-video">
+        <div class="ratio">
+          <iframe class="video-host"
+                  src="${esc(url)}"
+                  title="${esc(title || 'فيديو')}"
+                  frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowfullscreen
+                  loading="lazy"
+                  referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
+      </div>`;
+  }
 
   /* ============================================================
      ✅ أغلفة آمنة — تستخدم Companion إن وُجد، وإلا SoundEngine مباشرة
@@ -174,7 +213,12 @@ const TK = {
   function swap(html){
     return new Promise(res => {
       view.classList.add('is-out');
-      setTimeout(() => { KidoraVideo.destroy(); view.innerHTML = html; view.classList.remove('is-out'); res(); }, 320);
+      setTimeout(() => {
+        try { if (window.KidoraVideo && typeof KidoraVideo.destroy === 'function') KidoraVideo.destroy(); } catch(e){}
+        view.innerHTML = html;
+        view.classList.remove('is-out');
+        res();
+      }, 320);
     });
   }
   function dots(){ document.querySelectorAll('#tkDots span').forEach((d, i) => { d.className = i < TK.doneCount ? 'done' : (i === TK.doneCount ? 'current' : ''); }); }
@@ -185,13 +229,13 @@ const TK = {
       p.style.backgroundColor = colors[i % colors.length]; p.style.width = p.style.height = (Math.random()*10+6)+'px'; p.style.borderRadius = Math.random() > .5 ? '50%' : '4px';
       p.style.animationDuration = (Math.random()*2+2)+'s'; p.style.animationDelay = (Math.random()*1.2)+'s'; c.appendChild(p); setTimeout(() => p.remove(), 4200); }
   }
-  const playVideo = (hostId, url, autoplay) => KidoraVideo.play(hostId, url, { autoplay, skipId: hostId + '_skip' });
 
   // ---------- المرحلة 1: المهمة ----------
   async function showTask(){
     const t = TK.tasks[TK.doneCount];
     if (!t) return;
     dots();
+    const taskVideo = videoBlock(t.youtube_id, t.title);
     await swap(`
       <div class="card task-card tk-card">
         <button type="button" class="tk-listen" id="tkListen" title="اسمع المهمة">🔊</button>
@@ -199,13 +243,15 @@ const TK = {
         <h3>${esc(t.title)}</h3>
         <p>${esc(t.description)}</p>
         <div class="tk-pair"><span class="sk">${esc(TK.sidekick.icon)}</span><span>${esc(TK.pairLines[t.id] || '')}</span></div>
-        ${t.youtube_id ? `<div class="tk-video"><div class="ratio"><div class="video-host" id="tkTaskVideo"></div></div></div>` : ''}
+        ${taskVideo}
+        ${taskVideo ? '<p class="tk-video-hint">اضغط ▶ داخل الفيديو للمشاهدة</p>' : ''}
         <button type="button" class="btn btn-primary tk-done" id="tkDone">أنجزت المهمة ✅ (+${Number(t.points)})</button>
       </div>`);
     const text = `${t.title}. ${t.description}`;
-    document.getElementById('tkListen').onclick = () => CMP.readAloud(text);
-    document.getElementById('tkDone').onclick = completeTask;
-    if (t.youtube_id) playVideo('tkTaskVideo', t.video_url, false);
+    const listenBtn = document.getElementById('tkListen');
+    if (listenBtn) listenBtn.onclick = () => CMP.readAloud(text);
+    const doneBtn = document.getElementById('tkDone');
+    if (doneBtn) doneBtn.onclick = completeTask;
     await wait(TK._greeted ? 300 : 4000); TK._greeted = true;
     await CMP.say(text, { mood: 'talk', hold: 600 });
   }
@@ -237,18 +283,23 @@ const TK = {
     if (data.figure) {
       const f = data.figure;
       await CMP.say(`والآن نتعرّف على شخصية من تراثنا: ${f.name}.`, { mood: 'point', hold: 200 });
+
+      const figVideo = videoBlock(f.youtube_id, f.name);
       await swap(`
         <div class="card tk-card">
           <div class="eyebrow">شخصية من تراثنا</div>
           <h3>${esc(f.name)} — ${esc(f.title)}</h3>
           <p>${esc(f.description)}</p>
           <p style="color:var(--violet);font-weight:800;">✨ ${esc(f.story_line)}</p>
-          ${f.youtube_id ? `<div class="tk-video"><div class="ratio"><div class="video-host" id="tkFigVideo"></div></div></div><button type="button" class="tk-skip" id="tkFigVideo_skip">⏭ التالي</button>` : '<div class="tk-figure-emoji">🕌</div>'}
+          ${figVideo || '<div class="tk-figure-emoji">🕌</div>'}
+          ${figVideo ? '<button type="button" class="tk-skip" id="tkFigVideo_skip">⏭ التالي</button>' : ''}
         </div>`);
       await CMP.say(`${f.name}، ${f.title}. ${f.description} ${f.story_line}`, { mood: 'talk', hold: 300 });
-      if (f.youtube_id) {
+
+      if (figVideo) {
         await CMP.say('شاهد الفيديو الآن، وبعده لعبة قصيرة!', { mood: 'point', hold: 100 });
-        await playVideo('tkFigVideo', f.video_url, true);
+        // ملاحظة: تشغيل iframe يوتيوب برمجيًا غير مسموح من المتصفح،
+        // لذا نترك الطفل يضغط ▶ بنفسه. زر "التالي" متاح للانتقال.
       }
     }
 
