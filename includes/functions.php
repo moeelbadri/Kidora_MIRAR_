@@ -428,6 +428,8 @@ function behavior_radar_short(string $axis): string {
  * رسمة عنكبوتية لمحاور التحليل. المقياس ١–٣: الحلقة الداخلية = ١ والخارجية = ٣.
  * تُعاد HTML جاهزة (SVG + قائمة). البطاقة التي تحتويها يجب أن تبقى فاتحة.
  */
+
+
 function behavior_radar_svg(array $rows): string {
     $pts = [];
     foreach ($rows as $r) {
@@ -452,7 +454,6 @@ function behavior_radar_svg(array $rows): string {
     $spokes = '';
     $labels = '';
     $poly = [];
-    $legend = '';
     for ($i = 0; $i < $n; $i++) {
         $ang = -M_PI_2 + (2 * M_PI * $i / $n);
         $cos = cos($ang); $sin = sin($ang);
@@ -465,7 +466,6 @@ function behavior_radar_svg(array $rows): string {
         $anchor = $cos > 0.35 ? 'start' : ($cos < -0.35 ? 'end' : 'middle');
         $short = behavior_radar_short($pts[$i]['axis']);
         $labels .= '<text x="'.round($lx, 2).'" y="'.round($ly, 2).'" text-anchor="'.$anchor.'" class="br-label">'.h($short).'</text>';
-        $legend .= '<li><span>'.h($pts[$i]['axis']).'</span><b>'.h(number_format($pts[$i]['avg'], 1)).' / 3</b></li>';
     }
 
     return '<div class="behavior-radar">'
@@ -474,10 +474,61 @@ function behavior_radar_svg(array $rows): string {
         .'<polygon points="'.implode(' ', $poly).'" class="br-shape"/>'
         .$labels
         .'</svg>'
-        .'<ul class="behavior-radar-legend">'.$legend.'</ul>'
-        .'<p class="behavior-radar-note">كل محور من ١ إلى ٣. الشكل الأكبر يعني مهارة أوضح.</p>'
+        // .'<p class="behavior-radar-note">كل محور من ١ إلى ٣. الشكل الأكبر يعني مهارة أوضح.</p>'
         .'</div>';
 }
+
+
+// function behavior_radar_svg(array $rows): string {
+//     $pts = [];
+//     foreach ($rows as $r) {
+//         $axis = trim((string)($r['axis'] ?? ''));
+//         if ($axis === '') continue;
+//         $avg = (float)($r['avg_v'] ?? 0);
+//         if ($avg < 0) $avg = 0;
+//         if ($avg > 3) $avg = 3;
+//         $pts[] = ['axis' => $axis, 'avg' => $avg];
+//     }
+//     $n = count($pts);
+//     if ($n === 0) return '';
+
+//     $cx = 180; $cy = 176; $R = 112;
+//     $rings = '';
+//     for ($k = 1; $k <= 3; $k++) {
+//         $rr = $R * $k / 3;
+//         $rings .= '<circle cx="'.$cx.'" cy="'.$cy.'" r="'.round($rr, 2).'" class="br-ring"/>';
+//         $rings .= '<text x="'.($cx + 5).'" y="'.round($cy - $rr - 2, 2).'" class="br-tick">'.$k.'</text>';
+//     }
+
+//     $spokes = '';
+//     $labels = '';
+//     $poly = [];
+//     $legend = '';
+//     for ($i = 0; $i < $n; $i++) {
+//         $ang = -M_PI_2 + (2 * M_PI * $i / $n);
+//         $cos = cos($ang); $sin = sin($ang);
+//         $x2 = $cx + $R * $cos; $y2 = $cy + $R * $sin;
+//         $spokes .= '<line x1="'.$cx.'" y1="'.$cy.'" x2="'.round($x2, 2).'" y2="'.round($y2, 2).'" class="br-spoke"/>';
+//         $pr = $R * ($pts[$i]['avg'] / 3);
+//         $poly[] = round($cx + $pr * $cos, 2).','.round($cy + $pr * $sin, 2);
+//         $lx = $cx + ($R + 22) * $cos;
+//         $ly = $cy + ($R + 18) * $sin;
+//         $anchor = $cos > 0.35 ? 'start' : ($cos < -0.35 ? 'end' : 'middle');
+//         $short = behavior_radar_short($pts[$i]['axis']);
+//         $labels .= '<text x="'.round($lx, 2).'" y="'.round($ly, 2).'" text-anchor="'.$anchor.'" class="br-label">'.h($short).'</text>';
+//         $legend .= '<li><span>'.h($pts[$i]['axis']).'</span><b>'.h(number_format($pts[$i]['avg'], 1)).' / 3</b></li>';
+//     }
+
+//     return '<div class="behavior-radar">'
+//         .'<svg viewBox="0 0 360 352" role="img" aria-label="رسمة تحليل السلوك">'
+//         .$rings.$spokes
+//         .'<polygon points="'.implode(' ', $poly).'" class="br-shape"/>'
+//         .$labels
+//         .'</svg>'
+//         .'<ul class="behavior-radar-legend">'.$legend.'</ul>'
+//         .'<p class="behavior-radar-note">كل محور من ١ إلى ٣. الشكل الأكبر يعني مهارة أوضح.</p>'
+//         .'</div>';
+// }
 
 /**
  * آليات اللعب المدعومة فعلياً في assets/js/games-engine.js.
