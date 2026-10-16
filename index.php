@@ -284,25 +284,37 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-hero-art{position:relative;min-height:420px;display:grid;place-items:center;max-width:100%}
 
   /* ============================================================
-     🎬 فيديو الـ Showcase — نمط مشغّل 16:9 مع controls كاملة
+     🎬 فيديو الـ Showcase — ملء الشاشة بلا بوردر، ريسبونسف كامل
      ============================================================ */
-  .public-video-showcase{padding:36px 0 20px}
+  .public-video-full{
+    width:100%;
+    max-width:100%;
+    position:relative;
+    background:#000;
+    padding:0;
+    margin:0;
+    overflow:hidden;
+  }
+
   .public-video-frame{
     position:relative;
-    width:min(1100px,100%);
-    margin:0 auto;
-    border-radius:24px;
+    width:100%;
+    max-width:100%;
+    margin:0;
+    border-radius:0;
     overflow:hidden;
     background:#000;
-    box-shadow:0 30px 70px rgba(0,0,0,.5);
-    border:1px solid rgba(255,255,255,.14);
+    box-shadow:none;
+    border:none;
   }
+
   .public-video-frame .ratio{
     position:relative;
     width:100%;
     padding-bottom:56.25%; /* 16:9 */
     height:0;
   }
+
   .public-video-frame video{
     position:absolute;
     inset:0;
@@ -311,19 +323,22 @@ require_once __DIR__ . '/includes/public-nav.php';
     border:0;
     object-fit:contain;
     background:#000;
+    display:block;
   }
-  /* نُخفي أزرار native الافتراضية بلون داكن ونحسّن مظهرها */
+
   .public-video-frame video::-webkit-media-controls-panel{
     background-image:linear-gradient(transparent, rgba(10,6,26,.85));
   }
-  .public-video-unavailable{
-    position:absolute;inset:0;
-    display:grid;place-content:center;
-    padding:24px;text-align:center;color:#fff;
-  }
 
-  /* ✅ كان 100vw — صار 100% عشان ما يعمل scroll أفقي */
-  .public-video-full{width:100%;max-width:100%;position:relative;background:#0a061a;padding:0}
+  .public-video-unavailable{
+    position:absolute;
+    inset:0;
+    display:grid;
+    place-content:center;
+    padding:24px;
+    text-align:center;
+    color:#fff;
+  }
 
   .public-orbit{position:absolute;width:min(100%,430px);aspect-ratio:1;border:1px solid rgba(255,201,60,.22);border-radius:50%;box-shadow:0 0 80px rgba(91,141,239,.15) inset,0 0 80px rgba(255,105,170,.1);animation:publicOrbit 18s linear infinite}
   .public-orbit:before,.public-orbit:after{content:"";position:absolute;width:20px;height:20px;border-radius:50%;background:#ffc93c;box-shadow:0 0 22px #ffc93c}
@@ -394,7 +409,6 @@ require_once __DIR__ . '/includes/public-nav.php';
     .public-actions,.public-stat-row{justify-content:center}
     .public-hero-art{min-height:315px}
     .public-hero-character{width:220px}
-    .public-video-frame{border-radius:18px}
     .public-features{grid-template-columns:1fr 1fr}
     .public-plans{grid-template-columns:1fr}
     .public-plan.featured{transform:none}
@@ -414,11 +428,29 @@ require_once __DIR__ . '/includes/public-nav.php';
     .public-stat strong{font-size:22px}
     .public-intro-fallback span{width:48px;height:48px;font-size:26px;border-radius:16px}
     .public-hero-character{width:min(65vw,220px)}
-    .public-video-frame{border-radius:14px}
   }
   @media(prefers-reduced-motion:reduce){
     .public-orbit,.public-hero-character{animation:none}
     .public-feature{opacity:1;transform:none}
+  }
+
+  /* ============================================================
+     🖥️ على الشاشات الكبيرة فقط: أضف زوايا ناعمة وهامش خفيف
+        على الجوال يبقى ملء الشاشة كاملاً
+     ============================================================ */
+  @media (min-width: 1024px){
+    .public-video-full{
+      padding: 24px 0;
+      background:#0a061a;
+    }
+    .public-video-frame{
+      width:min(1280px, calc(100% - 48px));
+      margin:0 auto;
+      border-radius:20px;
+      box-shadow:0 30px 70px rgba(0,0,0,.5);
+      border:1px solid rgba(255,255,255,.10);
+      overflow:hidden;
+    }
   }
 
 /* ============================================================
@@ -497,28 +529,26 @@ require_once __DIR__ . '/includes/public-nav.php';
 
 <div class="public-page">
   <main>
-    <!-- 🎬 فيديو تعريفي بمشغّل كامل التحكم -->
+    <!-- 🎬 فيديو تعريفي بمشغّل كامل التحكم — ملء الشاشة -->
     <section class="public-video-full" id="videoShowcase">
-      <div class="public-container public-video-showcase">
-        <div class="public-video-frame">
-          <div class="ratio">
-            <?php if ($showcaseVideo): ?>
-              <video id="showcaseVideo"
-                     src="<?php echo h($showcaseVideo); ?>"
-                     aria-label="فيديو تعريفي عن Kidora"
-                     autoplay
-                     playsinline
-                     controls
-                     preload="auto"
-                     data-has-audio="1"></video>
-            <?php else: ?>
-              <div class="public-video-unavailable" role="status">
-                <h2>✨ مرحباً بك في Kidora</h2>
-                <p>الفيديو التعريفي غير متاح حالياً. اكتشف المغامرة أدناه!</p>
-                <a class="k-btn k-btn-gold" href="#hero">اكتشف المنصة ↓</a>
-              </div>
-            <?php endif; ?>
-          </div>
+      <div class="public-video-frame">
+        <div class="ratio">
+          <?php if ($showcaseVideo): ?>
+            <video id="showcaseVideo"
+                   src="<?php echo h($showcaseVideo); ?>"
+                   aria-label="فيديو تعريفي عن Kidora"
+                   autoplay
+                   playsinline
+                   controls
+                   preload="auto"
+                   data-has-audio="1"></video>
+          <?php else: ?>
+            <div class="public-video-unavailable" role="status">
+              <h2>✨ مرحباً بك في Kidora</h2>
+              <p>الفيديو التعريفي غير متاح حالياً. اكتشف المغامرة أدناه!</p>
+              <a class="k-btn k-btn-gold" href="#hero">اكتشف المنصة ↓</a>
+            </div>
+          <?php endif; ?>
         </div>
       </div>
     </section>
@@ -750,17 +780,11 @@ function showLoginForm(){
 
 <!-- ============================================================
      🎬 تشغيل تلقائي بصوت للفيديوهين (Showcase + Intro)
-     - نحاول أولاً التشغيل مع صوت
-     - إذا منع المتصفح، نُشغّل مكتومًا ونفتح الصوت عند أول تفاعل
      ============================================================ -->
 <script>
 (function(){
   'use strict';
 
-  /**
-   * يحاول تشغيل الفيديو بصوت كامل. عند الرفض: يشتغل مكتومًا
-   * ويُفتح الصوت تلقائيًا عند أول تفاعل من المستخدم.
-   */
   function autoplayUnmuted(video, onSoundChange){
     if (!video) return;
 
@@ -772,7 +796,6 @@ function showLoginForm(){
       p.then(function(){
         if (onSoundChange) onSoundChange(true);
       }).catch(function(){
-        // المتصفح منع التشغيل بالصوت — نشغّله مكتومًا
         video.muted = true;
         video.play().catch(function(){});
         if (onSoundChange) onSoundChange(false);
@@ -785,9 +808,6 @@ function showLoginForm(){
     }
   }
 
-  /**
-   * يفتح الصوت عند أول تفاعل (نقرة/لمس/تمرير/مفتاح).
-   */
   function unlockOnFirstInteraction(video, onSoundChange){
     let unlocked = false;
     function unlock(){
@@ -819,8 +839,7 @@ function showLoginForm(){
     const showcase = document.getElementById('showcaseVideo');
     if (showcase) {
       autoplayUnmuted(showcase, function(soundOn){
-        // لو حبيت تُظهر إشعار "الصوت مفتوح" أضفه هنا
-        // console.log('[Showcase] sound:', soundOn);
+        // يمكنك إضافة مؤشر "الصوت مفتوح" هنا لو أردت
       });
     }
 
@@ -848,7 +867,6 @@ function showLoginForm(){
       });
     }
 
-    // زر الصوت الاحتياطي في المقدمة
     if (introUnmute && intro) {
       introUnmute.hidden = false;
       introUnmute.addEventListener('click', function(e){
@@ -861,7 +879,6 @@ function showLoginForm(){
       });
     }
 
-    // زر "ابدأ المغامرة"
     if (introStart) {
       introStart.addEventListener('click', function(){
         if (intro) {
@@ -876,7 +893,6 @@ function showLoginForm(){
       });
     }
 
-    // زر تخطي
     if (introSkip) {
       introSkip.addEventListener('click', function(){
         if (intro) intro.pause();
