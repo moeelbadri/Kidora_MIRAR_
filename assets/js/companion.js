@@ -16,7 +16,8 @@ const Companion = (function () {
   function sidekickHtml() {
     const sk = theme().sidekick;
     if (!sk) return "";
-    return `<span class="bubble-sidekick" title="${sk.name || ""}">${sk.icon || "⭐"}</span>`;
+    // ✅ عزل أيقونة الـ sidekick عن النص العربي (LTR)
+    return `<span class="bubble-sidekick" dir="ltr" title="${sk.name || ""}">${sk.icon || "⭐"}</span>`;
   }
 
   function mood(name, ms) {
@@ -35,12 +36,28 @@ const Companion = (function () {
   }
   function pin(on) { if (els() && widget) widget.classList.toggle("is-pinned", !!on); }
 
+  /* ============================================================
+     ✅ showBubble — إصلاح اتجاه النص العربي (RTL)
+     ============================================================ */
   function showBubble(text, opts) {
     if (!bubble) return;
-    bubble.innerHTML = (opts.sidekick ? sidekickHtml() : "") + escapeHtml(text);
+
+    // فرض RTL على الفقاعة نفسها
+    bubble.setAttribute("dir", "rtl");
+    bubble.style.direction = "rtl";
+    bubble.style.textAlign = "right";
+    bubble.style.unicodeBidi = "plaintext";
+
+    // بناء المحتوى: أيقونة sidekick (معزولة) + نص مغلّف بـ span RTL
+    const sidekick = opts.sidekick ? sidekickHtml() : "";
+    bubble.innerHTML =
+      sidekick +
+      '<span class="bubble-text" dir="rtl">' + escapeHtml(text) + '</span>';
+
     bubble.style.display = "block";
     clearTimeout(hideTimer);
   }
+
   function hideBubble(delay) {
     clearTimeout(hideTimer);
     hideTimer = setTimeout(() => { if (bubble) bubble.style.display = "none"; }, delay || 0);
