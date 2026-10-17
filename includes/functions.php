@@ -565,6 +565,18 @@ function local_video_url(?string $id): ?string {
         ? BASE_PATH . '/' . $path . '?v=' . filemtime($file) : null;
 }
 
+/** Public character artwork only; originals remain available to other pages. */
+function character_thumbnail_url(?string $path, int $width = 320): ?string {
+    if (!$path) return null;
+    $prefix = 'assets/images/characters/';
+    $file = __DIR__ . '/../' . $path;
+    if (!str_starts_with($path, $prefix) || !is_file($file)) {
+        return BASE_PATH . '/' . ltrim($path, '/');
+    }
+    return BASE_PATH . '/api/character-thumbnail.php?path=' . rawurlencode(substr($path, strlen($prefix)))
+        . '&w=' . $width . '&v=' . filemtime($file);
+}
+
 /**
  * يستخرج معرّف الفيديو (11 حرفاً) من أي شكل يلصقه الأدمن: المعرّف نفسه، أو
  * رابط watch?v=، أو shorts/، أو youtu.be/، أو embed/، أو live/ — مع أي

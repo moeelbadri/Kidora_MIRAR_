@@ -28,7 +28,7 @@ if ($taskPool) {
     $st = $pdo->prepare("SELECT id, title, description, category, points, youtube_id FROM tasks WHERE id IN ($in)");
     $st->execute($taskPool);
     foreach ($st->fetchAll() as $row) {
-        // نُبقي youtube_id كما هو، والـ JS يبني رابط التضمين
+        $row['video_url'] = local_video_url($row['youtube_id']);
         $tasksById[(int)$row['id']] = $row;
     }
 }
@@ -57,8 +57,6 @@ require_once __DIR__ . '/includes/navbar.php';
   .tk-video{ margin:16px auto 0; max-width:560px; border-radius:20px; overflow:hidden; box-shadow:0 14px 30px rgba(0,0,0,.2); background:#000; }
   .tk-video .ratio{ position:relative; padding-bottom:56.25%; height:0; }
   .tk-video .video-host{ position:absolute; inset:0; width:100%; height:100%; border:0; }
-  /* ✅ دعم YouTube IFrame API — يستبدل الـ div بـ iframe */
-  .tk-video .ratio iframe,
   .tk-video .ratio > div{
     position:absolute; inset:0; width:100%; height:100%; border:0;
   }
@@ -114,94 +112,6 @@ const TK = {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const wait = ms => new Promise(r => setTimeout(r, ms));
   let busy = false;
-
-  /* ============================================================
-     ✅ التحقق من صلاحية معرّف يوتيوب (11 حرفًا — المعيار الرسمي)
-     ============================================================ */
-  function isValidYtId(id){
-    return /^[A-Za-z0-9_-]{11}$/.test(String(id || '').trim());
-  }
-
-  /* ============================================================
-     🎬 YouTube IFrame API — لعب الفيديو وانتظار انتهائه فعليًا
-     ============================================================ */
-  let ytApiPromise = null;
-  function loadYouTubeAPI(){
-    if (ytApiPromise) return ytApiPromise;
-    ytApiPromise = new Promise(resolve => {
-      if (window.YT && window.YT.Player) { resolve(); return; }
-      const prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = function(){
-        if (typeof prev === 'function') { try { prev(); } catch(e){} }
-        resolve();
-      };
-      if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-        const s = document.createElement('script');
-        s.src = 'https://www.youtube.com/iframe_api';
-        document.head.appendChild(s);
-      }
-    });
-    return ytApiPromise;
-  }
-
-  let currentYTPlayer = null;
-  function destroyCurrentYTPlayer(){
-    if (currentYTPlayer) {
-      try { if (typeof currentYTPlayer.destroy === 'function') currentYTPlayer.destroy(); } catch(e){}
-      currentYTPlayer = null;
-    }
-  }
-
-  /**
-   * يشغّل فيديو يوتيوب في الحاوية المعطاة، وينتظر حتى ينتهي.
-   * يعيد Promise ينتهي عند ENDED، أو عند خطأ، أو بعد 5 دقائق كحد أقصى.
-   */
-  async function playYouTube(containerId, videoId){
-    await loadYouTubeAPI();
-    destroyCurrentYTPlayer();
-
-    const el = document.getElementById(containerId);
-    if (!el) return;
-
-    return new Promise(resolve => {
-      let resolved = false;
-      const safeResolve = () => { if (!resolved) { resolved = true; resolve(); } };
-      const maxTimeout = setTimeout(safeResolve, 5 * 60 * 1000); // 5 دقائق
-
-      try {
-        currentYTPlayer = new YT.Player(containerId, {
-          videoId: videoId,
-          playerVars: {
-            rel: 0,
-            modestbranding: 1,
-            playsinline: 1,
-            autoplay: 1,
-            controls: 1,
-            fs: 1,
-          },
-          events: {
-            onReady: (e) => {
-              try { e.target.playVideo(); } catch(err) {}
-            },
-            onStateChange: (e) => {
-              if (e.data === YT.PlayerState.ENDED) {
-                clearTimeout(maxTimeout);
-                safeResolve();
-              }
-            },
-            onError: () => {
-              clearTimeout(maxTimeout);
-              safeResolve();
-            }
-          }
-        });
-      } catch(e) {
-        console.warn('[YouTube] player init failed:', e);
-        clearTimeout(maxTimeout);
-        safeResolve();
-      }
-    });
-  }
 
   /* ============================================================
      ✅ أغلفة آمنة — تستخدم Companion إن وُجد، وإلا SoundEngine مباشرة
@@ -270,7 +180,6 @@ const TK = {
       view.classList.add('is-out');
       setTimeout(() => {
         try { if (window.KidoraVideo && typeof KidoraVideo.destroy === 'function') KidoraVideo.destroy(); } catch(e){}
-        destroyCurrentYTPlayer();
         view.innerHTML = html;
         view.classList.remove('is-out');
         res();
@@ -315,7 +224,7 @@ const TK = {
     if (!t) return;
     dots();
 
-    const hasVideo = isValidYtId(t.youtube_id);
+    const hasVideo = Boolean(t.video_url);
 
     // 1) عرض بطاقة المهمة بدون فيديو — زر الإنجاز مخفي إن كان هناك فيديو
     await swap(`
@@ -326,6 +235,7 @@ const TK = {
         <p>${esc(t.description)}</p>
         <div class="tk-pair"><span class="sk">${esc(TK.sidekick.icon)}</span><span>${esc(TK.pairLines[t.id] || '')}</span></div>
         <div id="tkVideoSlot"></div>
+        ${!hasVideo && t.youtube_id ? '<p class="tk-video-hint" role="status">الفيديو غير متاح حالياً. يمكنك متابعة المهمة.</p>' : ''}
         ${hasVideo ? '<p class="tk-video-hint" id="tkVideoHint" style="display:none">⏳ سيظهر زر الإنجاز بعد انتهاء الفيديو</p>' : ''}
         <button type="button" class="btn btn-primary tk-done" id="tkDone" style="display:${hasVideo ? 'none' : ''}">أنجزت المهمة ✅ (+${Number(t.points)})</button>
       </div>`);
@@ -345,13 +255,13 @@ const TK = {
     if (hasVideo) {
       const slot = document.getElementById('tkVideoSlot');
       if (slot) {
-        slot.innerHTML = `<div class="tk-video"><div class="ratio"><div id="tkYTPlayer"></div></div></div>`;
+        slot.innerHTML = `<div class="tk-video"><div class="ratio"><div class="video-host" id="tkVideo"></div></div></div>`;
       }
       const hint = document.getElementById('tkVideoHint');
       if (hint) hint.style.display = '';
 
       await CMP.say('شاهد الفيديو الآن.', { mood: 'point', hold: 100 });
-      await playYouTube('tkYTPlayer', t.youtube_id);
+      await KidoraVideo.play('tkVideo', t.video_url, { autoplay: true });
 
       // 4) بعد انتهاء الفيديو — نعرض زر الإنجاز
       if (hint) hint.style.display = 'none';
@@ -402,7 +312,7 @@ const TK = {
        ============================================================ */
     if (data.figure) {
       const f = data.figure;
-      const hasFigVideo = isValidYtId(f.youtube_id);
+      const hasFigVideo = Boolean(f.video_url);
 
       await CMP.say(`والآن نتعرّف على شخصية من تراثنا: ${f.name}.`, { mood: 'point', hold: 200 });
 
@@ -416,6 +326,7 @@ const TK = {
           ${hasFigVideo
             ? '<div id="tkFigVideoSlot"></div><p class="tk-video-hint" id="tkFigHint" style="display:none">⏳ سيظهر زر «التالي» بعد انتهاء الفيديو</p>'
             : '<div class="tk-figure-emoji">🕌</div>'}
+          ${!hasFigVideo && f.youtube_id ? '<p class="tk-video-hint" role="status">الفيديو غير متاح حالياً. يمكنك المتابعة.</p>' : ''}
           <button type="button" class="tk-skip" id="tkFigVideo_skip" style="display:${hasFigVideo ? 'none' : ''}">⏭ التالي</button>
         </div>`);
 
@@ -426,13 +337,13 @@ const TK = {
       if (hasFigVideo) {
         const slot = document.getElementById('tkFigVideoSlot');
         if (slot) {
-          slot.innerHTML = `<div class="tk-video"><div class="ratio"><div id="tkFigYTPlayer"></div></div></div>`;
+          slot.innerHTML = `<div class="tk-video"><div class="ratio"><div class="video-host" id="tkFigVideo"></div></div></div>`;
         }
         const hint = document.getElementById('tkFigHint');
         if (hint) hint.style.display = '';
 
         await CMP.say('شاهد الفيديو الآن.', { mood: 'point', hold: 100 });
-        await playYouTube('tkFigYTPlayer', f.youtube_id);
+        await KidoraVideo.play('tkFigVideo', f.video_url, { autoplay: true });
 
         // بعد انتهاء الفيديو — نعرض زر "التالي"
         if (hint) hint.style.display = 'none';

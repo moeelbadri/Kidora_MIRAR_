@@ -84,6 +84,9 @@ try {
     if (!$saved) {
         throw new RuntimeException('تعذّر نشر الفيديو أو أن المعرّف موجود بالفعل. لم يتم تغيير الفيديو الحالي.');
     }
+    if ($id === KIDORA_SHOWCASE_VIDEO_ID) {
+        exec('php ' . escapeshellarg(__DIR__ . '/../scripts/prepare-landing-video.php') . ' >/dev/null 2>&1 &');
+    }
     $_SESSION['admin_flash'] = 'تم حفظ الفيديو ✅ المعرّف: ' . $id;
 } catch (RuntimeException $e) {
     $_SESSION['admin_flash'] = $e->getMessage();

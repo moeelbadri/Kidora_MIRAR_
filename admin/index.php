@@ -24,10 +24,7 @@ $TAB_LABELS = [
 <link rel="stylesheet" href="../assets/css/main.css">
 <link rel="stylesheet" href="../assets/css/admin.css">
 <?php if ($tab === 'videos'): ?>
-<link rel="stylesheet" href="../assets/vendor/shaka/controls.modern.css">
-<link rel="stylesheet" href="../assets/css/video-player.css?v=20261015-shaka">
-<script src="../assets/vendor/shaka/shaka-player.ui.js"></script>
-<script src="../assets/js/video-player.js?v=20261015-shaka"></script>
+<script defer src="../assets/js/video-player.js?v=20261017-lazy"></script>
 <?php endif; ?>
 </head>
 <body>

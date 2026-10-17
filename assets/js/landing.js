@@ -1,4 +1,4 @@
-/* واجهة الهبوط العامة — المقدمة، الكروسيل، المودال، والنموذج */
+/* واجهة الهبوط العامة — الصور، الكروسيل، المودال، والنموذج */
 (function () {
   "use strict";
 
@@ -18,66 +18,14 @@
     window.setTimeout(() => item.remove(), 3200);
   }
 
-  function finishIntro() {
-    const overlay = $("#introOverlay");
-    if (!overlay || overlay.classList.contains("is-hidden")) return;
-    try { sessionStorage.setItem("kidora_intro_seen", "1"); } catch (e) {}
-    const video = $("#introVideo");
-    if (video) {
-      video.pause();
-      video.currentTime = 0;
-    }
-    const hide = () => {
-      overlay.classList.add("is-hidden");
-      overlay.setAttribute("aria-hidden", "true");
-      overlay.style.display = "none";
-      const hero = $(".public-hero");
-      if (hasGsap && hero && !reduced) gsap.fromTo(hero.children, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: .75, stagger: .12, ease: "power3.out" });
-    };
-    if (hasGsap && !reduced) gsap.to(overlay, { opacity: 0, scale: 1.04, duration: .65, ease: "power2.inOut", onComplete: hide });
-    else hide();
-  }
-
-  function setupIntro() {
-    const overlay = $("#introOverlay");
-    if (!overlay) return;
-    let seen = false;
-    try { seen = sessionStorage.getItem("kidora_intro_seen") === "1"; } catch (e) {}
-    if (seen) {
-      overlay.style.display = "none";
-      overlay.setAttribute("aria-hidden", "true");
-      return;
-    }
-
-    const fallback = $("#introFallback");
-    const video = $("#introVideo");
-    const start = $("#introStart");
-    const skip = $("#introSkip");
-    const animateFallback = () => {
-      if (!fallback || !hasGsap || reduced) return;
-      gsap.fromTo(fallback.children, { opacity: 0, y: 28, scale: .75 }, { opacity: 1, y: 0, scale: 1, duration: .7, stagger: .1, ease: "back.out(1.7)" });
-      gsap.to(fallback.children, { y: -8, duration: 1.4, stagger: .08, repeat: -1, yoyo: true, ease: "sine.inOut" });
-    };
-    animateFallback();
-
-    if (video) {
-      video.addEventListener("ended", finishIntro, { once: true });
-      video.addEventListener("error", () => {
-        video.style.display = "none";
-        window.setTimeout(finishIntro, 10000);
-      }, { once: true });
-      video.play().catch(() => {});
-    } else if (!reduced) {
-      window.setTimeout(finishIntro, 10000);
-    }
-    start?.addEventListener("click", () => {
-      if (window.SoundEngine) SoundEngine.sfx("pop");
-      finishIntro();
-    });
-    skip?.addEventListener("click", finishIntro);
-    document.addEventListener("keydown", event => {
-      if (event.key === "Escape" && overlay.classList.contains("is-hidden") === false) finishIntro();
-    });
+  function setupLazyImages() {
+    const images = $$("img[data-src]");
+    const load = image => { image.src = image.dataset.src; image.removeAttribute("data-src"); };
+    if (!window.IntersectionObserver) { images.forEach(load); return; }
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) { load(entry.target); observer.unobserve(entry.target); }
+    }), { rootMargin: "160px" });
+    images.forEach(image => observer.observe(image));
   }
 
   function renderHeroCharacter(char) {
@@ -96,12 +44,14 @@
   }
 
   function setupHeroRotation() {
-    if (!data.characters || data.characters.length < 2) return;
+    if (reduced || navigator.connection?.saveData || !data.characters || data.characters.length < 2) return;
     let index = 0;
     window.setInterval(() => {
-      index = (index + 1) % data.characters.length;
       const hero = $("#heroCharacter");
       if (!hero) return;
+      const bounds = hero.getBoundingClientRect();
+      if (document.hidden || bounds.top > innerHeight || bounds.bottom < 0) return;
+      index = (index + 1) % data.characters.length;
       const next = data.characters[index];
       if (hasGsap && !reduced) {
         gsap.to(hero, { opacity: 0, scale: .88, duration: .22, onComplete: () => {
@@ -336,7 +286,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    setupIntro();
+    setupLazyImages();
     setupCarousel();
     setupModal();
     setupAuth();

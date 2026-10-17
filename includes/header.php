@@ -29,17 +29,18 @@ $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية'
 <link rel="apple-touch-icon" href="<?php echo h(KIDORA_FAVICON); ?>">
 <meta name="description" content="منصة تفاعلية حديثة تعتمد على الأبطال والقصص التفاعلية لتعزيز سلوك الطفل وحمايته وتنميته إيجابياً.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;600;700;800&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?php echo BASE_PATH; ?>/assets/css/main.css">
-<link rel="stylesheet" href="<?php echo BASE_PATH; ?>/assets/vendor/shaka/controls.modern.css">
-<link rel="stylesheet" href="<?php echo BASE_PATH; ?>/assets/css/video-player.css?v=20261015-shaka">
-<script src="<?php echo BASE_PATH; ?>/assets/vendor/shaka/shaka-player.ui.js"></script>
-<script src="<?php echo BASE_PATH; ?>/assets/js/video-player.js?v=20261015-shaka"></script>
-<script src="<?php echo BASE_PATH; ?>/assets/js/theme-engine.js"></script>
-<script src="<?php echo BASE_PATH; ?>/assets/js/sound-engine.js?v=20260925"></script>
-<script src="<?php echo BASE_PATH; ?>/assets/js/companion.js?v=20261015-shaka"></script>
+<?php $scriptLoading = !empty($__landingPage) ? ' defer' : ''; ?>
+<script<?php echo $scriptLoading; ?> src="<?php echo BASE_PATH; ?>/assets/js/video-player.js?v=20261017-lazy"></script>
+<script<?php echo $scriptLoading; ?> src="<?php echo BASE_PATH; ?>/assets/js/theme-engine.js"></script>
+<script<?php echo $scriptLoading; ?> src="<?php echo BASE_PATH; ?>/assets/js/sound-engine.js?v=20260925"></script>
+<script<?php echo $scriptLoading; ?> src="<?php echo BASE_PATH; ?>/assets/js/companion.js?v=20261015-shaka"></script>
+<?php if (empty($__landingPage)): ?>
 <script src="<?php echo BASE_PATH; ?>/assets/js/story-player.js"></script>
 <script src="<?php echo BASE_PATH; ?>/assets/js/games-engine.js"></script>
+<?php endif; ?>
 </head>
 <body>
 

@@ -37,10 +37,7 @@ if (!$lessons) {
 }
 
 foreach ($lessons as &$lesson) {
-  // احتياطي: رابط MP4 محلي إن وُجد
-  $lesson['video_url']     = local_video_url($lesson['youtube_id']);
-  // الأساسي: معرّف يوتيوب نظيف (11 حرفًا) — يُستخرج من أي شكل
-  $lesson['youtube_clean'] = youtube_id_from_input($lesson['youtube_id']);
+  $lesson['video_url'] = local_video_url($lesson['youtube_id']);
 }
 unset($lesson);
 
@@ -147,7 +144,6 @@ require_once __DIR__ . '/includes/navbar.php';
   margin-bottom:1rem;
   box-shadow:0 20px 50px rgba(0,0,0,.5);
 }
-.sf-ratio > iframe,
 .sf-ratio > div{
   position:absolute;
   inset:0;
@@ -359,79 +355,6 @@ const LESSONS = <?= safe_json($lessons) ?>;
 const CHILD   = <?= safe_json(['name'=>$child['name']??'بطل','age'=>(int)($child['age']??6)]) ?>;
 
 /* ============================================================
-   🎬 YouTube IFrame API — تشغيل وانتظار انتهاء الفيديو
-   ============================================================ */
-let ytApiPromise = null;
-function loadYouTubeAPI(){
-  if (ytApiPromise) return ytApiPromise;
-  ytApiPromise = new Promise(resolve => {
-    if (window.YT && window.YT.Player) { resolve(); return; }
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = function(){
-      if (typeof prev === 'function') { try { prev(); } catch(e){} }
-      resolve();
-    };
-    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-      const s = document.createElement('script');
-      s.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(s);
-    }
-  });
-  return ytApiPromise;
-}
-
-let currentYTPlayer = null;
-function destroyCurrentYTPlayer(){
-  if (currentYTPlayer) {
-    try { if (typeof currentYTPlayer.destroy === 'function') currentYTPlayer.destroy(); } catch(e){}
-    currentYTPlayer = null;
-  }
-}
-
-async function playYouTube(containerId, videoId){
-  await loadYouTubeAPI();
-  destroyCurrentYTPlayer();
-
-  const el = document.getElementById(containerId);
-  if (!el) return;
-
-  return new Promise(resolve => {
-    let resolved = false;
-    const safeResolve = () => { if (!resolved) { resolved = true; resolve(); } };
-    const maxTimeout = setTimeout(safeResolve, 5 * 60 * 1000);
-
-    try {
-      currentYTPlayer = new YT.Player(containerId, {
-        videoId: videoId,
-        playerVars: {
-          rel: 0, modestbranding: 1, playsinline: 1,
-          autoplay: 1, controls: 1, fs: 1,
-        },
-        events: {
-          onReady: (e) => {
-            try { e.target.playVideo(); } catch(err) {}
-          },
-          onStateChange: (e) => {
-            if (e.data === YT.PlayerState.ENDED) {
-              clearTimeout(maxTimeout);
-              safeResolve();
-            }
-          },
-          onError: () => {
-            clearTimeout(maxTimeout);
-            safeResolve();
-          }
-        }
-      });
-    } catch(e) {
-      console.warn('[YouTube] player init failed:', e);
-      clearTimeout(maxTimeout);
-      safeResolve();
-    }
-  });
-}
-
-/* ============================================================
    📖 مكتبة القصص من الرفيق
    ============================================================ */
 const COMPANION_STORIES = [
@@ -534,7 +457,7 @@ function swapView(html){
   return new Promise(res => {
     view.classList.add('is-out');
     setTimeout(() => {
-      try { destroyCurrentYTPlayer(); } catch(e){}
+      KidoraVideo.destroy();
       view.innerHTML = html;
       view.classList.remove('is-out');
       res();
@@ -627,12 +550,11 @@ async function goStep0(){
 }
 
 /* ============================================================
-   الخطوة 1: القاعدة + فيديو يوتيوب
+   الخطوة 1: القاعدة + فيديو محلي
    ============================================================ */
 async function goStep1(){
   const L = todayLesson;
-  const ytId = String(L.youtube_clean || '').trim();
-  const hasVideo = /^[A-Za-z0-9_-]{11}$/.test(ytId);
+  const hasVideo = Boolean(L.video_url);
 
   setStep(1);
   await swapView(`
@@ -642,10 +564,10 @@ async function goStep1(){
     <p class="sf-rule">${esc(L.description)}</p>
     ${hasVideo ? `
       <div class="sf-ratio">
-        <div id="sfYTPlayer"></div>
+        <div id="sfVideo"></div>
       </div>
       <p style="text-align:center;color:#e8e3ff;font-size:.88rem;font-weight:600;margin:.4rem 0 1rem;">📺 شاهد الفيديو — سيظهر زر اللعبة بعد انتهائه</p>
-    ` : ''}
+    ` : L.youtube_id ? '<p class="sf-desc" role="status">الفيديو غير متاح حالياً. يمكنك المتابعة إلى اللعبة.</p>' : ''}
     <div class="sf-actions">
       <button type="button" class="sf-btn sf-btn-lg" id="sfNext1" ${hasVideo ? 'style="display:none"' : ''}>🎮 فهمت، إلى اللعبة</button>
     </div>
@@ -659,7 +581,7 @@ async function goStep1(){
   if (hasVideo){
     await new Promise(r => setTimeout(r, 500));
     await say('شاهد معي هذه القصة القصيرة.', 'cheer');
-    await playYouTube('sfYTPlayer', ytId);
+    await KidoraVideo.play('sfVideo', L.video_url, { autoplay: true });
     // بعد انتهاء الفيديو
     const nb = document.getElementById('sfNext1');
     if (nb) nb.style.display = '';

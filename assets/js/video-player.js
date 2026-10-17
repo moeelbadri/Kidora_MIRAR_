@@ -1,6 +1,30 @@
 /* Google's Shaka Player UI, serving Kidora's own MP4 files only. */
+const kidoraPlayerAssets = new URL('../', document.currentScript.src);
+let kidoraPlayerReady;
 window.KidoraPlayer = {
   async mount(host, video, url) {
+    // Share a single download across simultaneous lesson/preview requests.
+    if (!kidoraPlayerReady) {
+      kidoraPlayerReady = Promise.all([
+        ...['vendor/shaka/controls.modern.css', 'css/video-player.css?v=20261015-shaka'].map(path => {
+          const href = new URL(path, kidoraPlayerAssets).href;
+          if (Array.from(document.styleSheets).some(sheet => sheet.href === href)) return Promise.resolve();
+          return new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet'; link.href = href;
+            link.onload = resolve; link.onerror = () => { link.remove(); reject(new Error('Player stylesheet download failed')); };
+            document.head.append(link);
+          });
+        }),
+        typeof window.shaka !== 'undefined' ? Promise.resolve() : new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = new URL('vendor/shaka/shaka-player.ui.js', kidoraPlayerAssets).href;
+          script.onload = resolve; script.onerror = () => { script.remove(); reject(new Error('Player download failed')); };
+          document.head.append(script);
+        }),
+      ]).catch(error => { kidoraPlayerReady = null; throw error; });
+    }
+    await kidoraPlayerReady;
     shaka.polyfill.installAll();
     const player = new shaka.Player();
     let ui;

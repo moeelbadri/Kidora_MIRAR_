@@ -168,7 +168,7 @@ $charDataForJS = array_map(static function (array $c): array {
         'color' => preg_match('/^#[0-9a-f]{3,8}$/i', (string)$c['color']) ? $c['color'] : '#6C63FF',
         'move' => $c['move_type'],
         'icons' => character_icons($c),
-        'image' => !empty($c['image_path']) ? BASE_PATH . '/' . ltrim($c['image_path'], '/') : null,
+        'image' => character_thumbnail_url($c['image_path'] ?? null),
         'name' => $c['name'],
         'title' => $c['title'],
         'quote' => $c['quote'],
@@ -177,65 +177,17 @@ $charDataForJS = array_map(static function (array $c): array {
     ];
 }, $characters);
 
-$remoteHeroVideo = is_file(__DIR__ . '/assets/videos/hero.mp4') && is_readable(__DIR__ . '/assets/videos/hero.mp4');
-$introVideo = [
-    'mp4' => $remoteHeroVideo || is_file(__DIR__ . '/assets/video/intro.mp4'),
-    'mp4Path' => $remoteHeroVideo ? 'assets/videos/hero.mp4' : 'assets/video/intro.mp4',
-    'webm' => is_file(__DIR__ . '/assets/video/intro.webm'),
-    'webmPath' => 'assets/video/intro.webm',
-    'poster' => is_file(__DIR__ . '/assets/video/intro-poster.webp'),
-    'posterPath' => 'assets/video/intro-poster.webp',
-];
 $showcaseVideo = local_video_url(KIDORA_SHOWCASE_VIDEO_ID);
+$showcaseVersion = $showcaseVideo ? filemtime(__DIR__ . '/assets/videos/' . KIDORA_SHOWCASE_VIDEO_ID . '.mp4') : null;
+$showcaseDerived = 'assets/videos/derived/' . KIDORA_SHOWCASE_VIDEO_ID . '-' . $showcaseVersion;
+$showcaseMobile = is_file(__DIR__ . '/' . $showcaseDerived . '-mobile.mp4') ? BASE_PATH . '/' . $showcaseDerived . '-mobile.mp4' : $showcaseVideo;
+$showcasePoster = is_file(__DIR__ . '/' . $showcaseDerived . '-poster.webp') ? BASE_PATH . '/' . $showcaseDerived . '-poster.webp' : null;
 $shouldOpenRegister = isset($_GET['register']) || (bool)$registerError;
 $__pageTitle = 'Kidora — حيث تبدأ المغامرة';
+$__landingPage = true;
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/public-nav.php';
 ?>
-
-<!-- ✅ intro خارج public-page (يغطي الشاشة كـ overlay) -->
-<?php if ($introVideo['mp4'] || $introVideo['webm'] || $introVideo['poster']): ?>
-  <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
-    <?php if ($introVideo['mp4'] || $introVideo['webm']): ?>
-      <video class="public-intro-media" id="introVideo" autoplay muted playsinline preload="auto" data-has-audio="1"<?php echo $introVideo['poster'] ? ' poster="' . h(BASE_PATH . '/' . $introVideo['posterPath']) . '"' : ''; ?>>
-        <?php if ($introVideo['webm']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['webmPath']); ?>" type="video/webm"><?php endif; ?>
-        <?php if ($introVideo['mp4']): ?><source src="<?php echo h(BASE_PATH . '/' . $introVideo['mp4Path']); ?>" type="video/mp4"><?php endif; ?>
-      </video>
-    <?php endif; ?>
-    <div class="public-intro-scrim"></div>
-    <div class="public-intro-content">
-      <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
-        <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
-          <span style="--char-color:<?php echo h($introChar['color']); ?>"><?php echo h($introChar['icons'][0] ?? '✨'); ?></span>
-        <?php endforeach; ?>
-      </div>
-      <div class="public-intro-logo">Kidora</div>
-      <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
-      <div class="public-intro-actions">
-        <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
-        <button type="button" class="k-btn k-btn-ghost" id="introUnmute" aria-label="تشغيل الصوت" hidden>🔇 تشغيل الصوت</button>
-        <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
-      </div>
-    </div>
-  </div>
-<?php else: ?>
-  <div class="public-intro" id="introOverlay" aria-label="المقدمة التعريفية">
-    <div class="public-intro-scrim"></div>
-    <div class="public-intro-content">
-      <div class="public-intro-fallback" id="introFallback" aria-hidden="true">
-        <?php foreach (array_slice($charDataForJS, 0, 6) as $introChar): ?>
-          <span style="--char-color:<?php echo h($introChar['color']); ?>"><?php echo h($introChar['icons'][0] ?? '✨'); ?></span>
-        <?php endforeach; ?>
-      </div>
-      <div class="public-intro-logo">Kidora</div>
-      <p class="public-intro-line">كل مغامرة كبيرة تبدأ بخطوة صغيرة</p>
-      <div class="public-intro-actions">
-        <button type="button" class="k-btn k-btn-gold" id="introStart">🚀 ابدأ المغامرة</button>
-        <button type="button" class="k-btn public-intro-skip" id="introSkip">تخطي</button>
-      </div>
-    </div>
-  </div>
-<?php endif; ?>
 
 <style>
   :root{--k-gold:#ffc93c;--k-gold-deep:#f5a623;--k-blue:#5b8def;--k-pink:#ff6fa5;--k-cyan:#2ec4b6;--k-ink:#241645;--k-card:rgba(255,255,255,.07);--k-line:rgba(255,255,255,.14)}
@@ -448,19 +400,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   .public-footer{padding:26px 0 32px;border-top:1px solid rgba(255,255,255,.1);color:#b9abd4;text-align:center;font-size:13px}
   .public-modal{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(3,2,13,.78);backdrop-filter:blur(12px)}.public-modal.open{display:flex}.public-modal-card{position:relative;width:min(520px,100%);max-height:calc(100vh - 36px);overflow:auto;padding:28px;border:1px solid rgba(255,255,255,.2);border-radius:28px;background:linear-gradient(160deg,#241645,#100920);box-shadow:0 30px 80px rgba(0,0,0,.5);text-align:center}.public-modal-close{position:absolute;top:12px;left:12px;width:37px;height:37px;border:1px solid rgba(255,255,255,.18);border-radius:50%;color:#fff;background:rgba(255,255,255,.08);font-size:20px}.public-modal-visual{width:125px;height:125px;margin:2px auto 15px;border-radius:35%;display:grid;place-items:center;background:linear-gradient(145deg,var(--modal-color,#6c63ff),rgba(10,6,26,.8));font-size:65px;overflow:hidden}.public-modal-visual img{width:100%;height:100%;object-fit:cover}.public-modal-card h2{margin:0;font-family:var(--font-display);font-size:32px}.public-modal-card p{color:#d9d0ff;line-height:1.8}.public-modal-trait{color:#ffe99a;font-weight:800}.public-modal-icons{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:16px 0;font-size:23px}.public-modal-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.public-modal-actions .k-btn{min-height:44px;font-size:14px}
 
-  .public-intro{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:#0a061a;overflow:hidden;max-width:100vw;transition:opacity .5s ease}
-  .public-intro.is-hidden{pointer-events:none;opacity:0}
-  .public-intro-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:1}
-  .public-intro-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,6,26,.05) 0%,rgba(10,6,26,.25) 55%,rgba(10,6,26,.75) 100%)}
-  .public-intro-content{position:relative;z-index:1;width:min(700px,calc(100% - 32px));text-align:center}
-  .public-intro-logo{font-family:var(--font-display);font-size:clamp(56px,13vw,120px);font-weight:900;background-image:linear-gradient(135deg,#fff,#ffc93c);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .public-intro-line{margin:8px 0 24px;color:#f1f5f9;font-size:clamp(18px,3vw,28px);font-weight:800;text-shadow:0 2px 12px rgba(0,0,0,.7)}
-  .public-intro-fallback{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;min-height:85px;margin-bottom:20px}
-  .public-intro-fallback span{display:grid;place-items:center;width:64px;height:64px;border-radius:22px;background:linear-gradient(145deg,var(--char-color),rgba(255,255,255,.08));font-size:36px;box-shadow:0 0 26px color-mix(in srgb,var(--char-color) 35%,transparent)}
-  .public-intro-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}
-  .public-intro-skip{border:1px solid rgba(255,255,255,.25);color:#fff;background:rgba(255,255,255,.08)}
-  #introUnmute{font-size:14px;min-height:44px;padding:8px 18px}
-
   @media(max-width:900px){
     .public-hero{grid-template-columns:1fr;text-align:center;padding-top:52px}
     .public-hero-copy,.public-hero-lead{margin-inline:auto}
@@ -484,7 +423,6 @@ require_once __DIR__ . '/includes/public-nav.php';
     .public-character-poster{height:185px}
     .public-stat{min-width:calc(50% - 6px)}
     .public-stat strong{font-size:22px}
-    .public-intro-fallback span{width:48px;height:48px;font-size:26px;border-radius:16px}
     .public-hero-character{width:min(65vw,220px)}
     .vc-btn{width:36px;height:36px;flex:0 0 36px;font-size:15px}
     .vc-time{font-size:11px;min-width:70px}
@@ -585,11 +523,13 @@ require_once __DIR__ . '/includes/public-nav.php';
         <?php if ($showcaseVideo): ?>
           <div class="video-shell is-paused" id="videoShell">
             <video id="showcaseVideo"
-                   src="<?php echo h($showcaseVideo); ?>"
+                   data-src="<?php echo h($showcaseVideo); ?>"
+                   data-mobile-src="<?php echo h($showcaseMobile); ?>"
+                   <?php if ($showcasePoster): ?>poster="<?php echo h($showcasePoster); ?>"<?php endif; ?>
                    aria-label="فيديو تعريفي عن Kidora"
-                   autoplay
+                   muted
                    playsinline
-                   preload="auto"
+                   preload="none"
                    data-has-audio="1"></video>
 
             <div class="video-tap-layer" id="videoTapLayer"
@@ -641,7 +581,7 @@ require_once __DIR__ . '/includes/public-nav.php';
         <div class="public-orbit"></div>
         <?php $heroChar = $charDataForJS[0] ?? ['color' => '#6C63FF', 'icons' => ['✨'], 'image' => null]; ?>
         <div class="public-hero-character" id="heroCharacter" style="--hero-color:<?php echo h($heroChar['color']); ?>">
-          <?php if (!empty($heroChar['image'])): ?><img src="<?php echo h($heroChar['image']); ?>" alt=""><?php else: ?><?php echo h($heroChar['icons'][0] ?? '✨'); ?><?php endif; ?>
+          <?php if (!empty($heroChar['image'])): ?><img data-src="<?php echo h($heroChar['image']); ?>" alt="" loading="lazy" decoding="async"><?php else: ?><?php echo h($heroChar['icons'][0] ?? '✨'); ?><?php endif; ?>
         </div>
         <div class="public-floating-badge">رفيقك يرافقك في كل خطوة<br><span style="color:#ffe99a;">صوت وتشجيع وثيم خاص بك</span></div>
       </div>
@@ -661,7 +601,7 @@ require_once __DIR__ . '/includes/public-nav.php';
               <button type="button" class="public-character-card" data-char-id="<?php echo (int)$c['id']; ?>" style="--char-color:<?php echo h($c['color']); ?>" aria-haspopup="dialog">
                 <?php if ($c['is_premium']): ?><span class="public-character-badge is-premium">تجربة ٧ أيام</span><?php else: ?><span class="public-character-badge">مجانية دائماً</span><?php endif; ?>
                 <span class="public-character-poster">
-                  <?php if (!empty($c['image'])): ?><img src="<?php echo h($c['image']); ?>" alt="<?php echo h($c['name']); ?>" loading="lazy"><?php else: ?><?php echo h($c['icons'][0] ?? '✨'); ?><?php endif; ?>
+                  <?php if (!empty($c['image'])): ?><img data-src="<?php echo h($c['image']); ?>" alt="<?php echo h($c['name']); ?>" loading="lazy" decoding="async"><?php else: ?><?php echo h($c['icons'][0] ?? '✨'); ?><?php endif; ?>
                 </span>
                 <span class="public-character-name"><?php echo h($c['name']); ?></span>
                 <span class="public-character-title"><?php echo h($c['title']); ?></span>
@@ -772,7 +712,7 @@ require_once __DIR__ . '/includes/public-nav.php';
             <?php foreach ($charDataForJS as $c): ?>
               <button type="button" class="public-pick" data-pick-id="<?php echo (int)$c['id']; ?>" data-locked="0" style="--char-color:<?php echo h($c['color']); ?>">
                 <?php if ($c['is_premium']): ?><small>ضمن التجربة المجانية</small><?php endif; ?>
-                <span class="public-pick-media"><?php if (!empty($c['image'])): ?><img src="<?php echo h($c['image']); ?>" alt="<?php echo h($c['name']); ?>"><?php else: ?><?php echo h($c['icons'][0] ?? '✨'); ?><?php endif; ?></span>
+                <span class="public-pick-media"><?php if (!empty($c['image'])): ?><img data-src="<?php echo h($c['image']); ?>" alt="<?php echo h($c['name']); ?>" loading="lazy" decoding="async"><?php else: ?><?php echo h($c['icons'][0] ?? '✨'); ?><?php endif; ?></span>
                 <strong><?php echo h($c['name']); ?></strong>
               </button>
             <?php endforeach; ?>
@@ -823,7 +763,6 @@ window.KIDORA_LANDING = <?php echo json_encode([
     'characters' => $charDataForJS,
     'prefillChar' => $prefillChar,
     'openRegister' => $shouldOpenRegister,
-    'hasVideo' => $introVideo['mp4'] || $introVideo['webm'],
     'reducedMotion' => false,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 </script>
@@ -839,45 +778,11 @@ function showLoginForm(){
 </script>
 
 <!-- ============================================================
-     🎬 مشغّل الفيديو + فتح الصوت تلقائيًا عند أول تفاعل
+     🎬 مشغّل الفيديو — تحميل بعد عرض الصفحة
      ============================================================ -->
 <script>
 (function(){
   'use strict';
-
-  /* ============================================================
-     🔊 فتح الصوت على الفيديو بأقصى سرعة ممكنة
-     ============================================================ */
-  function forceUnmute(video){
-    if (!video) return false;
-    try {
-      video.muted  = false;
-      video.volume = 1;
-      const p = video.play();
-      if (p && typeof p.catch === 'function') p.catch(function(){});
-      return !video.muted;
-    } catch(e) { return false; }
-  }
-
-  function tryAutoplayUnmuted(video, onSoundChange){
-    if (!video) return;
-    video.muted  = false;
-    video.volume = 1;
-
-    const p = video.play();
-    if (p && typeof p.then === 'function') {
-      p.then(function(){
-        if (onSoundChange) onSoundChange(true);
-      }).catch(function(){
-        video.muted = true;
-        video.play().catch(function(){});
-        if (onSoundChange) onSoundChange(false);
-      });
-    } else {
-      video.muted = true;
-      if (onSoundChange) onSoundChange(false);
-    }
-  }
 
   /* ============================================================
      🎬 مشغّل الفيديو المخصّص
@@ -893,6 +798,13 @@ function showLoginForm(){
     fsBtn: null,
     idleTimer: null,
     isReady: false,
+
+    load: function(){
+      if (!this.video.getAttribute('src')) {
+        this.video.src = matchMedia('(max-width: 767px)').matches
+          ? this.video.dataset.mobileSrc : this.video.dataset.src;
+      }
+    },
 
     init: function(){
       this.video   = document.getElementById('showcaseVideo');
@@ -911,6 +823,7 @@ function showLoginForm(){
       /* --- تبديل التشغيل --- */
       function togglePlay(){
         if (self.video.paused || self.video.ended) {
+          self.load();
           self.video.play().catch(function(){});
         } else {
           self.video.pause();
@@ -1024,10 +937,23 @@ function showLoginForm(){
         if (!self.video.paused) self.shell.classList.add('is-idle');
       });
 
-      /* --- التشغيل التلقائي (سيفشل بالصوت أول مرة) --- */
-      tryAutoplayUnmuted(this.video, function(soundOn){
-        if (self.muteBtn) self.muteBtn.textContent = self.video.muted ? '🔇' : '🔊';
-      });
+      // Paint the poster before fetching video. Save-Data/reduced-motion stay tap-to-play.
+      const connection = navigator.connection;
+      const tapOnly = matchMedia('(prefers-reduced-motion: reduce)').matches
+        || (connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType)));
+      if (!tapOnly) {
+        const observer = new IntersectionObserver(entries => {
+          if (!entries.some(entry => entry.isIntersecting)) return;
+          observer.disconnect();
+          const start = () => { self.load(); self.video.play().catch(function(){}); };
+          if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 2000 });
+          else setTimeout(start, 500);
+        });
+        // Wait until the initial document and poster have loaded.
+        const observe = () => observer.observe(self.video);
+        if (document.readyState === 'complete') observe();
+        else window.addEventListener('load', observe, { once: true });
+      }
 
       this.shell.classList.toggle('is-paused', this.video.paused);
       updateSeek();
@@ -1045,150 +971,14 @@ function showLoginForm(){
           self.shell.classList.add('is-idle');
         }, 3200);
       }
-    },
-
-    /* يُستدعى عند أول تفاعل لفتح الصوت */
-    unlockSound: function(){
-      if (!this.video) return;
-      const wasMuted = this.video.muted;
-      forceUnmute(this.video);
-      if (this.muteBtn) this.muteBtn.textContent = this.video.muted ? '🔇' : '🔊';
-      // إذا كان الفيديو متوقف، لا نجبره على التشغيل
-      if (!wasMuted) return;
     }
   };
-
-  /* ============================================================
-     🔊 مراقبة أي تفاعل من المستخدم → فتح الصوت على الفور
-     ============================================================ */
-  function installSoundUnlocker(){
-    let unlocked = false;
-
-    function unlockAll(){
-      if (unlocked) return;
-      unlocked = true;
-
-      // افتح صوت فيديو العرض
-      if (player && player.video) {
-        player.unlockSound();
-      }
-
-      // افتح صوت فيديو المقدمة إن وُجد
-      const intro = document.getElementById('introVideo');
-      if (intro) {
-        intro.muted = false;
-        intro.volume = 1;
-        const p = intro.play();
-        if (p && typeof p.catch === 'function') p.catch(function(){});
-      }
-
-      // حدّث زر كتم المقدمة
-      const iu = document.getElementById('introUnmute');
-      if (iu && !iu.disabled) {
-        iu.textContent = '🔊 الصوت مفعّل';
-        iu.disabled = true;
-      }
-
-      // حدّث زر كتم الفيديو
-      const mb = document.getElementById('vcMute');
-      if (mb) mb.textContent = '🔊';
-
-      // أزل كل المستمعين
-      document.removeEventListener('click',      unlockAll, true);
-      document.removeEventListener('touchstart', unlockAll, true);
-      document.removeEventListener('keydown',    unlockAll, true);
-      document.removeEventListener('scroll',     unlockAll, true);
-      document.removeEventListener('wheel',      unlockAll, true);
-      document.removeEventListener('mousemove',  unlockAll, true);
-      window.removeEventListener('scroll',       unlockAll, true);
-    }
-
-    // نستخدم capture: true لالتقاط الحدث قبل أي معالج آخر
-    document.addEventListener('click',      unlockAll, { capture:true, passive:true });
-    document.addEventListener('touchstart', unlockAll, { capture:true, passive:true });
-    document.addEventListener('keydown',    unlockAll, { capture:true });
-    document.addEventListener('scroll',     unlockAll, { capture:true, passive:true });
-    document.addEventListener('wheel',      unlockAll, { capture:true, passive:true });
-    document.addEventListener('mousemove',  unlockAll, { capture:true, passive:true, once:true });
-    window.addEventListener('scroll',       unlockAll, { capture:true, passive:true, once:true });
-  }
-
-  /* ============================================================
-     🎬 فيديو المقدمة (Overlay)
-     ============================================================ */
-  function initIntroVideo(){
-    const intro       = document.getElementById('introVideo');
-    const introUnmute = document.getElementById('introUnmute');
-    const introStart  = document.getElementById('introStart');
-    const introSkip   = document.getElementById('introSkip');
-    const overlay     = document.getElementById('introOverlay');
-
-    function revealIntro(){
-      if (!overlay) return;
-      overlay.classList.add('is-hidden');
-      setTimeout(function(){
-        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-      }, 550);
-    }
-
-    // زر "تشغيل الصوت" الصريح
-    if (introUnmute && intro) {
-      introUnmute.hidden = false;
-      introUnmute.addEventListener('click', function(e){
-        e.stopPropagation();
-        intro.muted  = false;
-        intro.volume = 1;
-        intro.play().catch(function(){});
-        introUnmute.textContent = '🔊 الصوت مفعّل';
-        introUnmute.disabled = true;
-      });
-    }
-
-    // زر "ابدأ المغامرة" — أول تفاعل مؤكّد، نفتح فيه كل الأصوات
-    if (introStart) {
-      introStart.addEventListener('click', function(){
-        // افتح صوت المقدمة
-        if (intro) {
-          intro.muted  = false;
-          intro.volume = 1;
-        }
-        // افتح صوت فيديو العرض فورًا
-        if (player && player.video) {
-          player.video.muted = false;
-          player.video.volume = 1;
-          const p = player.video.play();
-          if (p && typeof p.catch === 'function') p.catch(function(){});
-          const mb = document.getElementById('vcMute');
-          if (mb) mb.textContent = '🔊';
-        }
-        // حدّث زر المقدمة
-        if (introUnmute) {
-          introUnmute.textContent = '🔊 الصوت مفعّل';
-          introUnmute.disabled = true;
-        }
-        revealIntro();
-        const hero = document.getElementById('hero');
-        if (hero) {
-          setTimeout(function(){ hero.scrollIntoView({ behavior:'smooth' }); }, 200);
-        }
-      });
-    }
-
-    if (introSkip) {
-      introSkip.addEventListener('click', function(){
-        if (intro) intro.pause();
-        revealIntro();
-      });
-    }
-  }
 
   /* ============================================================
      🚀 التشغيل
      ============================================================ */
   function boot(){
     player.init();
-    initIntroVideo();
-    installSoundUnlocker();
   }
 
   if (document.readyState === 'loading') {
@@ -1200,7 +990,7 @@ function showLoginForm(){
 })();
 </script>
 
-<script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/gsap.min.js'); ?>"></script>
-<script src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/ScrollTrigger.min.js'); ?>"></script>
-<script src="<?php echo h(BASE_PATH . '/assets/js/landing.js'); ?>"></script>
+<script defer src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/gsap.min.js'); ?>"></script>
+<script defer src="<?php echo h(BASE_PATH . '/assets/vendor/gsap/ScrollTrigger.min.js'); ?>"></script>
+<script defer src="<?php echo h(BASE_PATH . '/assets/js/landing.js'); ?>"></script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

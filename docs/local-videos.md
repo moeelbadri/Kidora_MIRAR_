@@ -29,7 +29,7 @@ to the task/figure. Uploading does not change database references automatically.
 
 Uploads accept MP4 with one H.264/yuv420p video stream and AAC audio (or no
 audio), up to **90 MiB**. The server checks actual codecs with `ffprobe`; it
-does not transcode. The Docker image includes ffprobe, a 90M PHP upload limit,
+does not transcode the original. The Docker image includes ffprobe, a 90M PHP upload limit,
 and a 96M POST limit. Other hosting setups need those settings and the
 `ffprobe` and `timeout` executables too. Check proxy limits if uploads fail
 before reaching PHP; 90 MiB stays below a 100 MB request cap with form overhead.
@@ -41,6 +41,34 @@ existing file unchanged. Player URLs include a version so replacements do not
 reuse the previous browser/CDN URL. Only authenticated admins with a valid
 session CSRF token can upload. Change the default admin credentials before
 exposing uploads on a public installation.
+
+### Mobile landing-page delivery
+
+The landing page renders without an intro overlay or downloading Shaka. Lesson
+and library-preview players download Google's player and its styles on demand.
+The hero shows a small WebP poster first, then plays a muted video after the
+page loads and the video is visible. Save-Data, slow 2G connections, and reduced
+motion keep it poster-only until the visitor presses Play.
+
+Container startup and replacement of the configured showcase video generate
+a poster and a 480px-wide H.264/AAC, faststart mobile copy in the background.
+These versioned derivatives live in `assets/videos/derived/` on the same host
+mount; originals are never modified or committed. Desktop uses the original.
+Until generation finishes (or if it fails), playback falls back to the original.
+To retry manually: `php scripts/prepare-landing-video.php`.
+
+Landing character images use cached 320px WebP thumbnails and are requested
+only near the viewport, including the registration picker. Originals stay
+unchanged. Thumbnail files are disposable under `storage/character-thumbnails/`;
+non-Docker installations need PHP GD with WebP support and writable storage.
+
+Apache caches public media, gives versioned derivatives immutable URLs, and
+revalidates CSS/JS so code changes are not held in a stale browser cache.
+PHP/HTML stays private. A CDN/proxy must honor these origin headers rather than
+overriding all assets with `no-store`; verify public responses after deployment.
+
+Checks: build the Docker image, then run `bash scripts/test-landing-media.sh IMAGE`
+and `bash scripts/test-video-upload.sh IMAGE`. Both use disposable containers.
 
 ```bash
 # Report every referenced file that needs importing (exit 1 if any are missing).
