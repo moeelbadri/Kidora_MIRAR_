@@ -289,7 +289,7 @@ require_once __DIR__ . '/includes/public-nav.php';
     position:absolute;
     left:0;right:0;bottom:0;
     z-index:3;
-    display:flex;
+    display:none;
     align-items:center;
     gap:8px;
     padding:10px 12px;
