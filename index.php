@@ -527,7 +527,6 @@ require_once __DIR__ . '/includes/public-nav.php';
                    data-mobile-src="<?php echo h($showcaseMobile); ?>"
                    <?php if ($showcasePoster): ?>poster="<?php echo h($showcasePoster); ?>"<?php endif; ?>
                    aria-label="فيديو تعريفي عن Kidora"
-                   muted
                    playsinline
                    preload="none"
                    data-has-audio="1"></video>
@@ -822,7 +821,10 @@ function showLoginForm(){
 
       /* --- تبديل التشغيل --- */
       function togglePlay(){
-        if (self.video.paused || self.video.ended) {
+        // A tap on muted autoplay enables sound rather than pausing the hero.
+        if (self.video.muted || self.video.paused || self.video.ended) {
+          self.video.muted = false;
+          self.video.volume = 1;
           self.load();
           self.video.play().catch(function(){});
         } else {
@@ -945,7 +947,15 @@ function showLoginForm(){
         const observer = new IntersectionObserver(entries => {
           if (!entries.some(entry => entry.isIntersecting)) return;
           observer.disconnect();
-          const start = () => { self.load(); self.video.play().catch(function(){}); };
+          const start = () => {
+            self.load();
+            self.video.play().catch(function(error){
+              // Browsers may require a gesture for audio; keep silent autoplay as fallback.
+              if (error.name !== 'NotAllowedError') return;
+              self.video.muted = true;
+              self.video.play().catch(function(){});
+            });
+          };
           if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 2000 });
           else setTimeout(start, 500);
         });
