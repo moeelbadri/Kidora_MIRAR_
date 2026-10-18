@@ -3,7 +3,7 @@ $__publicNavCompact = !empty($__publicNavCompact);
 ?>
 <header class="public-nav" id="publicNav">
   <div class="public-nav-inner">
-  <!-- <a class="public-brand" href="<?php echo h(BASE_PATH . '/index.php'); ?>" aria-label="Kidora — الصفحة الرئيسية">
+  <!-- <a class="public-brand" href="<?php echo h(BASE_PATH . '/'); ?>" aria-label="Kidora — الصفحة الرئيسية">
       <span class="public-brand-mark" aria-hidden="true"><img src="https://i.ibb.co/Nzr63J7/Screenshot-2026-09-17-131732-removebg-preview.png" 
      alt="Kidora" 
      style="width:60%;height:60%;object-fit:contain;"></span>
@@ -11,7 +11,7 @@ $__publicNavCompact = !empty($__publicNavCompact);
     
 </a> -->
 
-    <a class="public-brand" href="<?php echo h(BASE_PATH . '/index.php'); ?>" aria-label="Kidora — الصفحة الرئيسية">
+    <a class="public-brand" href="<?php echo h(BASE_PATH . '/'); ?>" aria-label="Kidora — الصفحة الرئيسية">
   <span class="public-brand-mark" aria-hidden="true">
     <img src="https://i.ibb.co/Nzr63J7/Screenshot-2026-09-17-131732-removebg-preview.png"
          alt="Kidora"
@@ -22,23 +22,23 @@ $__publicNavCompact = !empty($__publicNavCompact);
 
     <?php if (!$__publicNavCompact): ?>
       <nav class="public-nav-links" aria-label="روابط الصفحة">
-        <a href="<?php echo h(BASE_PATH . '/index.php#features'); ?>">المميزات</a>
-        <a href="<?php echo h(BASE_PATH . '/index.php#characters'); ?>">الشخصيات</a>
-        <a href="<?php echo h(BASE_PATH . '/index.php#plans'); ?>">الخطط</a>
+        <a href="<?php echo h(BASE_PATH . '/#features'); ?>">المميزات</a>
+        <a href="<?php echo h(BASE_PATH . '/#characters'); ?>">الشخصيات</a>
+        <a href="<?php echo h(BASE_PATH . '/#plans'); ?>">الخطط</a>
       </nav>
     <?php else: ?>
       <nav class="public-nav-links public-nav-links-compact" aria-label="روابط الصفحة">
-        <a href="<?php echo h(BASE_PATH . '/index.php'); ?>">الرئيسية</a>
+        <a href="<?php echo h(BASE_PATH . '/'); ?>">الرئيسية</a>
       </nav>
     <?php endif; ?>
 
     <div class="public-nav-actions">
       <button type="button" class="public-voice-toggle" id="voiceToggle" aria-label="تشغيل أو إيقاف صوت الشخصية">🗣️</button>
       <?php if (!$__publicNavCompact): ?>
-        <a class="public-nav-login" href="<?php echo h(BASE_PATH . '/index.php#auth'); ?>">دخول</a>
+        <a class="public-nav-login" href="<?php echo h(BASE_PATH . '/#auth'); ?>">دخول</a>
         <a class="public-nav-demo" href="<?php echo h(BASE_PATH . '/demo.php'); ?>">🎮 جرب الآن</a>
       <?php else: ?>
-        <a class="public-nav-demo" href="<?php echo h(BASE_PATH . '/index.php#auth'); ?>">🚀 سجّل الآن</a>
+        <a class="public-nav-demo" href="<?php echo h(BASE_PATH . '/#auth'); ?>">🚀 سجّل الآن</a>
       <?php endif; ?>
     </div>
   </div>
@@ -61,4 +61,3 @@ $__publicNavCompact = !empty($__publicNavCompact);
   @media(max-width:700px){.public-nav-inner{width:min(100% - 20px,560px);min-height:64px;gap:10px}.public-brand{font-size:21px}.public-brand-mark{width:31px;height:31px;font-size:19px;border-radius:10px}.public-nav-links{display:none}.public-nav-login{display:none}.public-nav-demo{padding:8px 12px;font-size:12px}.public-voice-toggle{width:36px;height:36px;font-size:15px}}
   @media(prefers-reduced-motion:reduce){.public-nav-demo{animation:none}}
 </style>
-

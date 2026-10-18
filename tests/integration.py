@@ -7,6 +7,7 @@ import concurrent.futures
 import base64
 import hashlib
 import http.cookiejar
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
@@ -21,6 +22,16 @@ import urllib.parse
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class AnchorLinks(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.hrefs = set()
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'a':
+            self.hrefs.add(dict(attrs).get('href', ''))
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -95,6 +106,13 @@ def main():
                 time.sleep(.1)
             else:
                 raise AssertionError('Server not ready')
+            home_links = AnchorLinks()
+            home_links.feed(anon.request('/')[1])
+            assert {'/#features', '/#characters', '/#plans', '/#auth'} <= home_links.hrefs
+            demo_links = AnchorLinks()
+            demo_links.feed(anon.request('/demo.php')[1])
+            assert {'/', '/#auth', '/?register=1'} <= demo_links.hrefs
+            print('PASS clean homepage section navigation and demo return links')
             character = scalar('SELECT id FROM characters WHERE is_premium = 0 LIMIT 1')
             def login(client, email='one@example.test', password='password123'):
                 client.request('/index.php?switch=1')

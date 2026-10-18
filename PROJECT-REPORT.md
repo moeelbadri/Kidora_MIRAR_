@@ -362,9 +362,11 @@ Two distinct visual identities.
 ### Public surfaces (`index.php` + `demo.php`)
 The guest experience is a dark-purple cinematic surface over the shared
 contrast-safe background. `index.php` now opens with an optional local
-`assets/video/intro.mp4`/`intro.webm` (and `intro-poster.webp`) overlay; when those
-files are absent, the same overlay uses a GSAP character/logo motion fallback.
-It then presents a gold CTA, database-driven counts, an RTL-friendly character
+showcase video under `assets/videos/`, initially showing its poster with an Arabic
+tap-to-play-with-sound prompt. It never autoplays; mute/unmute is remembered per
+browser/site in `kidora-showcase-muted`. A visible sound toggle sits outside the
+hidden full control bar. There is no intro overlay. The page then presents a gold
+CTA, database-driven counts, an RTL-friendly character
 carousel with premium badges and an accessible details modal, six scroll-revealed
 features, subscription plans, and the two-tab login/register form.
 
@@ -373,7 +375,9 @@ machine lets a visitor choose any of the six characters, play an 8-card/4-pair
 memory game, enter a name, and hear a five-scene nominal-sentence story
 automatically through `SoundEngine`. The finale links to the registration form
 with the name and selected free character prefilled. `includes/public-nav.php`
-is the guest-only sticky navigation; `includes/demo-content.php` is the PHP story
+is the guest-only sticky navigation, linking to `/#features`, `/#characters`,
+`/#plans`, and `/#auth` rather than reloading `/index.php`; section scroll margins
+keep headings below the sticky header. `includes/demo-content.php` is the PHP story
 template bank. The public-only gold token is `--k-gold`; the signed-in app's
 historical `--gold` token remains indigo.
 

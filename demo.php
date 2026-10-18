@@ -801,7 +801,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
         <button type="button" class="demo-btn demo-btn-gold demo-btn-pulse" id="demoStart">
           🚀 ابدأ التجربة
         </button>
-        <a class="demo-btn demo-btn-ghost" href="<?php echo h(BASE_PATH . '/index.php'); ?>">
+        <a class="demo-btn demo-btn-ghost" href="<?php echo h(BASE_PATH . '/'); ?>">
           العودة للرئيسية
         </a>
       </div>
@@ -907,7 +907,7 @@ html, body{ overflow-x:hidden; max-width:100%; }
 
       <div class="demo-actions">
         <a class="demo-btn demo-btn-gold demo-btn-pulse" id="demoRegister"
-           href="<?php echo h(BASE_PATH . '/index.php?register=1'); ?>">
+           href="<?php echo h(BASE_PATH . '/?register=1'); ?>">
           🚀 سجل الآن مجاناً
         </a>
         <button type="button" class="demo-btn demo-btn-ghost" id="demoTryAgain">

@@ -295,6 +295,15 @@ require_once __DIR__ . '/includes/public-nav.php';
     opacity:1;
     transform:translate(-50%,-50%) scale(1);
   }
+  .video-play-hint{
+    position:absolute;top:calc(50% + 48px);left:50%;
+    transform:translateX(-50%);max-width:calc(100% - 24px);
+    padding:5px 14px;border-radius:999px;background:rgba(10,6,26,.85);
+    color:#fff;font-size:14px;font-weight:800;text-align:center;
+    z-index:2;pointer-events:none;opacity:0;
+  }
+  .video-shell.is-paused .video-play-hint{opacity:1}
+  .public-page section[id]{scroll-margin-top:88px}
 
   .video-controls{
     position:absolute;
@@ -327,6 +336,7 @@ require_once __DIR__ . '/includes/public-nav.php';
   }
   .vc-btn:hover{background:rgba(255,255,255,.3)}
   .vc-btn:active{transform:scale(.92)}
+  .video-sound-toggle{position:absolute;top:12px;inset-inline-end:12px;z-index:3;background:rgba(10,6,26,.8)}
 
   .vc-seek-wrap{flex:1 1 auto;display:flex;align-items:center;min-width:0}
 
@@ -544,9 +554,11 @@ require_once __DIR__ . '/includes/public-nav.php';
 
             <div class="video-tap-layer" id="videoTapLayer"
                  role="button" tabindex="0"
-                 aria-label="اضغط لتشغيل أو إيقاف الفيديو"></div>
+                 aria-label="اضغط لتشغيل الفيديو بالصوت" aria-describedby="videoPlayHint"></div>
 
             <div class="video-big-play" id="videoBigPlay" aria-hidden="true">▶</div>
+            <div class="video-play-hint" id="videoPlayHint">اضغط للتشغيل بالصوت 🔊</div>
+            <button type="button" class="vc-btn video-sound-toggle" id="vcMute" aria-label="كتم الصوت">🔊</button>
 
             <div class="video-controls" id="videoControls">
               <button type="button" class="vc-btn vc-play" id="vcPlay" aria-label="تشغيل">▶</button>
@@ -556,7 +568,6 @@ require_once __DIR__ . '/includes/public-nav.php';
                        aria-label="شريط التقدم">
               </div>
               <span class="vc-time" id="vcTime">0:00 / 0:00</span>
-              <button type="button" class="vc-btn vc-mute" id="vcMute" aria-label="كتم الصوت">🔊</button>
               <button type="button" class="vc-btn vc-fullscreen" id="vcFullscreen" aria-label="ملء الشاشة">⛶</button>
             </div>
           </div>
@@ -832,13 +843,23 @@ function showLoginForm(){
       this.fsBtn   = document.getElementById('vcFullscreen');
 
       const self = this;
+      // Playback always starts with a tap; remember only the visitor's sound choice.
+      try { this.video.muted = localStorage.getItem('kidora-showcase-muted') === '1'; } catch (_) {}
+      function updateSound(){
+        if (self.muteBtn) {
+          self.muteBtn.textContent = self.video.muted ? '🔇' : '🔊';
+          self.muteBtn.setAttribute('aria-label', self.video.muted ? 'تشغيل الصوت' : 'كتم الصوت');
+        }
+        document.getElementById('videoPlayHint').textContent = self.video.muted
+          ? 'اضغط للتشغيل بدون صوت 🔇' : 'اضغط للتشغيل بالصوت 🔊';
+        if (self.video.paused) self.tapLayer.setAttribute('aria-label', self.video.muted
+          ? 'تشغيل الفيديو بدون صوت' : 'تشغيل الفيديو بالصوت');
+      }
+      updateSound();
 
       /* --- تبديل التشغيل --- */
       function togglePlay(){
-        // A tap on muted autoplay enables sound rather than pausing the hero.
-        if (self.video.muted || self.video.paused || self.video.ended) {
-          self.video.muted = false;
-          self.video.volume = 1;
+        if (self.video.paused || self.video.ended) {
           self.load();
           self.video.play().catch(function(){});
         } else {
@@ -871,16 +892,19 @@ function showLoginForm(){
       /* --- مزامنة الحالة --- */
       this.video.addEventListener('play', function(){
         self.shell.classList.remove('is-paused');
+        self.tapLayer.setAttribute('aria-label', 'إيقاف الفيديو');
         if (self.playBtn) self.playBtn.textContent = '⏸';
         if (self.playBtn) self.playBtn.setAttribute('aria-label', 'إيقاف');
       });
       this.video.addEventListener('pause', function(){
         self.shell.classList.add('is-paused');
+        updateSound();
         if (self.playBtn) self.playBtn.textContent = '▶';
         if (self.playBtn) self.playBtn.setAttribute('aria-label', 'تشغيل');
       });
       this.video.addEventListener('ended', function(){
         self.shell.classList.add('is-paused');
+        updateSound();
         if (self.playBtn) self.playBtn.textContent = '▶';
       });
 
@@ -922,11 +946,10 @@ function showLoginForm(){
           e.stopPropagation();
           self.video.muted = !self.video.muted;
           if (!self.video.muted) self.video.volume = 1;
-          self.muteBtn.textContent = self.video.muted ? '🔇' : '🔊';
-          self.muteBtn.setAttribute('aria-label', self.video.muted ? 'تشغيل الصوت' : 'كتم الصوت');
+          try { localStorage.setItem('kidora-showcase-muted', self.video.muted ? '1' : '0'); } catch (_) {}
+          updateSound();
           self.showControls();
         });
-        this.muteBtn.textContent = this.video.muted ? '🔇' : '🔊';
       }
 
       /* --- ملء الشاشة --- */
@@ -952,32 +975,6 @@ function showLoginForm(){
         clearTimeout(self.idleTimer);
         if (!self.video.paused) self.shell.classList.add('is-idle');
       });
-
-      // Paint the poster before fetching video. Save-Data/reduced-motion stay tap-to-play.
-      const connection = navigator.connection;
-      const tapOnly = matchMedia('(prefers-reduced-motion: reduce)').matches
-        || (connection && (connection.saveData || /(^|-)2g$/.test(connection.effectiveType)));
-      if (!tapOnly) {
-        const observer = new IntersectionObserver(entries => {
-          if (!entries.some(entry => entry.isIntersecting)) return;
-          observer.disconnect();
-          const start = () => {
-            self.load();
-            self.video.play().catch(function(error){
-              // Browsers may require a gesture for audio; keep silent autoplay as fallback.
-              if (error.name !== 'NotAllowedError') return;
-              self.video.muted = true;
-              self.video.play().catch(function(){});
-            });
-          };
-          if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 2000 });
-          else setTimeout(start, 500);
-        });
-        // Wait until the initial document and poster have loaded.
-        const observe = () => observer.observe(self.video);
-        if (document.readyState === 'complete') observe();
-        else window.addEventListener('load', observe, { once: true });
-      }
 
       this.shell.classList.toggle('is-paused', this.video.paused);
       updateSeek();
