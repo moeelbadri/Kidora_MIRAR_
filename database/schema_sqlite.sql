@@ -1,5 +1,11 @@
 -- نسخة SQLite من هيكل قاعدة البيانات (للتجربة السريعة محلياً فقط)
--- تُنفَّذ تلقائياً من config/db.php عند أول تشغيل، لا حاجة لتشغيلها يدوياً.
+-- Initialize explicitly using php scripts/migrate.php.
+
+CREATE TABLE IF NOT EXISTS auth_attempts (
+    attempt_key VARCHAR(64) PRIMARY KEY,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    window_start INTEGER NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS characters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,6 +36,8 @@ CREATE TABLE IF NOT EXISTS children (
     photo_path TEXT DEFAULT NULL,
     remember_token TEXT DEFAULT NULL,
     remember_expires DATETIME DEFAULT NULL,
+    auth_version INTEGER NOT NULL DEFAULT 0,
+    privacy_consent_at DATETIME DEFAULT NULL,
     character_1 INTEGER DEFAULT NULL,
     character_2 INTEGER DEFAULT NULL,
     active_character INTEGER DEFAULT NULL,
@@ -157,11 +165,13 @@ CREATE TABLE IF NOT EXISTS daily_progress (
 CREATE TABLE IF NOT EXISTS daily_stories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     child_id INTEGER NOT NULL,
+    story_day TEXT DEFAULT NULL,
     day_index INTEGER NOT NULL,
     title TEXT NOT NULL,
     scenes_json TEXT NOT NULL,
     photo_path TEXT DEFAULT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (child_id, story_day)
 );
 
 CREATE TABLE IF NOT EXISTS grand_stories (

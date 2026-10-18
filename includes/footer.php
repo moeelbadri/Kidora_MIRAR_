@@ -23,10 +23,6 @@
 
 </div><!-- /.app-wrapper -->
 
-<script src="<?php echo BASE_PATH; ?>/assets/js/app.js?v=20260925"></script>
-
-
-
-
+<script src="<?php echo h(BASE_PATH . '/assets/js/app.js?v=' . filemtime(__DIR__ . '/../assets/js/app.js')); ?>"></script>
 </body>
 </html>

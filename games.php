@@ -23,6 +23,7 @@ $CATEGORY_META = [
     'صحي'    => ['icon'=>'🏃','color'=>'#4CAF6D'],
 ];
 
+$__needsGamesEngine = true;
 $__pageTitle = 'مكتبة الألعاب — Kidora';
 $__pageLine = $fromTasks && $gameOfDay
     ? "أنجزت مهامك كلها يا {$child['name']}! لعبة اليوم المقترحة لك: {$gameOfDay['title']}. اضغط عليها ويلا نلعب!"

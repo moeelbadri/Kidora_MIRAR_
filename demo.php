@@ -1,6 +1,5 @@
 <?php
 // تجربة Kidora العامة — لا تحتاج إلى تسجيل دخول
-session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/demo-content.php';
@@ -1021,7 +1020,9 @@ html, body{ overflow-x:hidden; max-width:100%; }
     function speak(text, opts = {}){
       if (!window.speechSynthesis || !text) return;
       try { speechSynthesis.cancel(); } catch(e){}
-      const u = new SpeechSynthesisUtterance(String(text).trim());
+      // أصوات العربية تتخطى الكلمة اللاتينية Kidora، فتنطق «كيدورا» والصورة على الشاشة تبقى كما هي.
+      const spoken = String(text).trim().replace(/Kidora/gi, "كيدورا");
+      const u = new SpeechSynthesisUtterance(spoken);
       u.lang  = opts.lang  || 'ar-SA';
       u.rate  = opts.rate  || 1.05;
       u.pitch = opts.pitch || 1.1;

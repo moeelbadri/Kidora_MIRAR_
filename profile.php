@@ -3,6 +3,39 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['parent_consent']) && $_POST['parent_consent'] === '1') {
+    $pdo->prepare('UPDATE children SET privacy_consent_at = ? WHERE id = ?')->execute([date('Y-m-d H:i:s'), $child['id']]);
+    header('Location: profile.php'); exit;
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_account'])) {
+    if (!password_verify((string)($_POST['current_password'] ?? ''), $child['password'])) {
+        $_SESSION['flash_profile'] = 'كلمة المرور غير صحيحة. لم يُحذف الحساب.';
+        header('Location: profile.php'); exit;
+    }
+    kidora_lock_child($pdo, (int)$child['id']);
+    try {
+        $paths = [$child['photo_path']];
+        foreach (['daily_stories' => 'photo_path', 'drawings' => 'image_path'] as $table => $column) {
+            $st = $pdo->prepare("SELECT {$column} FROM {$table} WHERE child_id = ?");
+            $st->execute([$child['id']]);
+            $paths = array_merge($paths, $st->fetchAll(PDO::FETCH_COLUMN));
+        }
+        foreach (['quiz_history','daily_progress','daily_stories','grand_stories','subscriptions','wa_log','password_resets','drawings'] as $table) {
+            $pdo->prepare("DELETE FROM {$table} WHERE child_id = ?")->execute([$child['id']]);
+        }
+        $pdo->prepare('DELETE FROM children WHERE id = ?')->execute([$child['id']]);
+        $pdo->commit();
+    } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
+    foreach (array_unique(array_filter($paths)) as $path) {
+        if ($file = private_media_path($path)) {
+            if (!unlink($file)) error_log('Kidora: account media cleanup failed');
+        }
+    }
+    kidora_clear_remember($pdo);
+    session_destroy();
+    header('Location: index.php'); exit;
+}
+
 // ---------------- تعديل البيانات ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_profile'])) {
     $name = trim($_POST['child_name'] ?? $child['name']);
@@ -37,11 +70,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_companion'])) {
 
 // ---------------- تغيير صورة الطفل ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_photo'])) {
+    if (empty($child['privacy_consent_at'])) {
+        $_SESSION['flash_profile'] = 'يلزم تأكيد ولي الأمر في إعدادات الخصوصية أدناه.';
+        header('Location: profile.php'); exit;
+    }
     if (!empty($_FILES['child_photo']['name'])) {
-        $saved = save_image_upload('child_photo', __DIR__ . '/uploads/photos');
+        $saved = save_image_upload('child_photo');
         if ($saved) {
             $old = (string)($child['photo_path'] ?? '');
-            if ($old !== '' && str_starts_with($old, 'uploads/photos/') && is_file(__DIR__ . '/' . $old)) @unlink(__DIR__ . '/' . $old);
+            if ($old !== '' && ($oldFile = private_media_path($old))) unlink($oldFile);
             $pdo->prepare("UPDATE children SET photo_path=? WHERE id=?")->execute(['uploads/photos/' . basename($saved), $child['id']]);
             $_SESSION['flash_profile'] = 'صورتك الجديدة صارت في ملفك!';
         } else {
@@ -72,8 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_drawing'])) {
     $d = $pdo->prepare("SELECT * FROM drawings WHERE id = ? AND child_id = ?");
     $d->execute([(int)$_POST['delete_drawing'], $child['id']]);
     if ($row = $d->fetch()) {
-        $file = __DIR__ . '/' . $row['image_path'];
-        if (str_starts_with($row['image_path'], 'uploads/drawings/') && is_file($file)) @unlink($file);
+        $file = private_media_path($row['image_path']);
+        if ($file) unlink($file);
         $pdo->prepare("DELETE FROM drawings WHERE id = ?")->execute([$row['id']]);
     }
     header('Location: profile.php#drawings'); exit;
@@ -93,7 +130,7 @@ $premiumUnlocked = has_full_access($pdo, $child);
 $allChars = all_characters($pdo);
 $activeChar = effective_character($pdo, $child);
 $activeTheme = character_theme($activeChar);
-$photoUrl = !empty($child['photo_path']) ? BASE_PATH . '/' . ltrim($child['photo_path'], '/') : null;
+$photoUrl = private_media_url($child['photo_path'] ?? null);
 $myStories = $pdo->prepare("SELECT * FROM daily_stories WHERE child_id = ? ORDER BY created_at DESC");
 $myStories->execute([$child['id']]);
 $myStories = $myStories->fetchAll();
@@ -114,6 +151,7 @@ if (!empty($axisRows)) {
 
 $badges = json_decode_safe($child['badges_json'], []);
 
+$__needsStoryPlayer = true;
 $__pageTitle = 'ملفي الشخصي — Kidora';
 $__pageLine = $flashProfile ?: "هذا ملفك يا {$child['name']}… انظر كل ما حققناه معاً! ⭐";
 require_once __DIR__ . '/includes/header.php';
@@ -252,6 +290,7 @@ require_once __DIR__ . '/includes/navbar.php';
 
   <div class="card pf-hero">
     <form method="POST" enctype="multipart/form-data" id="photoForm" class="pf-photo-wrap">
+      <?= csrf_field() ?>
       <label class="pf-photo" title="غيّر صورتك">
         <?php if ($photoUrl): ?>
           <img src="<?php echo h($photoUrl); ?>" alt="<?php echo h($child['name']); ?>">
@@ -285,6 +324,7 @@ require_once __DIR__ . '/includes/navbar.php';
   <div id="editBox" class="card hidden" style="padding:22px;margin-bottom:24px;">
     <h3 style="color:var(--ink);margin-top:0;">تعديل بيانات الحساب</h3>
     <form method="POST">
+      <?= csrf_field() ?>
       <div class="field"><label>اسم الطفل</label><input type="text" name="child_name" value="<?php echo h($child['name']); ?>"></div>
       <div class="field"><label>عمر الطفل</label>
         <select name="child_age">
@@ -318,6 +358,7 @@ require_once __DIR__ . '/includes/navbar.php';
   <div class="characters-grid pf-companions">
     <?php foreach ($allChars as $c): $isActive = (int)$c['id'] === (int)($activeChar['id'] ?? 0); $locked = !empty($c['is_premium']) && !$premiumUnlocked; $th = character_theme($c); ?>
       <form method="POST" class="pf-companion <?php echo $isActive ? 'is-active' : ''; ?> <?php echo $locked ? 'is-locked' : ''; ?>" style="--card-color:<?php echo h($c['color']); ?>;">
+        <?= csrf_field() ?>
         <button type="submit" name="set_companion" value="<?php echo (int)$c['id']; ?>" <?php echo $locked ? 'disabled' : ''; ?> aria-label="اختر <?php echo h($c['name']); ?>">
           <span class="pf-companion-media">
             <?php if (!empty($c['image_path'])): ?><img src="<?php echo BASE_PATH . '/' . h($c['image_path']); ?>" alt=""><?php else: ?><?php echo h(character_icons($c)[0] ?? '✨'); ?><?php endif; ?>
@@ -372,10 +413,10 @@ require_once __DIR__ . '/includes/navbar.php';
         اختر المقدمة المناسبة لإرسال التقرير (جرّب <b style="color:var(--gold);">+972</b> أو <b style="color:var(--mint);">+970</b> في حال لم يفتح أحدهما على واتساب ولي الأمر):
       </p>
       <div style="display:flex; gap:12px; flex-wrap:wrap;">
-        <a href="<?php echo h($waAnalysis972); ?>" target="_blank" rel="noopener" class="btn btn-mint btn-sm" style="font-size:14px; padding:10px 20px;" onclick="fetch('api/log-wa.php?type=analysis_report_972').catch(()=>{})">
+        <a href="<?php echo h($waAnalysis972); ?>" target="_blank" rel="noopener" class="btn btn-mint btn-sm" style="font-size:14px; padding:10px 20px;" onclick="fetch('api/log-wa.php', {method:'POST', body:new URLSearchParams({type:'analysis_report_972'})}).catch(()=>{})">
           <span>🟢 إرسال بمقدمة</span> <b style="direction:ltr; unicode-bidi:embed; font-family:monospace;">+972</b>
         </a>
-        <a href="<?php echo h($waAnalysis970); ?>" target="_blank" rel="noopener" class="btn btn-gold btn-sm" style="font-size:14px; padding:10px 20px;" onclick="fetch('api/log-wa.php?type=analysis_report_970').catch(()=>{})">
+        <a href="<?php echo h($waAnalysis970); ?>" target="_blank" rel="noopener" class="btn btn-gold btn-sm" style="font-size:14px; padding:10px 20px;" onclick="fetch('api/log-wa.php', {method:'POST', body:new URLSearchParams({type:'analysis_report_970'})}).catch(()=>{})">
           <span>🟢 إرسال بمقدمة</span> <b style="direction:ltr; unicode-bidi:embed; font-family:monospace;">+970</b>
         </a>
       </div>
@@ -407,7 +448,7 @@ require_once __DIR__ . '/includes/navbar.php';
     <p style="color:#d9d0ff;">لا توجد لوحات بعد — <a href="<?php echo BASE_PATH; ?>/draw.php" style="color:var(--gold);font-weight:900;">افتح لوحتك</a> وارسم ما تشعر به اليوم.</p>
   <?php else: ?>
     <div class="profile-drawings">
-      <?php foreach ($myDrawings as $d): $url = BASE_PATH . '/' . $d['image_path']; ?>
+      <?php foreach ($myDrawings as $d): $url = private_media_url($d['image_path']); ?>
         <div class="profile-drawing card">
           <a href="<?php echo h($url); ?>" target="_blank" rel="noopener"><img src="<?php echo h($url); ?>" alt="<?php echo h($d['title']); ?>" loading="lazy"></a>
           <div class="profile-drawing-body">
@@ -415,21 +456,35 @@ require_once __DIR__ . '/includes/navbar.php';
             <small><?php echo h(date('Y/m/d', strtotime($d['created_at']))); ?></small>
             <div class="profile-drawing-actions">
               <a class="btn btn-sm btn-ghost" href="<?php echo h($url); ?>" download>⬇️</a>
-              <a class="btn btn-sm btn-mint" target="_blank" rel="noopener" href="<?php echo h($waShareBase . rawurlencode("🎨 لوحة «{$d['title']}» من ريشة {$child['name']} على Kidora:\n") . rawurlencode((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $url)); ?>">📲</a>
-              <form method="POST" onsubmit="return confirm('حذف هذه اللوحة نهائياً؟');" style="display:inline;"><button type="submit" name="delete_drawing" value="<?php echo (int)$d['id']; ?>" class="btn btn-sm btn-ghost" title="حذف">🗑️</button></form>
+              <span style="font-size:12px;">للمشاركة: نزّل الصورة أولاً. الرابط خاص بحسابك.</span>
+              <form method="POST" onsubmit="return confirm('حذف هذه اللوحة نهائياً؟');" style="display:inline;"><?= csrf_field() ?><button type="submit" name="delete_drawing" value="<?php echo (int)$d['id']; ?>" class="btn btn-sm btn-ghost" title="حذف">🗑️</button></form>
             </div>
           </div>
         </div>
       <?php endforeach; ?>
     </div>
   <?php endif; ?>
+  <section class="card" style="padding:22px;margin:26px 0;" id="privacy">
+    <h3>خصوصية الحساب</h3>
+    <p><a href="privacy.php">سياسة الخصوصية</a> — الصور والرسومات خاصة. مدة الوسائط <?= KIDORA_MEDIA_RETENTION_DAYS ?> يوماً.</p>
+    <?php if (empty($child['privacy_consent_at'])): ?>
+    <form method="POST"><?= csrf_field() ?>
+      <label style="display:block;line-height:1.8;margin-bottom:12px;"><input type="checkbox" name="parent_consent" value="1" required style="width:20px;height:20px;vertical-align:middle;"> أنا ولي الأمر وأوافق على سياسة الخصوصية ومعالجة بيانات الطفل.</label>
+      <button class="btn btn-primary" type="submit">تأكيد الموافقة</button>
+    </form>
+    <?php endif; ?>
+    <form method="POST" style="max-width:420px;margin-top:20px;" onsubmit="return confirm('حذف الحساب وكل بياناته ووسائطه نهائياً؟');"><?= csrf_field() ?>
+      <div class="field"><label for="deletePassword">لحذف الحساب نهائياً، أدخل كلمة المرور الحالية</label><input id="deletePassword" type="password" name="current_password" autocomplete="current-password" required></div>
+      <button class="btn btn-ghost" type="submit" name="delete_account" value="1">حذف الحساب والبيانات</button>
+    </form>
+  </section>
 </main>
 </div>
 <footer class="site-footer">Kidora © 2026</footer>
 <script>
   window.KIDAURA_PAGE_LINE = <?php echo json_encode($__pageLine, JSON_UNESCAPED_UNICODE); ?>;
   const PROFILE_STORIES = <?php echo json_encode(array_map(fn($s)=>[
-      'title'=>$s['title'], 'scenes'=>json_decode($s['scenes_json']), 'photo'=>$s['photo_path']? BASE_PATH.'/'.$s['photo_path'] : null
+      'title'=>$s['title'], 'scenes'=>json_decode($s['scenes_json']), 'photo'=>private_media_url($s['photo_path'])
   ], $myStories), JSON_UNESCAPED_UNICODE); ?>;
   function viewProfileStory(i){ StoryPlayer.render(PROFILE_STORIES[i], 'profileStoryBox', {}); document.getElementById('profileStoryBox').scrollIntoView({behavior:'smooth'}); }
 
@@ -585,7 +640,8 @@ require_once __DIR__ . '/includes/navbar.php';
       } else if ('speechSynthesis' in window) {
         try {
           speechSynthesis.cancel();
-          const u = new SpeechSynthesisUtterance(msg);
+          const spoken = (window.SoundEngine && SoundEngine.cleanSpeech) ? SoundEngine.cleanSpeech(msg) : String(msg).replace(/Kidora/gi, "كيدورا");
+          const u = new SpeechSynthesisUtterance(spoken);
           u.lang  = 'ar-SA';
           u.rate  = 1.0;
           u.pitch = 1.1;

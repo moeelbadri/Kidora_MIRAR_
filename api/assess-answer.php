@@ -4,10 +4,10 @@
  * لا تعليقات ولا نسب للطفل: القيمة تُسجَّل في quiz_history وتظهر للأدمن فقط.
  * POST: question_id, option (1..3)  →  {ok, done, next:{id,question,options[]}}
  */
-if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 header('Content-Type: application/json; charset=utf-8');
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); header('Allow: POST'); exit; }
 
 if (empty($_SESSION['child_id']) || $_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok' => false]); exit; }
 $stmt = $pdo->prepare("SELECT * FROM children WHERE id = ?");

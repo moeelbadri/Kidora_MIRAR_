@@ -3,12 +3,10 @@
    إعدادات المشروع العامة
    ============================================================
    للتشغيل على استضافة حقيقية: غيّر DB_DRIVER إلى 'mysql' وعبّئ
-   بيانات الاتصال، ثم نفّذ database/schema.sql مرة واحدة على
-   قاعدة بياناتك عبر phpMyAdmin أو سطر الأوامر.
+   بيانات الاتصال، ثم شغّل php scripts/migrate.php قبل استقبال الطلبات.
 
-   للتجربة السريعة محلياً: اترك DB_DRIVER = 'sqlite' ولا داعي
-   لأي إعداد إضافي، تُنشأ قاعدة بيانات SQLite تلقائياً في
-   storage/kidora.sqlite عند أول تشغيل.
+   محلياً: اترك DB_DRIVER = 'sqlite' وشغّل أداة الترحيل لإنشاء القاعدة
+   خارج جذر الموقع. راجع README لنسخ القواعد والوسائط القديمة.
    ============================================================ */
 
 // 'mysql' أو 'sqlite'
@@ -21,7 +19,10 @@ define('DB_USER', getenv('KIDAURA_DB_USER') ?: 'root');
 define('DB_PASS', getenv('KIDAURA_DB_PASS') ?: '');
 
 // مسار قاعدة بيانات SQLite (تجربة سريعة فقط)
-define('SQLITE_PATH', __DIR__ . '/../storage/kidora.sqlite');
+define('KIDORA_PRIVATE_DIR', getenv('KIDORA_PRIVATE_DIR') ?: dirname(__DIR__, 2) . '/kidora-private');
+define('SQLITE_PATH', getenv('KIDORA_SQLITE_PATH') ?: KIDORA_PRIVATE_DIR . '/kidora.sqlite');
+define('KIDORA_APP_URL', rtrim(getenv('KIDORA_APP_URL') ?: 'http://localhost:8000', '/'));
+define('KIDORA_MEDIA_RETENTION_DAYS', max(1, (int)(getenv('KIDORA_MEDIA_RETENTION_DAYS') ?: 365)));
 
 // المسار الأساسي للمشروع — يُكتشف تلقائياً بحيث يعمل المشروع بشكل صحيح
 // سواء كان في جذر الموقع (example.com) أو داخل مجلد فرعي (example.com/kidora)
@@ -51,3 +52,4 @@ define('ADMIN_EMAIL', 'admin@kidora.com');
 define('ADMIN_PASSWORD', 'admin123');
 
 date_default_timezone_set('Asia/Gaza');
+require_once __DIR__ . '/security.php';

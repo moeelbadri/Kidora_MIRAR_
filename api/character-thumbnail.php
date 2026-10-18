@@ -1,6 +1,5 @@
 <?php
 // This endpoint serves public character artwork, never user photos or arbitrary files.
-require_once __DIR__ . '/../config/config.php';
 $root = realpath(__DIR__ . '/../assets/images/characters');
 $path = is_string($_GET['path'] ?? null) ? $_GET['path'] : '';
 $width = filter_var($_GET['w'] ?? 320, FILTER_VALIDATE_INT);

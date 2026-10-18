@@ -62,6 +62,7 @@ function admin_user_analysis(PDO $pdo, int $childId): ?array {
           <?php echo $tier === 'paid' ? 'مشترك — الوصول الكامل مفعّل' : ($tier === 'trial' ? 'تجربة سارية' : 'التجربة منتهية'); ?>
         </div>
         <form method="POST" style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+          <?= csrf_field() ?>
           <input type="hidden" name="trial_child_id" value="<?php echo (int)$u['id']; ?>">
           <input type="datetime-local" name="trial_ends_at" value="<?php echo h($trialInput); ?>" style="max-width:170px;padding:6px;">
           <button class="btn btn-sm btn-gold" name="trial_action" value="set">حفظ</button>

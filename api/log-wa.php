@@ -4,15 +4,15 @@ require_once __DIR__ . '/../includes/functions.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-if (session_status() === PHP_SESSION_NONE) session_start();
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); header('Allow: POST'); exit; }
 $childId = (int)($_SESSION['child_id'] ?? 0);
 if (!$childId) {
     echo json_encode(['ok' => false, 'error' => 'unauthorized']);
     exit;
 }
 
-$type = trim($_POST['type'] ?? $_GET['type'] ?? 'analysis_report');
-$msg = trim($_POST['message'] ?? $_GET['message'] ?? 'analysis_report_sent');
+$type = substr(trim($_POST['type'] ?? 'analysis_report'), 0, 80);
+$msg = substr(trim($_POST['message'] ?? 'analysis_report_sent'), 0, 4000);
 
 log_wa($pdo, $childId, $type, $msg);
 

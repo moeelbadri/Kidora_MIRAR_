@@ -38,6 +38,7 @@ $currentTask = $orderedTasks[$doneCount] ?? null;
 $companion = effective_character($pdo, $child);
 $theme = character_theme($companion);
 
+$__needsGamesEngine = true;
 $__pageTitle = 'مهامي اليومية — Kidora';
 $poolCount = count($taskPool);
 $__pageLine = $currentTask ? "يلا يا {$child['name']}! المهمة رقم " . ($doneCount + 1) . " من {$poolCount}. أنا أقرأها لك." : "لا توجد مهام اليوم — سنضيف المزيد قريباً!";

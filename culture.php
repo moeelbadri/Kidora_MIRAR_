@@ -3,6 +3,7 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $child = require_login();
 
+$__needsStoryPlayer = true;
 $__pageTitle = 'قصص ثقافية — Kidora';
 $__pageLine = "تعال نكتشف سوا قصص تراثنا الجميل 🕌";
 require_once __DIR__ . '/includes/header.php';

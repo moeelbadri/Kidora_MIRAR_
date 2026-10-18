@@ -62,6 +62,7 @@ $activeCount = count(array_filter($questions, fn($q) => $q['active']));
 <div class="admin-form">
   <h3 style="margin-top:0;">إضافة سؤال تحليل</h3>
   <form method="POST">
+    <?= csrf_field() ?>
     <div class="row">
       <input name="axis" list="axisList" placeholder="المحور — مثال: الثقة بالنفس" required>
       <datalist id="axisList">
@@ -104,8 +105,8 @@ $activeCount = count(array_filter($questions, fn($q) => $q['active']));
         </td>
         <td><?php echo $q['active'] ? '<span style="color:#1B7F4C;">مُفعَّل</span>' : '<span style="color:#B54708;">معطّل</span>'; ?></td>
         <td style="display:flex;gap:6px;">
-          <form method="POST"><input type="hidden" name="toggle_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-ghost"><?php echo $q['active'] ? 'تعطيل' : 'تشغيل'; ?></button></form>
-          <form method="POST" onsubmit="return confirm('حذف؟');"><input type="hidden" name="delete_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
+          <form method="POST"><?= csrf_field() ?><input type="hidden" name="toggle_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-ghost"><?php echo $q['active'] ? 'تعطيل' : 'تشغيل'; ?></button></form>
+          <form method="POST" onsubmit="return confirm('حذف؟');"><?= csrf_field() ?><input type="hidden" name="delete_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
         </td>
       </tr>
     <?php endforeach; ?>

@@ -17,6 +17,7 @@ $institutions = $pdo->query("SELECT * FROM institutions ORDER BY id DESC")->fetc
 <div class="admin-form">
   <h3 style="margin-top:0;">إضافة مؤسسة كأدمن مشرف</h3>
   <form method="POST">
+    <?= csrf_field() ?>
     <div class="row"><input name="name" placeholder="اسم المؤسسة" required><input name="email" type="email" placeholder="البريد الإلكتروني للمشرف" required></div>
     <button type="submit" name="add_inst" class="btn btn-primary">إضافة المؤسسة</button>
   </form>
@@ -26,7 +27,7 @@ $institutions = $pdo->query("SELECT * FROM institutions ORDER BY id DESC")->fetc
   <tbody>
     <?php foreach ($institutions as $i): ?>
       <tr><td><?php echo h($i['name']); ?></td><td><?php echo h($i['email']); ?></td><td><?php echo date('Y-m-d', strtotime($i['created_at'])); ?></td>
-      <td><form method="POST" onsubmit="return confirm('حذف؟');"><input type="hidden" name="delete_inst_id" value="<?php echo (int)$i['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form></td></tr>
+      <td><form method="POST" onsubmit="return confirm('حذف؟');"><?= csrf_field() ?><input type="hidden" name="delete_inst_id" value="<?php echo (int)$i['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form></td></tr>
     <?php endforeach; ?>
   </tbody>
 </table>

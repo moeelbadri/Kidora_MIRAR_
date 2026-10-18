@@ -8,7 +8,6 @@
  * أول رسمة محفوظة في اليوم تُحتسب لعبة من ألعاب اليوم (games_played + 1)،
  * فالرسم جزء من الحلقة اليومية لا نشاطاً جانبياً.
  */
-if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 header('Content-Type: application/json; charset=utf-8');
@@ -21,7 +20,9 @@ $childId = (int)$_SESSION['child_id'];
 $childStmt = $pdo->prepare("SELECT * FROM children WHERE id = ?");
 $childStmt->execute([$childId]);
 $child = $childStmt->fetch();
+$childStmt->closeCursor();
 if (!$child) $fail('الحساب غير موجود', 401);
+if (empty($child['privacy_consent_at'])) $fail('يلزم تأكيد ولي الأمر في الملف الشخصي.', 403);
 if (!has_full_access($pdo, $child)) {
     $fail('انتهت التجربة المجانية. لوحة الرسم تحتاج اشتراكاً مفعّلاً.', 403);
 }
@@ -44,7 +45,7 @@ if ($info === false || $info[2] !== IMAGETYPE_PNG || $info[0] < 16 || $info[1] <
     @unlink($tmp); $fail('تعذّر قراءة الصورة');
 }
 
-$dir = __DIR__ . '/../uploads/drawings/' . $childId;
+$dir = KIDORA_PRIVATE_DIR . '/uploads/drawings/' . $childId;
 if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) { @unlink($tmp); $fail('تعذّر الحفظ على الخادم', 500); }
 $filename = 'd_' . bin2hex(random_bytes(10)) . '.png';
 if (!rename($tmp, $dir . '/' . $filename)) {
@@ -61,6 +62,8 @@ if (preg_match('/^.{0,60}/us', $title, $tm)) $title = $tm[0];
 if ($title === '') $title = 'رسمة ' . date('Y/m/d');
 
 // created_at بتوقيت التطبيق (لا DEFAULT UTC) حتى يطابق DATE(created_at) قيمة today_key() قرب منتصف الليل
+try {
+kidora_lock_child($pdo, $childId);
 $pdo->prepare("INSERT INTO drawings (child_id, title, image_path, created_at) VALUES (?,?,?,?)")->execute([$childId, $title, $rel, date('Y-m-d H:i:s')]);
 $drawingId = (int)$pdo->lastInsertId();
 
@@ -73,11 +76,17 @@ if ((int)$cnt->fetch()['c'] === 1) {
     $pdo->prepare("UPDATE daily_progress SET games_played = games_played + 1 WHERE id = ?")->execute([$progress['id']]);
     $countedAsGame = true;
 }
+$pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    unlink($dir . '/' . $filename);
+    throw $e;
+}
 
 echo json_encode([
     'ok'    => true,
     'id'    => $drawingId,
-    'url'   => BASE_PATH . '/' . $rel,
+    'url'   => private_media_url($rel),
     'title' => $title,
     'counted_as_game' => $countedAsGame,
 ], JSON_UNESCAPED_UNICODE);

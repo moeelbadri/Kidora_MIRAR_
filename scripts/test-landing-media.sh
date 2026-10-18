@@ -7,6 +7,7 @@ cid=''
 cleanup() { if [ -n "$cid" ]; then docker stop "$cid" >/dev/null; fi; rm -rf "$tmp"; }
 trap cleanup EXIT
 cid=$(docker run -d --rm -p 127.0.0.1::80 "$image")
+docker exec --user www-data "$cid" php scripts/migrate.php
 base="http://$(docker port "$cid" 80/tcp)"
 for attempt in {1..30}; do
     if curl -fsS "$base/" -o /dev/null 2>/dev/null; then break; fi
@@ -36,7 +37,7 @@ docker exec "$cid" php -r 'touch("assets/images/characters/thumbnail-test.png",t
 curl -fsS -D "$tmp/replaced" "$url" -o /dev/null
 ! grep -qF "ETag: $etag" "$tmp/replaced"
 curl -fsSI "$base/assets/css/main.css" | grep -qi 'Cache-Control: public, max-age=0, must-revalidate'
-curl -fsSI "$base/" | grep -qi 'Cache-Control: no-store'
+curl -fsSI "$base/" | grep -qi 'Cache-Control:.*no-store'
 
 docker exec "$cid" ffmpeg -v error -f lavfi -i testsrc2=s=720x360:d=2 -c:v libx264 -pix_fmt yuv420p assets/videos/9yJF1CReRCQ.mp4
 docker exec "$cid" php scripts/prepare-landing-video.php
@@ -59,11 +60,12 @@ curl -fsS "$base$replacement" -o /dev/null
 
 # Authenticated lesson/task responses must expose local files, with no YouTube player dependency.
 docker exec -u www-data "$cid" php -r '
-    session_id("local-media-regression"); require "/var/www/html/config/db.php";
+    session_id("local-media-regression"); session_start(); require "/var/www/html/config/db.php";
     $character=$pdo->query("SELECT MIN(id) FROM characters")->fetchColumn();
     $pdo->prepare("INSERT INTO children(name,email,password,age,character_1,trial_ends_at) VALUES(?,?,?,?,?,?)")
         ->execute(["Video Test","media-test@example.invalid","unused",8,$character,"2099-01-01"]);
     $_SESSION["child_id"]=(int)$pdo->lastInsertId();
+    $_SESSION["auth_version"]=0;
     foreach(["tasks","safety_content"] as $table) $pdo->prepare("UPDATE $table SET youtube_id=?")->execute(["9yJF1CReRCQ"]);
     session_write_close();'
 for page in tasks safety; do

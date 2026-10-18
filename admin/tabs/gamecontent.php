@@ -111,6 +111,7 @@ $totalPending = (int)$pdo->query("SELECT (SELECT COUNT(*) FROM game_questions WH
 
 <?php if ($pendingQ + $pendingS > 0): ?>
   <form method="POST" style="margin:12px 0;" onsubmit="return confirm('اعتماد كل محتوى هذا الموضوع؟');">
+    <?= csrf_field() ?>
     <input type="hidden" name="topic" value="<?php echo h($sel); ?>">
     <button name="approve_all" class="btn btn-primary btn-sm">
       ✅ اعتماد كل غير المُراجَع في «<?php echo h($topicLabels[$sel] ?? $sel); ?>» (<?php echo $pendingQ + $pendingS; ?>)
@@ -121,6 +122,7 @@ $totalPending = (int)$pdo->query("SELECT (SELECT COUNT(*) FROM game_questions WH
 <h3>أسئلة صح/خطأ — <?php echo count($questions); ?> سؤالاً</h3>
 <div class="admin-form">
   <form method="POST">
+    <?= csrf_field() ?>
     <input type="hidden" name="topic" value="<?php echo h($sel); ?>">
     <div class="row">
       <input name="question" placeholder="نص السؤال (يبدأ عادة بـ «هل...؟»)" required style="flex:3;">
@@ -150,10 +152,10 @@ $totalPending = (int)$pdo->query("SELECT (SELECT COUNT(*) FROM game_questions WH
         <td><?php echo $q['reviewed'] ? '<span style="color:#1B7F4C;">مُراجَع</span>' : '<span style="color:#B54708;">غير مُراجَع</span>'; ?></td>
         <td style="display:flex;gap:6px;">
           <?php if (!$q['reviewed']): ?>
-            <form method="POST"><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="approve_question_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-primary">اعتماد</button></form>
+            <form method="POST"><?= csrf_field() ?><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="approve_question_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-primary">اعتماد</button></form>
           <?php endif; ?>
-          <form method="POST"><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="toggle_question_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-ghost"><?php echo $q['active'] ? 'تعطيل' : 'تشغيل'; ?></button></form>
-          <form method="POST" onsubmit="return confirm('حذف؟');"><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="delete_question_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
+          <form method="POST"><?= csrf_field() ?><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="toggle_question_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-ghost"><?php echo $q['active'] ? 'تعطيل' : 'تشغيل'; ?></button></form>
+          <form method="POST" onsubmit="return confirm('حذف؟');"><?= csrf_field() ?><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="delete_question_id" value="<?php echo (int)$q['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
         </td>
       </tr>
     <?php endforeach; ?>
@@ -163,6 +165,7 @@ $totalPending = (int)$pdo->query("SELECT (SELECT COUNT(*) FROM game_questions WH
 <h3 style="margin-top:30px;">سيناريوهات المغامرة — <?php echo count($scenarios); ?> موقفاً</h3>
 <div class="admin-form">
   <form method="POST">
+    <?= csrf_field() ?>
     <input type="hidden" name="topic" value="<?php echo h($sel); ?>">
     <input name="prompt" placeholder="الموقف — مثال: وجدت محفظة في الطريق. ماذا تفعل؟" required style="width:100%;margin-bottom:10px;">
     <div class="row">
@@ -203,10 +206,10 @@ $totalPending = (int)$pdo->query("SELECT (SELECT COUNT(*) FROM game_questions WH
         <td><?php echo $s['reviewed'] ? '<span style="color:#1B7F4C;">مُراجَع</span>' : '<span style="color:#B54708;">غير مُراجَع</span>'; ?></td>
         <td style="display:flex;gap:6px;">
           <?php if (!$s['reviewed']): ?>
-            <form method="POST"><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="approve_scenario_id" value="<?php echo (int)$s['id']; ?>"><button class="btn btn-sm btn-primary">اعتماد</button></form>
+            <form method="POST"><?= csrf_field() ?><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="approve_scenario_id" value="<?php echo (int)$s['id']; ?>"><button class="btn btn-sm btn-primary">اعتماد</button></form>
           <?php endif; ?>
-          <form method="POST"><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="toggle_scenario_id" value="<?php echo (int)$s['id']; ?>"><button class="btn btn-sm btn-ghost"><?php echo $s['active'] ? 'تعطيل' : 'تشغيل'; ?></button></form>
-          <form method="POST" onsubmit="return confirm('حذف؟');"><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="delete_scenario_id" value="<?php echo (int)$s['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
+          <form method="POST"><?= csrf_field() ?><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="toggle_scenario_id" value="<?php echo (int)$s['id']; ?>"><button class="btn btn-sm btn-ghost"><?php echo $s['active'] ? 'تعطيل' : 'تشغيل'; ?></button></form>
+          <form method="POST" onsubmit="return confirm('حذف؟');"><?= csrf_field() ?><input type="hidden" name="topic" value="<?php echo h($sel); ?>"><input type="hidden" name="delete_scenario_id" value="<?php echo (int)$s['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
         </td>
       </tr>
     <?php endforeach; ?>

@@ -1,0 +1,35 @@
+name: Regression checks
+on: [push, pull_request]
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mysql]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: regression-only
+          MYSQL_DATABASE: kidora_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -pregression-only"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, pdo_mysql, mbstring
+      - name: PHP syntax
+        run: find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+      - name: Public HTTP regression suite
+        env:
+          KIDORA_TEST_MYSQL: ${{ matrix.database == 'mysql' && '1' || '0' }}
+          KIDAURA_DB_HOST: 127.0.0.1
+          KIDAURA_DB_NAME: kidora_test
+          KIDAURA_DB_USER: root
+          KIDAURA_DB_PASS: regression-only
+        run: python3 tests/integration.py

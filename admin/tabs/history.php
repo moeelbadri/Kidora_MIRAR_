@@ -72,6 +72,7 @@ $form = $editFigure ?: [
 <div class="admin-form" id="figureForm">
   <h3 style="margin-top:0;"><?php echo $editFigure ? 'تعديل شخصية: ' . h($editFigure['name']) : 'إضافة شخصية تاريخية'; ?></h3>
   <form method="POST">
+    <?= csrf_field() ?>
     <?php if ($editFigure): ?><input type="hidden" name="edit_figure_id" value="<?php echo (int)$editFigure['id']; ?>"><?php endif; ?>
     <div class="row">
       <input name="name" placeholder="الاسم" required value="<?php echo h((string)$form['name']); ?>">
@@ -106,7 +107,7 @@ $form = $editFigure ?: [
       <?php endif; ?>
       <div class="admin-item-actions">
         <a href="?tab=history&edit_figure=<?php echo (int)$f['id']; ?>#figureForm" class="btn btn-sm btn-gold">تعديل</a>
-        <form method="POST" onsubmit="return confirm('حذف؟');"><input type="hidden" name="delete_figure_id" value="<?php echo (int)$f['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
+        <form method="POST" onsubmit="return confirm('حذف؟');"><?= csrf_field() ?><input type="hidden" name="delete_figure_id" value="<?php echo (int)$f['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
       </div>
     </div>
   <?php endforeach; ?>

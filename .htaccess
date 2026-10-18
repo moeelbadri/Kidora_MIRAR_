@@ -1,0 +1,6 @@
+Options -Indexes
+RewriteEngine On
+RewriteRule ^(?:config|database|includes|scripts|tests|storage|uploads|\.git|\.github|\.amp|\.cursor)(?:/|$) - [F,L,NC]
+<FilesMatch "(?i)(^\.|\.(?:sqlite(?:-.*)?|sql|env|log|sh|md|txt)$)">
+    Require all denied
+</FilesMatch>

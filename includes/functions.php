@@ -27,14 +27,11 @@ function today_key(): string {
 /** يضمن وجود سطر تقدّم لليوم الحالي لهذا الطفل، وينشئه إن لم يكن موجوداً */
 function ensure_daily_progress(PDO $pdo, int $childId): array {
     $day = today_key();
-    $stmt = $pdo->prepare("SELECT * FROM daily_progress WHERE child_id = ? AND day_key = ?");
-    $stmt->execute([$childId, $day]);
-    $row = $stmt->fetch();
-    if ($row) return $row;
-
-    $ins = $pdo->prepare("INSERT INTO daily_progress (child_id, day_key, completed_task_ids, games_played, quiz_answered, story_generated) VALUES (?,?,?,0,0,0)");
+    $sql = "INSERT INTO daily_progress (child_id, day_key, completed_task_ids, games_played, quiz_answered, story_generated) VALUES (?,?,?,0,0,0)";
+    $sql .= DB_DRIVER === 'mysql' ? ' ON DUPLICATE KEY UPDATE id = id' : ' ON CONFLICT(child_id, day_key) DO NOTHING';
+    $ins = $pdo->prepare($sql);
     $ins->execute([$childId, $day, json_encode([])]);
-
+    $stmt = $pdo->prepare("SELECT * FROM daily_progress WHERE child_id = ? AND day_key = ?");
     $stmt->execute([$childId, $day]);
     return $stmt->fetch();
 }
@@ -353,7 +350,7 @@ function save_upload(string $inputName, string $destDir, array $allowedExt): ?st
  * يحفظ صورة مرفوعة بعد فحص الحجم وMIME والمحتوى الفعلي للصورة.
  * هذه الدالة مخصّصة لصور الحساب الجديدة ولا تغيّر مسار الرفع القديم.
  */
-function save_image_upload(string $inputName, string $destDir): ?string {
+function save_image_upload(string $inputName): ?string {
     if (empty($_FILES[$inputName]) || $_FILES[$inputName]['error'] !== UPLOAD_ERR_OK) return null;
     $file = $_FILES[$inputName];
     if ((int)$file['size'] <= 0 || (int)$file['size'] > 4 * 1024 * 1024) return null;
@@ -372,6 +369,8 @@ function save_image_upload(string $inputName, string $destDir): ?string {
     ];
     if (!$mime || !isset($extensions[$mime]) || @getimagesize($file['tmp_name']) === false) return null;
 
+    // Child photos never enter the public document root; keep stored relative keys stable.
+    $destDir = KIDORA_PRIVATE_DIR . '/uploads/photos';
     if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) return null;
     try {
         $filename = 'child_' . bin2hex(random_bytes(12)) . '.' . $extensions[$mime];
@@ -891,23 +890,10 @@ function kidora_remember_login(PDO $pdo, int $childId): void {
     $token = bin2hex(random_bytes(32));
     $expires = date('Y-m-d H:i:s', time() + 60 * 60 * 24 * 90);
     
-    // خزّن في الداتابيس (نفس الكود)
+    // Only a hash is persisted; a database read cannot mint a login cookie.
     $stmt = $pdo->prepare("UPDATE children SET remember_token = ?, remember_expires = ? WHERE id = ?");
-    $stmt->execute([$token, $expires, $childId]);
-    
-    // ✅ الصيغة القديمة — تشتغل على كل إصدارات PHP
-    $secure   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
-    $expireTs = time() + 60 * 60 * 24 * 90;
-    
-    setcookie(
-        'kidora_remember',    // name
-        $token,               // value
-        $expireTs,            // expires
-        '/',                  // path
-        '',                   // domain
-        $secure,              // secure
-        true                  // httponly
-    );
+    $stmt->execute([hash('sha256', $token), $expires, $childId]);
+    setcookie('kidora_remember', $token, kidora_cookie_options(time() + 60 * 60 * 24 * 90));
 }
 
 /**
@@ -918,12 +904,7 @@ function kidora_clear_remember(PDO $pdo, ?int $childId = null): void {
         $pdo->prepare("UPDATE children SET remember_token = NULL, remember_expires = NULL WHERE id = ?")
             ->execute([$childId]);
     }
-    setcookie('kidora_remember', '', [
-        'expires'  => time() - 3600,
-        'path'     => '/',
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
+    setcookie('kidora_remember', '', kidora_cookie_options(time() - 3600));
 }
 
 /**
@@ -941,24 +922,33 @@ function kidora_try_auto_login(PDO $pdo): ?array {
     // ابحث في الداتابيس
     // NOW() غير موجودة في SQLite — الوقت يُمرَّر من PHP (توقيت التطبيق) ليعمل على المحرّكين
     $stmt = $pdo->prepare("SELECT * FROM children WHERE remember_token = ? AND remember_expires > ? LIMIT 1");
-    $stmt->execute([$token, date('Y-m-d H:i:s')]);
+    $stmt->execute([hash('sha256', $token), date('Y-m-d H:i:s')]);
     $child = $stmt->fetch();
+    $stmt->closeCursor();
     
     if (!$child) {
         // توكن غلط أو منتهي → امسح الكوكي بهدوء
-        setcookie('kidora_remember', '', [
-            'expires' => time() - 3600,
-            'path' => '/'
-        ]);
+        setcookie('kidora_remember', '', kidora_cookie_options(time() - 3600));
         return null;
     }
     
-    // ✅ نجح! جدّد التوكن (rotation) وابدأ الجلسة
-    kidora_remember_login($pdo, (int)$child['id']);
+    // Recheck under the same account lock used by password reset before rotating.
+    $child = kidora_lock_child($pdo, (int)$child['id']);
+    try {
+        if (!hash_equals((string)$child['remember_token'], hash('sha256', $token))
+            || strtotime($child['remember_expires'] ?? '') <= time()) {
+            $pdo->rollBack();
+            kidora_clear_remember($pdo);
+            return null;
+        }
+        kidora_remember_login($pdo, (int)$child['id']);
+        $pdo->commit();
+    } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
     
     session_regenerate_id(true);
     $_SESSION['child_id']   = $child['id'];
     $_SESSION['child_name'] = $child['name'];
+    $_SESSION['auth_version'] = (int)$child['auth_version'];
     
     return $child;
 }
@@ -1079,7 +1069,7 @@ function kidora_peek_remember(PDO $pdo): ?array {
     if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) return null;
 
     $stmt = $pdo->prepare("SELECT * FROM children WHERE remember_token = ? AND remember_expires > ? LIMIT 1");
-    $stmt->execute([$token, date('Y-m-d H:i:s')]);
+    $stmt->execute([hash('sha256', $token), date('Y-m-d H:i:s')]);
     $child = $stmt->fetch();
     if (!$child) return null;
 
@@ -1092,4 +1082,19 @@ function kidora_peek_remember(PDO $pdo): ?array {
         }
     }
     return $child;
+}
+
+function private_media_url(?string $path): ?string {
+    return $path ? BASE_PATH . '/media.php?path=' . rawurlencode($path) : null;
+}
+
+/** Strict key validation is shared by delivery, deletion, and offline retention. */
+function private_media_path(string $path): ?string {
+    if (!preg_match('#^uploads/(?:photos/[a-zA-Z0-9_.-]+\.(?:png|jpe?g|webp)|drawings/[0-9]+/[a-zA-Z0-9_.-]+\.png)$#D', $path)) return null;
+    foreach ([KIDORA_PRIVATE_DIR, dirname(__DIR__)] as $root) {
+        $candidate = realpath($root . '/' . $path);
+        $uploads = realpath($root . '/uploads');
+        if ($candidate && $uploads && str_starts_with($candidate, $uploads . DIRECTORY_SEPARATOR) && is_file($candidate)) return $candidate;
+    }
+    return null;
 }

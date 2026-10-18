@@ -30,7 +30,7 @@ $__secondaryItems = [
     'subscriptions.php' => ['label' => 'الاشتراك', 'icon' => '💎'],
     'profile.php' => ['label' => 'ملفي الشخصي', 'icon' => '👤'],
 ];
-$__navPhoto = !empty($__navChild['photo_path']) ? BASE_PATH . '/' . ltrim($__navChild['photo_path'], '/') : null;
+$__navPhoto = private_media_url($__navChild['photo_path'] ?? null);
 
 // جميع العناصر (للسايد بار في الجوال)
 $__allItems = array_merge($__primaryItems, $__secondaryItems);
@@ -88,10 +88,14 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
             <?php endforeach; ?>
             <li class="dropdown-divider"></li>
             <li>
-              <a href="<?php echo BASE_PATH; ?>/index.php?logout=1" class="logout-link">
+              <form method="POST" action="<?php echo BASE_PATH; ?>/index.php" style="margin:0;">
+                <?= csrf_field() ?>
+                <input type="hidden" name="logout" value="1">
+                <button type="submit" class="logout-link">
                 <span class="nav-icon">🚪</span>
                 <span class="nav-label">خروج</span>
-              </a>
+                </button>
+              </form>
             </li>
           </ul>
         </li>
@@ -152,11 +156,15 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
     <?php endforeach; ?>
     <li class="nav-divider"></li>
     <li>
-      <a href="<?php echo BASE_PATH; ?>/index.php?logout=1" class="logout-link">
+      <form method="POST" action="<?php echo BASE_PATH; ?>/index.php" style="margin:0;">
+        <?= csrf_field() ?>
+        <input type="hidden" name="logout" value="1">
+        <button type="submit" class="logout-link">
         <span class="nav-icon">🚪</span>
         <span class="nav-label">خروج</span>
         <span class="nav-glow"></span>
-      </a>
+        </button>
+      </form>
     </li>
   </ul>
 
@@ -243,10 +251,20 @@ $__allItems = array_merge($__primaryItems, $__secondaryItems);
 </script>
 
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
+  .logout-link[type="submit"] {
+    display:flex; align-items:center; gap:6px; width:100%; padding:8px 12px;
+    min-height:44px; border:0; border-radius:12px; background:none;
+    font:inherit; font-size:.85rem; font-weight:800; cursor:pointer; text-align:start;
+  }
+  .sidebar-nav .logout-link[type="submit"] {
+    gap:14px; padding:14px 16px; min-height:52px; border-radius:16px;
+    font-size:1.1rem; position:relative; overflow:hidden;
+  }
+  .logout-link[type="submit"]:hover .nav-glow { opacity:1; }
   /* ======================================================
      استيراد خط Tajawal الأنيق
      ====================================================== */
-  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
 
   /* ======================================================
      الأنماط العامة

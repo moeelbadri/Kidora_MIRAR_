@@ -101,6 +101,7 @@ $missingVideo = count(array_filter($tasks, fn($row) => local_video_url($row['you
 <div class="admin-form" id="taskForm">
   <h3 style="margin-top:0;"><?php echo $editTask ? 'تعديل مهمة: ' . h($editTask['title']) : 'إضافة مهمة جديدة'; ?></h3>
   <form method="POST">
+    <?= csrf_field() ?>
     <?php if ($editTask): ?><input type="hidden" name="edit_task_id" value="<?php echo (int)$editTask['id']; ?>"><?php endif; ?>
     <div class="row">
       <input name="title" placeholder="عنوان المهمة" required value="<?php echo h((string)$form['title']); ?>">
@@ -150,8 +151,8 @@ $missingVideo = count(array_filter($tasks, fn($row) => local_video_url($row['you
         <td><?php echo $t['active'] ? '<span style="color:var(--mint);">مفعّلة</span>' : '<span style="color:var(--coral);">معطّلة</span>'; ?></td>
         <td>
           <a href="?tab=tasks&edit_task=<?php echo (int)$t['id']; ?>#taskForm" class="btn btn-sm btn-gold">تعديل</a>
-          <form method="POST" style="display:inline;"><input type="hidden" name="toggle_task_id" value="<?php echo (int)$t['id']; ?>"><button class="btn btn-sm btn-ghost">تبديل</button></form>
-          <form method="POST" style="display:inline;" onsubmit="return confirm('حذف؟');"><input type="hidden" name="delete_task_id" value="<?php echo (int)$t['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
+          <form method="POST" style="display:inline;"><?= csrf_field() ?><input type="hidden" name="toggle_task_id" value="<?php echo (int)$t['id']; ?>"><button class="btn btn-sm btn-ghost">تبديل</button></form>
+          <form method="POST" style="display:inline;" onsubmit="return confirm('حذف؟');"><?= csrf_field() ?><input type="hidden" name="delete_task_id" value="<?php echo (int)$t['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
         </td>
       </tr>
     <?php endforeach; ?>

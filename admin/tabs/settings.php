@@ -52,6 +52,7 @@ $mail = mail_config($pdo);
 <h2>إعدادات المنصة</h2>
 <div class="admin-form" style="max-width:520px;">
   <form method="POST">
+    <?= csrf_field() ?>
     <div class="field"><label>رقم واتساب أعمال المنصة (بصيغة دولية بدون +، مثال: 972592038364)</label>
       <input name="whatsapp_number" value="<?php echo h($settings['whatsapp_number'] ?? ''); ?>"></div>
     <div class="field"><label>اسم المنصة</label><input name="platform_name" value="<?php echo h($settings['platform_name'] ?? 'Kidora'); ?>"></div>
@@ -71,6 +72,7 @@ $mail = mail_config($pdo);
   <?php endif; ?>
   <p style="font-size:13px;color:var(--ink-soft);line-height:1.8;">المرسِل الحالي: <b><?php echo h($mail['from'] !== '' ? $mail['from'] : 'غير مضبوط'); ?></b> عبر <b><?php echo h($mail['host'] !== '' ? $mail['host'] . ':' . $mail['port'] : '—'); ?></b></p>
   <form method="POST">
+    <?= csrf_field() ?>
     <div class="field"><label>خادم SMTP</label><input name="smtp_host" value="<?php echo h($settings['smtp_host'] ?? ''); ?>" placeholder="مثال: 162.19.244.109"></div>
     <div class="field"><label>المنفذ (465 = TLS ضمني، 587 = STARTTLS)</label><input name="smtp_port" value="<?php echo h($settings['smtp_port'] ?? '465'); ?>"></div>
     <div class="field"><label>اسم المستخدم (بريد الحساب)</label><input name="smtp_user" value="<?php echo h($settings['smtp_user'] ?? ''); ?>" placeholder="no-reply@anivia.site"></div>
@@ -81,6 +83,7 @@ $mail = mail_config($pdo);
     <button type="submit" name="save_mail" class="btn btn-primary">حفظ إعدادات البريد</button>
   </form>
   <form method="POST" style="margin-top:18px;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+    <?= csrf_field() ?>
     <div class="field" style="flex:1;min-width:220px;margin:0;"><label>أرسل رسالة تجريبية إلى</label><input name="test_to" type="email" placeholder="بريدك@gmail.com" required></div>
     <button type="submit" name="test_mail" class="btn btn-mint" <?php echo mail_is_configured($pdo) ? '' : 'disabled title="أكمل الإعدادات أولاً"'; ?>>إرسال تجريبي 🚀</button>
   </form>

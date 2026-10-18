@@ -7,7 +7,8 @@ for dir in \
     /var/www/html/assets/videos \
     /var/www/html/assets/images/characters \
     /var/www/html/assets/audio/characters \
-    /var/www/html/storage
+    /var/www/html/storage \
+    "${KIDORA_PRIVATE_DIR:-/var/www/kidora-private}"
 do
     mkdir -p "$dir"
     chown -R www-data:www-data "$dir"

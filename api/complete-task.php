@@ -5,34 +5,43 @@
  * البقاء في الصفحة يحافظ على «تفاعل المستخدم» فيُسمح بتشغيل فيديو يوتيوب تلقائياً.
  * POST: task_id → {ok, points, story_line, pair_line, figure, game, all_done}
  */
-if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 header('Content-Type: application/json; charset=utf-8');
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); header('Allow: POST'); exit; }
 
 if (empty($_SESSION['child_id']) || $_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok' => false]); exit; }
 $stmt = $pdo->prepare("SELECT * FROM children WHERE id = ?");
 $stmt->execute([$_SESSION['child_id']]);
 $child = $stmt->fetch();
+$stmt->closeCursor();
 if (!$child) { echo json_encode(['ok' => false]); exit; }
 require_full_access_json($pdo, $child);
 
+$child = kidora_lock_child($pdo, (int)$child['id']);
+try {
 $progress = ensure_daily_progress($pdo, (int)$child['id']);
 $pool = daily_task_pool($pdo, $child, $progress);
 $completed = array_map('intval', json_decode_safe($progress['completed_task_ids'], []));
 $taskId = (int)($_POST['task_id'] ?? 0);
 
 if (!in_array($taskId, $pool, true) || in_array($taskId, $completed, true)) {
+    $pdo->rollBack();
     echo json_encode(['ok' => false, 'msg' => 'المهمة ليست في باكج اليوم أو أُنجزت من قبل']); exit;
 }
 $t = $pdo->prepare("SELECT * FROM tasks WHERE id = ?");
 $t->execute([$taskId]);
 $task = $t->fetch();
-if (!$task) { echo json_encode(['ok' => false]); exit; }
+if (!$task) { $pdo->rollBack(); echo json_encode(['ok' => false]); exit; }
 
 $completed[] = $taskId;
 $pdo->prepare("UPDATE daily_progress SET completed_task_ids = ? WHERE id = ?")->execute([json_encode($completed), $progress['id']]);
 $pdo->prepare("UPDATE children SET points = points + ? WHERE id = ?")->execute([(int)$task['points'], $child['id']]);
+$pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    throw $e;
+}
 
 $figure = figure_for_task($pdo, $task);
 $companion = effective_character($pdo, $child);

@@ -1,5 +1,4 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/functions.php';
 
@@ -17,12 +16,19 @@ if (!$__activeChar) {
     $__activeChar = $all[0] ?? null;
 }
 $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية';
+// Version every shared local asset from its deployed contents' modification time.
+$__assetUrl = static function (string $path): string {
+    $version = filemtime(__DIR__ . '/..' . $path);
+    return h(BASE_PATH . $path . '?v=' . $version);
+};
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="<?= h(csrf_token()) ?>">
+<script src="<?= $__assetUrl('/assets/js/security.js') ?>"></script>
 <title><?php echo h($__pageTitle); ?></title>
 <link rel="icon" type="image/png" href="<?php echo h(KIDORA_FAVICON); ?>">
 <link rel="shortcut icon" type="image/png" href="<?php echo h(KIDORA_FAVICON); ?>">
@@ -31,15 +37,18 @@ $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية'
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;600;700;800&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="<?php echo BASE_PATH; ?>/assets/css/main.css">
+<link rel="stylesheet" href="<?php echo $__assetUrl('/assets/css/main.css'); ?>">
 <?php $scriptLoading = !empty($__landingPage) ? ' defer' : ''; ?>
-<script<?php echo $scriptLoading; ?> src="<?php echo BASE_PATH; ?>/assets/js/video-player.js?v=20261017-lazy"></script>
-<script<?php echo $scriptLoading; ?> src="<?php echo BASE_PATH; ?>/assets/js/theme-engine.js"></script>
-<script<?php echo $scriptLoading; ?> src="<?php echo BASE_PATH; ?>/assets/js/sound-engine.js?v=20260925"></script>
-<script<?php echo $scriptLoading; ?> src="<?php echo BASE_PATH; ?>/assets/js/companion.js?v=20261015-shaka"></script>
-<?php if (empty($__landingPage)): ?>
-<script src="<?php echo BASE_PATH; ?>/assets/js/story-player.js"></script>
-<script src="<?php echo BASE_PATH; ?>/assets/js/games-engine.js"></script>
+<script<?php echo $scriptLoading; ?> src="<?php echo $__assetUrl('/assets/js/video-player.js'); ?>"></script>
+<script<?php echo $scriptLoading; ?> src="<?php echo $__assetUrl('/assets/js/theme-engine.js'); ?>"></script>
+<script<?php echo $scriptLoading; ?> src="<?php echo $__assetUrl('/assets/js/sound-engine.js'); ?>"></script>
+<script<?php echo $scriptLoading; ?> src="<?php echo $__assetUrl('/assets/js/companion.js'); ?>"></script>
+<?php // Keep synchronous: page-inline scripts below require these globals immediately. ?>
+<?php if (!empty($__needsStoryPlayer)): ?>
+<script src="<?php echo $__assetUrl('/assets/js/story-player.js'); ?>"></script>
+<?php endif; ?>
+<?php if (!empty($__needsGamesEngine)): ?>
+<script src="<?php echo $__assetUrl('/assets/js/games-engine.js'); ?>"></script>
 <?php endif; ?>
 </head>
 <body>
@@ -69,7 +78,7 @@ $__pageTitle = $__pageTitle ?? 'Kidora — منصة الأطفال الذكية'
       'image' => $__activeChar['image_path'] ?? null,
       'name'  => $__activeChar['name'] ?? '',
     ], JSON_UNESCAPED_UNICODE); ?>;
-  window.KIDAURA_CHILD_PHOTO = <?php echo json_encode(!empty($__headerChild['photo_path']) ? BASE_PATH . '/' . ltrim($__headerChild['photo_path'], '/') : null); ?>;
+  window.KIDAURA_CHILD_PHOTO = <?php echo json_encode(private_media_url($__headerChild['photo_path'] ?? null)); ?>;
   window.KIDAURA_BASE = "<?php echo BASE_PATH; ?>";
   document.addEventListener('DOMContentLoaded', function(){
       ThemeEngine.applyBackground(window.KIDAURA_ACTIVE_CHARACTER);

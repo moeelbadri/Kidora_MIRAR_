@@ -89,8 +89,8 @@ $waNumber = $pdo->query("SELECT setting_value FROM settings WHERE setting_key='w
       <td><?php echo h($s['plan_name']); ?> (<?php echo (int)$s['price_ils']; ?> ₪)</td>
       <td><?php echo date('Y-m-d', strtotime($s['requested_at'])); ?></td>
       <td>
-        <form method="POST" style="display:inline;"><input type="hidden" name="approve_child_id" value="<?php echo (int)$s['child_id']; ?>"><button class="btn btn-sm btn-gold">✅ ترقية</button></form>
-        <form method="POST" style="display:inline;"><input type="hidden" name="reject_child_id" value="<?php echo (int)$s['child_id']; ?>"><button class="btn btn-sm btn-ghost">رفض</button></form>
+        <form method="POST" style="display:inline;"><?= csrf_field() ?><input type="hidden" name="approve_child_id" value="<?php echo (int)$s['child_id']; ?>"><button class="btn btn-sm btn-gold">✅ ترقية</button></form>
+        <form method="POST" style="display:inline;"><?= csrf_field() ?><input type="hidden" name="reject_child_id" value="<?php echo (int)$s['child_id']; ?>"><button class="btn btn-sm btn-ghost">رفض</button></form>
       </td>
     </tr>
     <?php endforeach; ?>
@@ -105,6 +105,7 @@ $formFeatures = implode("\n", json_decode_safe($formPlan['features_json'], []));
 <div class="admin-form" id="planForm">
   <h3 style="margin-top:0;"><?php echo $editPlan ? 'تعديل خطة: ' . h($editPlan['name']) : 'إضافة خطة جديدة'; ?> (الأسعار بالشيكل ₪)</h3>
   <form method="POST">
+    <?= csrf_field() ?>
     <?php if ($editPlan): ?><input type="hidden" name="edit_plan_id" value="<?php echo (int)$editPlan['id']; ?>"><?php endif; ?>
     <div class="row">
       <input name="name" placeholder="اسم الخطة" required value="<?php echo h((string)$formPlan['name']); ?>">
@@ -132,7 +133,7 @@ $formFeatures = implode("\n", json_decode_safe($formPlan['features_json'], []));
       <ul style="font-size:12px;color:var(--ink-soft);padding-inline-start:16px;"><?php foreach ($features as $f) echo '<li>'.h($f).'</li>'; ?></ul>
       <div class="admin-item-actions">
         <a href="?tab=subscriptions&edit_plan=<?php echo (int)$p['id']; ?>#planForm" class="btn btn-sm btn-gold">تعديل</a>
-        <form method="POST" onsubmit="return confirm('حذف الخطة؟');"><input type="hidden" name="delete_plan_id" value="<?php echo (int)$p['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
+        <form method="POST" onsubmit="return confirm('حذف الخطة؟');"><?= csrf_field() ?><input type="hidden" name="delete_plan_id" value="<?php echo (int)$p['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form>
       </div>
     </div>
   <?php endforeach; ?>

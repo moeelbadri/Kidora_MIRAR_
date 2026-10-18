@@ -16,6 +16,8 @@ $TAB_LABELS = [
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="<?= h(csrf_token()) ?>">
+<script src="../assets/js/security.js?v=<?= filemtime(__DIR__ . '/../assets/js/security.js') ?>"></script>
 <title>لوحة تحكم Kidora</title>
 <link rel="icon" type="image/png" href="<?php echo h(KIDORA_FAVICON); ?>">
 <link rel="shortcut icon" type="image/png" href="<?php echo h(KIDORA_FAVICON); ?>">
@@ -31,7 +33,11 @@ $TAB_LABELS = [
 <nav class="app-nav">
   <div class="container">
     <div class="nav-brand"><span class="dot"></span> Kidora Admin</div>
-    <a href="logout.php" class="btn btn-ghost btn-sm">↩️ تسجيل خروج للمنصة</a>
+    <form method="POST" action="logout.php" style="margin:0;">
+      <?= csrf_field() ?>
+      <input type="hidden" name="logout" value="1">
+      <button type="submit" class="btn btn-ghost btn-sm">↩️ تسجيل خروج للمنصة</button>
+    </form>
   </div>
 </nav>
 

@@ -70,6 +70,7 @@ $characters = $pdo->query("SELECT * FROM characters ORDER BY sort_order, id")->f
 <div class="admin-form">
   <h3 style="margin-top:0;">إضافة شخصية جديدة</h3>
   <form method="POST" enctype="multipart/form-data">
+    <?= csrf_field() ?>
     <div class="row">
       <input name="name" placeholder="اسم الشخصية" required>
       <input name="slug" placeholder="معرّف فريد (بالإنجليزية) مثال: nova">
@@ -106,10 +107,11 @@ $characters = $pdo->query("SELECT * FROM characters ORDER BY sort_order, id")->f
       <p style="font-size:11px;color:var(--ink-soft);">📁 مجلد الصور: assets/images/characters/<?php echo h($c['slug']); ?>/</p>
       <div class="admin-item-actions">
         <button type="button" class="btn btn-sm btn-ghost" onclick="document.getElementById('edit-<?php echo $c['id']; ?>').classList.toggle('hidden')">✏️ تعديل</button>
-        <form method="POST"><input type="hidden" name="toggle_premium_id" value="<?php echo (int)$c['id']; ?>"><button class="btn btn-sm btn-ghost" type="submit">تبديل مجاني/مدفوع</button></form>
-        <form method="POST" onsubmit="return confirm('حذف هذه الشخصية؟');"><input type="hidden" name="delete_character_id" value="<?php echo (int)$c['id']; ?>"><button class="btn btn-sm btn-ghost" type="submit">حذف</button></form>
+        <form method="POST"><?= csrf_field() ?><input type="hidden" name="toggle_premium_id" value="<?php echo (int)$c['id']; ?>"><button class="btn btn-sm btn-ghost" type="submit">تبديل مجاني/مدفوع</button></form>
+        <form method="POST" onsubmit="return confirm('حذف هذه الشخصية؟');"><?= csrf_field() ?><input type="hidden" name="delete_character_id" value="<?php echo (int)$c['id']; ?>"><button class="btn btn-sm btn-ghost" type="submit">حذف</button></form>
       </div>
       <form method="POST" enctype="multipart/form-data" id="edit-<?php echo $c['id']; ?>" class="hidden" style="margin-top:12px;border-top:1px solid #eee;padding-top:12px;">
+        <?= csrf_field() ?>
         <input type="hidden" name="edit_character_id" value="<?php echo (int)$c['id']; ?>">
         <div class="row">
           <input name="name" placeholder="الاسم" value="<?php echo h($c['name']); ?>">

@@ -22,6 +22,7 @@ $games = $pdo->query("SELECT * FROM games ORDER BY category, id DESC")->fetchAll
 <div class="admin-form">
   <h3 style="margin-top:0;">إضافة لعبة جديدة</h3>
   <form method="POST">
+    <?= csrf_field() ?>
     <div class="row">
       <input name="title" placeholder="اسم اللعبة" required>
       <select name="type">
@@ -46,7 +47,7 @@ $games = $pdo->query("SELECT * FROM games ORDER BY category, id DESC")->fetchAll
   <tbody>
     <?php foreach ($games as $g): ?>
       <tr><td><?php echo h($g['title']); ?></td><td><?php echo h(game_types()[$g['type']] ?? $g['type']); ?></td><td><?php echo h($g['category']); ?></td><td><?php echo (int)$g['age_min']; ?>-<?php echo (int)$g['age_max']; ?></td>
-      <td><form method="POST" onsubmit="return confirm('حذف؟');"><input type="hidden" name="delete_game_id" value="<?php echo (int)$g['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form></td></tr>
+      <td><form method="POST" onsubmit="return confirm('حذف؟');"><?= csrf_field() ?><input type="hidden" name="delete_game_id" value="<?php echo (int)$g['id']; ?>"><button class="btn btn-sm btn-ghost">حذف</button></form></td></tr>
     <?php endforeach; ?>
   </tbody>
 </table>

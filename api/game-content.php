@@ -6,7 +6,6 @@
  * العمر يُقرأ من سجل الطفل لا من الرابط (للعرض فقط). calm دائماً true —
  * بلا مؤقّت. أسئلة اللعبة ومشاهدها لا تُصفّى بالعمر.
  */
-if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 header('Content-Type: application/json; charset=utf-8');

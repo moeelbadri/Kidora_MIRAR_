@@ -60,6 +60,7 @@ const SoundEngine = (function () {
       .replace(EMOJI_RE, " ")
       .replace(SYMBOL_RE, " ")
       .replace(/[*_#>`~|]/g, " ")
+      .replace(/Kidora/gi, "كيدورا")
       .replace(/\s*\n+\s*/g, ". ")
       .replace(/\s{2,}/g, " ")
       .replace(/\s+([،,.؟!:])/g, "$1")

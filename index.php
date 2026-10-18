@@ -1,13 +1,12 @@
 <?php
 // الواجهة العامة + تسجيل الدخول وإنشاء الحساب
-session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
 /* ============================================================
    تسجيل الخروج — امسح التوكن + الجلسة
    ============================================================ */
-if (isset($_GET['logout'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
     if (!empty($_SESSION['child_id'])) {
         kidora_clear_remember($pdo, (int)$_SESSION['child_id']);
     } else {
@@ -69,20 +68,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 
     if ($email === '' || $password === '') {
         $loginError = 'الرجاء ملء جميع الحقول.';
+    } elseif (!kidora_login_allowed($pdo, 'child', $email)) {
+        $loginError = 'محاولات كثيرة. حاول بعد 15 دقيقة.';
     } else {
         $stmt = $pdo->prepare("SELECT id, name, password FROM children WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
+        $stmt->closeCursor();
 
         if ($user && password_verify($password, $user['password'])) {
+            $fullUser = kidora_lock_child($pdo, (int)$user['id']);
+            if (!password_verify($password, $fullUser['password'])) {
+                $pdo->rollBack();
+                http_response_code(401); exit('Password changed. Please sign in again.');
+            }
+            try {
+                kidora_remember_login($pdo, (int)$user['id']);
+                $pdo->commit();
+            } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
             session_regenerate_id(true);
             $_SESSION['child_id'] = $user['id'];
             $_SESSION['child_name'] = $user['name'];
-            kidora_remember_login($pdo, (int)$user['id']);
-
-            $fullUser = $pdo->prepare("SELECT * FROM children WHERE id = ?");
-            $fullUser->execute([$user['id']]);
-            $fullUser = $fullUser->fetch();
+            $_SESSION['auth_version'] = (int)$fullUser['auth_version'];
             header('Location: ' . (has_full_access($pdo, $fullUser) && needs_assessment($fullUser) ? 'welcome.php' : 'dashboard.php'));
             exit;
         }
@@ -103,7 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $char2 = 0;
     foreach ($freeChars as $fc) { if ((int)$fc['id'] !== $char1) { $char2 = (int)$fc['id']; break; } }
 
-    if (!$char1) {
+    if (($_POST['parent_consent'] ?? '') !== '1') {
+        $registerError = 'يلزم تأكيد ولي الأمر بعد قراءة سياسة الخصوصية.';
+    } elseif (!$char1) {
         $registerError = 'الرجاء اختيار رفيق المغامرة أولاً.';
     } elseif ($name === '' || $age === null || $parentName === '' || $parentPhone === '' || $email === '' || $password === '' || $confirm === '') {
         $registerError = 'الرجاء ملء جميع الحقول المطلوبة (العمر من ' . CHILD_AGE_MIN . ' إلى ' . CHILD_AGE_MAX . ' سنة).';
@@ -126,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             } else {
                 $photoPath = null;
                 if (!empty($_FILES['child_photo']['name'])) {
-                    $savedPhoto = save_image_upload('child_photo', __DIR__ . '/uploads/photos');
+                    $savedPhoto = save_image_upload('child_photo');
                     if (!$savedPhoto) {
                         $registerError = 'الصورة غير صالحة. استخدم JPG أو PNG أو WebP بحجم أقصى 4 ميجابايت.';
                     } else {
@@ -141,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
                     $ins->execute([$name, $email, $hashed, $age, $parentName, $parentPhone, $photoPath, $char1, $char2 ?: $char1, $char1, $trialEndsAt, $createdAt]);
                     $childId = (int)$pdo->lastInsertId();
+                    $pdo->prepare('UPDATE children SET privacy_consent_at = ? WHERE id = ?')->execute([$createdAt, $childId]);
 
                     $freePlan = $pdo->query("SELECT id FROM subscription_plans ORDER BY sort_order ASC, id ASC LIMIT 1")->fetch();
                     if ($freePlan) {
@@ -151,6 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                     session_regenerate_id(true);
                     $_SESSION['child_id'] = $childId;
                     $_SESSION['child_name'] = $name;
+                    $_SESSION['auth_version'] = 0;
                     kidora_remember_login($pdo, $childId);
 
                     header('Location: welcome.php');
@@ -655,7 +666,7 @@ require_once __DIR__ . '/includes/public-nav.php';
           <div class="continue-avatar"
                style="--c-color:<?php echo h($rememberChild['_char_color'] ?? '#6C63FF'); ?>">
             <?php if (!empty($rememberChild['photo_path'])): ?>
-              <img src="<?php echo h(BASE_PATH . '/' . ltrim($rememberChild['photo_path'], '/')); ?>"
+              <img src="<?php echo h(private_media_url($rememberChild['photo_path'])); ?>"
                    alt="<?php echo h($rememberChild['name']); ?>">
             <?php else: ?>
               <span class="continue-emoji"><?php echo h($rememberChild['_char_icon'] ?? '✨'); ?></span>
@@ -693,6 +704,7 @@ require_once __DIR__ . '/includes/public-nav.php';
           <?php if ($loginError): ?><div class="public-error">❌ <?php echo h($loginError); ?></div><?php endif; ?>
           <?php if ($loginFlash): ?><div class="public-error" style="background:rgba(46,196,182,.18);border-color:rgba(46,196,182,.5);color:#d9fff9;"><?php echo h($loginFlash); ?></div><?php endif; ?>
           <form method="POST">
+            <?= csrf_field() ?>
             <div class="public-form-grid">
               <div class="public-field full"><label for="loginEmail">البريد الإلكتروني لولي الأمر</label><input id="loginEmail" type="email" name="email" autocomplete="email" required></div>
               <div class="public-field full"><label for="loginPassword">كلمة المرور</label><input id="loginPassword" type="password" name="password" autocomplete="current-password" required>
@@ -718,6 +730,7 @@ require_once __DIR__ . '/includes/public-nav.php';
           </div>
           <div class="public-auth-form" id="registerErrorHint" hidden></div>
           <form method="POST" enctype="multipart/form-data" id="registerForm">
+            <?= csrf_field() ?>
             <input type="hidden" name="character_1" id="character_1" value="<?php echo (int)($prefillChar ?: ($_POST['character_1'] ?? 0)); ?>">
             <div class="public-form-grid">
               <div class="public-field"><label for="childName">اسم الطفل</label><input id="childName" type="text" name="child_name" maxlength="100" value="<?php echo h($_POST['child_name'] ?? $prefillName); ?>" autocomplete="name" required></div>
@@ -732,6 +745,7 @@ require_once __DIR__ . '/includes/public-nav.php';
                 <label for="childPhoto" style="flex:1;">صورة اختيارية للطفل<span style="display:block;color:#b9abd4;font-size:11px;font-weight:600;margin-top:3px;">JPG أو PNG أو WebP — حتى 4 ميجابايت</span><input id="childPhoto" type="file" name="child_photo" accept="image/jpeg,image/png,image/webp" style="margin-top:8px;padding:7px;"></label>
               </div>
             </div>
+            <label style="display:block;color:#f1f5f9;line-height:1.8;margin:16px 0;"><input type="checkbox" name="parent_consent" value="1" required style="width:20px;height:20px;vertical-align:middle;"> أنا ولي الأمر وأوافق على <a href="privacy.php" target="_blank" rel="noopener" style="color:#ffe99a;text-decoration:underline;">سياسة الخصوصية</a> ومعالجة بيانات الطفل.</label>
             <button type="submit" name="register" class="k-btn k-btn-gold">🌟 أنشئ حساب المغامرة</button>
           </form>
         </div>

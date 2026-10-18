@@ -12,12 +12,22 @@ $ready = $gamesDone;
 
 // هل تُوجد قصة اليوم بالفعل؟
 $todayStory = null;
-$st = $pdo->prepare("SELECT * FROM daily_stories WHERE child_id = ? AND DATE(created_at) = ?");
+$st = $pdo->prepare("SELECT * FROM daily_stories WHERE child_id = ? AND story_day = ?");
 $st->execute([$child['id'], today_key()]);
 $todayStory = $st->fetch();
+$st->closeCursor();
 
 // ---------------- توليد القصة ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_story']) && $ready && !$todayStory) {
+    $child = kidora_lock_child($pdo, (int)$child['id']);
+    try {
+    $progress = ensure_daily_progress($pdo, $child['id']);
+    $completedIds = json_decode_safe($progress['completed_task_ids'], []);
+    $st->execute([$child['id'], today_key()]);
+    if ($st->fetch() || (int)$progress['games_played'] < STORY_MIN_GAMES) {
+        $pdo->rollBack();
+        header('Location: story.php'); exit;
+    }
     $myChars = array_values(array_filter([get_character($pdo, $child['character_1']), get_character($pdo, $child['character_2'])]));
 
     $doneTasks = [];
@@ -29,10 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_story']) && 
     // تُبنى في daily_story_scenes() — الصياغة محايدة جنسياً حول اسم الطفل.
     $scenes = daily_story_scenes($pdo, $child, $doneTasks, $myChars, $dayIndex);
 
-    $photoPath = save_image_upload('photo', __DIR__ . '/uploads/photos');
+    $photoPath = !empty($child['privacy_consent_at']) ? save_image_upload('photo') : null;
     $photoRel = $photoPath ? 'uploads/photos/' . basename($photoPath) : null;
-    $ins = $pdo->prepare("INSERT INTO daily_stories (child_id, day_index, title, scenes_json, photo_path) VALUES (?,?,?,?,?)");
-    $ins->execute([$child['id'], $dayIndex, "مغامرة {$child['name']} — اليوم {$dayIndex}", json_encode($scenes, JSON_UNESCAPED_UNICODE), $photoRel]);
+    $ins = $pdo->prepare("INSERT INTO daily_stories (child_id, day_index, title, scenes_json, photo_path, story_day) VALUES (?,?,?,?,?,?)");
+    $ins->execute([$child['id'], $dayIndex, "مغامرة {$child['name']} — اليوم {$dayIndex}", json_encode($scenes, JSON_UNESCAPED_UNICODE), $photoRel, today_key()]);
 
     $pdo->prepare("UPDATE children SET ring_days = ring_days + 1, points = points + 10 WHERE id = ?")->execute([$child['id']]);
 
@@ -42,6 +52,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_story']) && 
         $_SESSION['flash_wa_link'] = whatsapp_link($pdo, $msg, $child['parent_phone']);
         $_SESSION['flash_toast'] = '🎊 وصلت 30 قصة! مغامرتك الكبرى جاهزة للدمج';
     }
+    $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
     header('Location: story.php'); exit;
 }
 
@@ -49,10 +64,11 @@ $flashToast = $_SESSION['flash_toast'] ?? null;
 $flashWaLink = $_SESSION['flash_wa_link'] ?? null;
 unset($_SESSION['flash_toast'], $_SESSION['flash_wa_link']);
 
-$st = $pdo->prepare("SELECT * FROM daily_stories WHERE child_id = ? AND DATE(created_at) = ?");
+$st = $pdo->prepare("SELECT * FROM daily_stories WHERE child_id = ? AND story_day = ?");
 $st->execute([$child['id'], today_key()]);
 $todayStory = $st->fetch();
 
+$__needsStoryPlayer = true;
 $__pageTitle = 'قصتي اليومية — Kidora';
 if ($todayStory)      $__pageLine = "قصتك جاهزة! افتخر فيها 🎬";
 elseif ($ready)       $__pageLine = "حان وقت صنع قصتك الخاصة اليوم! ✨";
@@ -80,7 +96,7 @@ require_once __DIR__ . '/includes/navbar.php';
       StoryPlayer.render({
         title: <?php echo json_encode($todayStory['title'], JSON_UNESCAPED_UNICODE); ?>,
         scenes: <?php echo $todayStory['scenes_json']; ?>,
-        photo: <?php echo json_encode($todayStory['photo_path'] ? BASE_PATH.'/'.$todayStory['photo_path'] : null); ?>,
+        photo: <?php echo json_encode(private_media_url($todayStory['photo_path'])); ?>,
         spriteFace: <?php echo json_encode($__spriteFace, JSON_UNESCAPED_UNICODE); ?>,
         childName: <?php echo json_encode($child['name'], JSON_UNESCAPED_UNICODE); ?>
       }, 'dailyStoryBox', {
@@ -106,6 +122,7 @@ require_once __DIR__ . '/includes/navbar.php';
       <h3 style="color:var(--ink);">حان وقت صنع قصتك الخاصة اليوم!</h3>
       <p style="color:var(--ink-soft);">ارفع صورتك ليظهر بطل القصة بوجهك الحقيقي.</p>
       <form method="POST" enctype="multipart/form-data">
+        <?= csrf_field() ?>
         <input type="file" name="photo" accept="image/*" style="margin:14px 0;">
         <button type="submit" name="generate_story" class="btn btn-primary btn-block">أنشئ قصتي الآن ✨</button>
       </form>

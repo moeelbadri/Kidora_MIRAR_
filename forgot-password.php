@@ -1,6 +1,5 @@
 <?php
 // استرجاع كلمة المرور — الخطوة الأولى: طلب رابط عبر بريد ولي الأمر
-session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/mailer.php';
@@ -43,16 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_reset'])) {
             $ins = $pdo->prepare("INSERT INTO password_resets (child_id, token_hash, expires_at, created_at) VALUES (?,?,?,?)");
             $ins->execute([$child['id'], hash('sha256', $token), date('Y-m-d H:i:s', time() + PASSWORD_RESET_TTL_MIN * 60), date('Y-m-d H:i:s')]);
 
-            // خلف Cloudflare → Traefik يصل الطلب إلى الحاوية بـ http، وقد لا يُمرَّر X-Forwarded-Proto؛
-            // نقرأ CF-Visitor أيضاً، وأي مضيف غير محلي يُعامل كـ https حتى لا يصل رابط http في البريد.
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $isLocal = preg_match('/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/', $host) === 1;
-            $cfVisitor = json_decode($_SERVER['HTTP_CF_VISITOR'] ?? '', true);
-            $scheme = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
-                || (($cfVisitor['scheme'] ?? '') === 'https')
-                || !$isLocal) ? 'https' : 'http';
-            $link = "{$scheme}://{$host}" . BASE_PATH . '/reset-password.php?token=' . $token;
+            // Never trust Host or forwarding headers when constructing account-recovery URLs.
+            $link = KIDORA_APP_URL . '/reset-password.php?token=' . $token;
 
             $body = '<p dir="rtl" style="direction:rtl;text-align:right;margin:0 0 12px;">مرحباً،</p>'
                 . '<p dir="rtl" style="direction:rtl;text-align:right;margin:0 0 12px;">وصلنا طلب لتعيين كلمة مرور جديدة لحساب <b>' . h($child['name']) . '</b> على منصة Kidora.</p>'
@@ -93,6 +84,7 @@ require_once __DIR__ . '/includes/public-card.php';
     <?php endif; ?>
     <?php if (!$flash || $flash['type'] !== 'ok'): ?>
     <form method="POST">
+      <?= csrf_field() ?>
       <div class="pc-field"><label for="resetEmail">البريد الإلكتروني</label><input id="resetEmail" type="email" name="email" autocomplete="email" required autofocus></div>
       <button type="submit" name="request_reset" class="pc-btn">أرسل رابط الاسترجاع 📨</button>
     </form>

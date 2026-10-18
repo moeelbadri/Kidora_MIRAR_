@@ -10,6 +10,7 @@ foreach ($friendVideos as &$videos) {
 }
 unset($videos);
 
+$__needsStoryPlayer = true;
 $__pageTitle = 'قصص أصدقائي — Kidora';
 $__pageLine = "تعال شوف قصصي المتحركة يا {$child['name']}! 🎥";
 require_once __DIR__ . '/includes/header.php';

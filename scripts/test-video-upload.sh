@@ -12,6 +12,7 @@ cleanup() {
 trap cleanup EXIT
 mkdir "$tmp/media"
 cid=$(docker run -d --rm -p 127.0.0.1::80 --mount "type=bind,source=$tmp/media,target=/var/www/html/assets/videos" "$image")
+docker exec --user www-data "$cid" php scripts/migrate.php
 base="http://$(docker port "$cid" 80/tcp)"
 for attempt in {1..30}; do
     if curl -fsS "$base/admin/login.php" -o /dev/null 2>/dev/null; then break; fi
@@ -28,9 +29,11 @@ printf '<?php echo "not video"; ?>' > "$tmp/fake.mp4"
 truncate -s 94371841 "$tmp/oversize.mp4"
 
 code=$(curl -sS -o /dev/null -w '%{http_code}' -F video_id=UploadTest1 "$base/admin/upload-video.php")
-test "$code" = 302
+test "$code" = 403
 test ! -e "$tmp/media/UploadTest1.mp4"
-curl -fsS -c "$tmp/cookies" -d 'email=admin%40kidora.com&password=admin123' "$base/admin/login.php" -o /dev/null
+curl -fsS -c "$tmp/cookies" "$base/admin/login.php" -o "$tmp/login"
+login_token=$(python3 -c 'import re,sys; print(re.search(r"name=\"csrf_token\" value=\"([^\"]+)\"",sys.stdin.read())[1])' < "$tmp/login")
+curl -fsS -b "$tmp/cookies" -c "$tmp/cookies" --data-urlencode "csrf_token=$login_token" -d 'email=admin%40kidora.com&password=admin123' "$base/admin/login.php" -o /dev/null
 page=$(curl -fsS -b "$tmp/cookies" "$base/admin/index.php?tab=videos")
 token=$(printf '%s' "$page" | python3 -c 'import re,sys; print(re.search(r"name=\"csrf_token\" value=\"([^\"]+)\"",sys.stdin.read())[1])')
 upload() {
@@ -51,8 +54,9 @@ for bad in fake wrong-codec wrong-audio oversize; do
     if grep -q 'تم حفظ الفيديو' "$tmp/page"; then echo "Incorrectly accepted $bad"; exit 1; fi
     cmp "$tmp/valid.mp4" "$tmp/media/UploadTest1.mp4"
 done
-upload -F csrf_token=invalid -F replace_existing=1 -F "video=@$tmp/replacement.mp4" > "$tmp/page"
-grep -q 'انتهت صلاحية النموذج' "$tmp/page"
+code=$(curl -sS -o "$tmp/page" -w '%{http_code}' -b "$tmp/cookies" -F csrf_token=invalid -F replace_existing=1 -F "video=@$tmp/replacement.mp4" "$base/admin/upload-video.php")
+test "$code" = 403
+grep -q 'Invalid CSRF token' "$tmp/page"
 upload -F rights_confirmed=0 -F replace_existing=1 -F "video=@$tmp/replacement.mp4" > "$tmp/page"
 grep -q 'يجب تأكيد' "$tmp/page"
 upload -F video_id=../escape -F "video=@$tmp/valid.mp4" > "$tmp/page"

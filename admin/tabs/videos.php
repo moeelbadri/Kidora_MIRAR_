@@ -1,6 +1,5 @@
 <?php
 if (empty($_SESSION['is_admin'])) { http_response_code(403); exit; }
-if (empty($_SESSION['video_csrf'])) $_SESSION['video_csrf'] = bin2hex(random_bytes(32));
 $selectedVideo = youtube_id_from_input(is_string($_GET['video_id'] ?? null) ? $_GET['video_id'] : '');
 $videoFiles = glob(__DIR__ . '/../../assets/videos/*.mp4') ?: [];
 sort($videoFiles);
@@ -14,7 +13,7 @@ sort($videoFiles);
   <h3>رفع فيديو أو استبداله</h3>
   <p>MP4 · فيديو H.264 / yuv420p · صوت AAC أو بلا صوت · الحد الأقصى 90 MiB. لا يتم تحويل الصيغة تلقائياً.</p>
   <form method="POST" action="upload-video.php" enctype="multipart/form-data" id="videoUpload">
-    <input type="hidden" name="csrf_token" value="<?php echo h($_SESSION['video_csrf']); ?>">
+    <?= csrf_field() ?>
     <input type="hidden" name="MAX_FILE_SIZE" value="94371840">
     <div class="row">
       <label>معرّف الفيديو أو رابط المصدر

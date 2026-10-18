@@ -18,6 +18,18 @@ const GRAND_STORY_DAYS = 30;
 
 // ---------------- دمج المغامرة الكبرى ----------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['build_grand']) && count($pending) >= GRAND_STORY_DAYS) {
+    $child = kidora_lock_child($pdo, (int)$child['id']);
+    try {
+    $usedIds = [];
+    $g->execute([$child['id']]);
+    foreach ($g->fetchAll() as $row) { $usedIds = array_merge($usedIds, json_decode_safe($row['story_ids_json'], [])); }
+    $stories = $pdo->prepare('SELECT * FROM daily_stories WHERE child_id = ? ORDER BY created_at ASC, id ASC');
+    $stories->execute([$child['id']]);
+    $pending = array_values(array_filter($stories->fetchAll(), fn($s) => !in_array($s['id'], $usedIds)));
+    if (count($pending) < GRAND_STORY_DAYS) {
+        $pdo->rollBack();
+        header('Location: grand-story.php'); exit;
+    }
     $chosen = array_slice($pending, 0, GRAND_STORY_DAYS);
 
     $myChars = array_filter([get_character($pdo, $child['character_1']), get_character($pdo, $child['character_2'])]);
@@ -34,6 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['build_grand']) && cou
 
     $ins = $pdo->prepare("INSERT INTO grand_stories (child_id, title, scenes_json, story_ids_json) VALUES (?,?,?,?)");
     $ins->execute([$child['id'], "مغامرة {$child['name']} الكبرى #{$num}", json_encode($scenes, JSON_UNESCAPED_UNICODE), json_encode(array_column($chosen,'id'))]);
+    $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
 
     $_SESSION['flash_toast'] = '🎉 مغامرتك الكبرى جاهزة! شوف رحلة الشهر كامل';
     header('Location: grand-story.php'); exit;
@@ -60,6 +77,7 @@ $flashToast = $_SESSION['flash_toast'] ?? null;
 unset($_SESSION['flash_toast']);
 
 $readyToBuild = count($pending) >= GRAND_STORY_DAYS;
+$__needsStoryPlayer = true;
 $__pageTitle = 'مغامرتي الكبرى — Kidora';
 $__pageLine = $readyToBuild ? "وصلنا لثلاثين قصة! يلا ندمجهم بمغامرة فخمة 🏆" : "كل يوم قصة بتقرّبنا من مغامرتنا الكبرى 🎬";
 require_once __DIR__ . '/includes/header.php';
@@ -80,6 +98,7 @@ require_once __DIR__ . '/includes/navbar.php';
 
   <?php if ($readyToBuild): ?>
     <form method="POST" style="text-align:center;margin:18px 0;">
+      <?= csrf_field() ?>
       <button type="submit" name="build_grand" class="btn btn-gold">🎬 ابنِ المغامرة الكبرى الآن</button>
     </form>
   <?php endif; ?>
@@ -90,7 +109,7 @@ require_once __DIR__ . '/includes/navbar.php';
       StoryPlayer.render({
         title: <?php echo json_encode($latest['title'], JSON_UNESCAPED_UNICODE); ?>,
         scenes: <?php echo $latest['scenes_json']; ?>,
-        photo: <?php echo json_encode($latestPhoto ? BASE_PATH.'/'.$latestPhoto : null); ?>,
+        photo: <?php echo json_encode(private_media_url($latestPhoto)); ?>,
         childName: <?php echo json_encode($child['name'], JSON_UNESCAPED_UNICODE); ?>
       }, 'grandStoryBox', { badge: '🏆 مغامرة شهر كامل — مبنية من إنجازك الحقيقي', book: true });
     </script>

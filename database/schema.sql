@@ -4,6 +4,12 @@
 --   mysql -u root -p kidaura < database/schema.sql
 -- ============================================================
 
+CREATE TABLE IF NOT EXISTS auth_attempts (
+    attempt_key VARCHAR(64) PRIMARY KEY,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    window_start INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS characters (
     id INT AUTO_INCREMENT PRIMARY KEY,
     slug VARCHAR(50) UNIQUE NOT NULL,
@@ -33,6 +39,8 @@ CREATE TABLE IF NOT EXISTS children (
     photo_path VARCHAR(255) DEFAULT NULL,
     remember_token VARCHAR(64) DEFAULT NULL,
     remember_expires DATETIME DEFAULT NULL,
+    auth_version INTEGER NOT NULL DEFAULT 0,
+    privacy_consent_at DATETIME DEFAULT NULL,
     character_1 INT DEFAULT NULL,
     character_2 INT DEFAULT NULL,
     active_character INT DEFAULT NULL,
@@ -162,11 +170,13 @@ CREATE TABLE IF NOT EXISTS daily_progress (
 CREATE TABLE IF NOT EXISTS daily_stories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     child_id INT NOT NULL,
+    story_day DATE DEFAULT NULL,
     day_index INT NOT NULL,
     title VARCHAR(200) NOT NULL,
     scenes_json TEXT NOT NULL,
     photo_path VARCHAR(255) DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT daily_stories_child_day UNIQUE (child_id, story_day),
     FOREIGN KEY (child_id) REFERENCES children(id) ON DELETE CASCADE
 );
 

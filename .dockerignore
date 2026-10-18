@@ -9,5 +9,7 @@ storage/*.sqlite
 storage/*.sqlite-journal
 storage/*.sqlite-wal
 storage/*.sqlite-shm
+uploads/photos
+uploads/drawings
 *.md
 PROJECT-REPORT.md

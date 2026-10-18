@@ -14,8 +14,8 @@ try {
     if (empty($_POST) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
         throw new RuntimeException('حجم الطلب أكبر من حد الخادم. الحد الأقصى للفيديو 90 MiB.');
     }
-    if (!is_string($_POST['csrf_token'] ?? null) || empty($_SESSION['video_csrf'])
-        || !hash_equals($_SESSION['video_csrf'], $_POST['csrf_token'])) {
+    if (!is_string($_POST['csrf_token'] ?? null) || empty($_SESSION['csrf_token'])
+        || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
         throw new RuntimeException('انتهت صلاحية النموذج. حدّث الصفحة وحاول مجدداً.');
     }
     $id = youtube_id_from_input(is_string($_POST['video_id'] ?? null) ? $_POST['video_id'] : '');

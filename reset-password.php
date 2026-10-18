@@ -1,6 +1,5 @@
 <?php
 // استرجاع كلمة المرور — الخطوة الثانية: اختيار كلمة مرور جديدة برمز من البريد
-session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
@@ -15,6 +14,7 @@ if ($token !== '' && preg_match('/^[a-f0-9]{64}$/', $token)) {
                          WHERE r.token_hash = ? AND r.used_at IS NULL LIMIT 1");
     $st->execute([hash('sha256', $token)]);
     $reset = $st->fetch() ?: null;
+    $st->closeCursor();
     if ($reset && strtotime($reset['expires_at']) < time()) {
         $reset = null;
         $error = 'انتهت صلاحية هذا الرابط. اطلب رابطاً جديداً.';
@@ -32,11 +32,27 @@ if ($reset && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_passwor
     } elseif ($p1 !== $p2) {
         $formError = 'كلمتا المرور غير متطابقتين.';
     } else {
-        $pdo->prepare("UPDATE children SET password = ? WHERE id = ?")
+        kidora_lock_child($pdo, (int)$reset['child_id']);
+        try {
+        $claim = $pdo->prepare('UPDATE password_resets SET used_at = ? WHERE id = ? AND used_at IS NULL AND expires_at >= ?');
+        $now = date('Y-m-d H:i:s');
+        $claim->execute([$now, $reset['id'], $now]);
+        if ($claim->rowCount() !== 1) {
+            $pdo->rollBack();
+            http_response_code(400);
+            exit('Reset link expired or already used.');
+        }
+        $pdo->prepare("UPDATE children SET password = ?, auth_version = auth_version + 1, remember_token = NULL, remember_expires = NULL WHERE id = ?")
             ->execute([password_hash($p1, PASSWORD_DEFAULT), $reset['child_id']]);
         // هذا الرمز استُهلك، وكل رمز آخر معلّق لنفس الحساب يسقط معه
         $pdo->prepare("UPDATE password_resets SET used_at = ? WHERE child_id = ? AND used_at IS NULL")
             ->execute([date('Y-m-d H:i:s'), $reset['child_id']]);
+        $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+        }
+        kidora_clear_remember($pdo);
         $_SESSION['flash_login'] = 'تم تغيير كلمة المرور بنجاح ✅ سجّل الدخول بكلمتك الجديدة.';
         header('Location: ' . BASE_PATH . '/index.php#auth'); exit;
     }
@@ -59,6 +75,7 @@ require_once __DIR__ . '/includes/public-card.php';
       <p class="pc-lead">لحساب <b><?php echo h($reset['child_name']); ?></b> — اختر كلمة مرور جديدة من 6 أحرف على الأقل.</p>
       <?php if (!empty($formError)): ?><div class="pc-msg err">❌ <?php echo h($formError); ?></div><?php endif; ?>
       <form method="POST">
+        <?= csrf_field() ?>
         <input type="hidden" name="token" value="<?php echo h($token); ?>">
         <div class="pc-field"><label for="newPassword">كلمة المرور الجديدة</label><input id="newPassword" type="password" name="password" minlength="6" autocomplete="new-password" required autofocus></div>
         <div class="pc-field"><label for="confirmNew">تأكيد كلمة المرور</label><input id="confirmNew" type="password" name="confirm_password" minlength="6" autocomplete="new-password" required></div>

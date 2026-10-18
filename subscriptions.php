@@ -14,6 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_plan_id'])) {
     $plan = $pdo->prepare("SELECT * FROM subscription_plans WHERE id = ?"); $plan->execute([$planId]); $plan = $plan->fetch();
 
     if ($plan) {
+        $child = kidora_lock_child($pdo, (int)$child['id']);
+        try {
         if ((int)$plan['price_ils'] === 0) {
             // الخطة المجانية تُفعَّل مباشرة
             $pdo->prepare("DELETE FROM subscriptions WHERE child_id = ?")->execute([$child['id']]);
@@ -27,6 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_plan_id'])) {
             log_wa($pdo, $child['id'], 'subscription_request', $msg);
             $_SESSION['flash_wa_link'] = whatsapp_link($pdo, $msg);
             $_SESSION['flash_toast'] = 'تم تسجيل طلبك! جاري تحويلك لواتساب لإتمام التواصل 📲';
+        }
+        $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
         }
     }
     header('Location: subscriptions.php' . (isset($_POST['welcome']) ? '?welcome=1' : '')); exit;
@@ -96,6 +103,7 @@ require_once __DIR__ . '/includes/navbar.php';
           <?php foreach ($features as $f): ?><li><?php echo h($f); ?></li><?php endforeach; ?>
         </ul>
         <form method="POST">
+          <?= csrf_field() ?>
           <input type="hidden" name="request_plan_id" value="<?php echo (int)$p['id']; ?>">
           <?php if ($isWelcome): ?><input type="hidden" name="welcome" value="1"><?php endif; ?>
           <?php if ($isActive): ?>
