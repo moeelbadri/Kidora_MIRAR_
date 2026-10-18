@@ -17,7 +17,7 @@ application timezone were intentionally not changed.
   trusted proxy address if Traefik's network attachment changes.
 - Dokploy stores the application environment as an encrypted `enc:v1:` value.
   Update it through Dokploy's environment API/UI, not by appending plaintext to
-  the stored database value. All 13 original MySQL/SMTP settings were restored
+  the stored database value. All original MySQL/SMTP settings were restored
   together with the four security settings and saved in Dokploy's encryption
   format after the first Git rebuild exposed this configuration mismatch.
 - The existing MySQL connection credentials remain unchanged. The existing
