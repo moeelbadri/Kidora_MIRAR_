@@ -47,9 +47,8 @@ exposing uploads on a public installation.
 The landing page renders without an intro overlay or downloading Shaka. Lesson
 and library-preview players download Google's player and its styles on demand.
 The hero shows a small WebP poster and waits for a tap before downloading or
-playing the video. Playback starts with sound by default; an explicit mute/unmute
-choice is remembered in this browser with `kidora-showcase-muted`. There is no
-automatic silent-playback fallback.
+playing the video. Playback starts with sound; there is no sound toggle, saved
+mute preference, or automatic silent-playback fallback.
 
 Container startup and replacement of the configured showcase video generate
 a poster and a 480px-wide H.264/AAC, faststart mobile copy in the background.
@@ -181,10 +180,9 @@ separately coordinated history rewrite; do not force-push as part of deployment.
 
 ## Playback behavior
 
-The landing-page video is tap-to-play/pause, with an Arabic sound prompt and a
-visible sound toggle; the old full control bar stays hidden. Its sound preference
-survives page visits; each visit still waits for a tap so browsers do not block
-audible playback.
+The landing-page video is tap-to-play/pause with an Arabic sound prompt. The sound
+toggle and saved mute preference have been removed; the old full control bar stays
+hidden. Each visit waits for a tap so browsers do not block audible playback.
 Lesson and admin preview videos use Shaka's Arabic controls for playback,
 seeking, volume, speed, and fullscreen; admin previews load only when selected.
 No external player CDN, Cast SDK, or remote video fallback is used.

@@ -336,7 +336,6 @@ require_once __DIR__ . '/includes/public-nav.php';
   }
   .vc-btn:hover{background:rgba(255,255,255,.3)}
   .vc-btn:active{transform:scale(.92)}
-  .video-sound-toggle{position:absolute;top:12px;inset-inline-end:12px;z-index:3;background:rgba(10,6,26,.8)}
 
   .vc-seek-wrap{flex:1 1 auto;display:flex;align-items:center;min-width:0}
 
@@ -558,7 +557,6 @@ require_once __DIR__ . '/includes/public-nav.php';
 
             <div class="video-big-play" id="videoBigPlay" aria-hidden="true">▶</div>
             <div class="video-play-hint" id="videoPlayHint">اضغط للتشغيل بالصوت 🔊</div>
-            <button type="button" class="vc-btn video-sound-toggle" id="vcMute" aria-label="كتم الصوت">🔊</button>
 
             <div class="video-controls" id="videoControls">
               <button type="button" class="vc-btn vc-play" id="vcPlay" aria-label="تشغيل">▶</button>
@@ -818,7 +816,6 @@ function showLoginForm(){
     playBtn: null,
     seek: null,
     timeEl: null,
-    muteBtn: null,
     fsBtn: null,
     idleTimer: null,
     isReady: false,
@@ -839,27 +836,14 @@ function showLoginForm(){
       this.playBtn = document.getElementById('vcPlay');
       this.seek    = document.getElementById('vcSeek');
       this.timeEl  = document.getElementById('vcTime');
-      this.muteBtn = document.getElementById('vcMute');
       this.fsBtn   = document.getElementById('vcFullscreen');
 
       const self = this;
-      // Playback always starts with a tap; remember only the visitor's sound choice.
-      try { this.video.muted = localStorage.getItem('kidora-showcase-muted') === '1'; } catch (_) {}
-      function updateSound(){
-        if (self.muteBtn) {
-          self.muteBtn.textContent = self.video.muted ? '🔇' : '🔊';
-          self.muteBtn.setAttribute('aria-label', self.video.muted ? 'تشغيل الصوت' : 'كتم الصوت');
-        }
-        document.getElementById('videoPlayHint').textContent = self.video.muted
-          ? 'اضغط للتشغيل بدون صوت 🔇' : 'اضغط للتشغيل بالصوت 🔊';
-        if (self.video.paused) self.tapLayer.setAttribute('aria-label', self.video.muted
-          ? 'تشغيل الفيديو بدون صوت' : 'تشغيل الفيديو بالصوت');
-      }
-      updateSound();
 
       /* --- تبديل التشغيل --- */
       function togglePlay(){
         if (self.video.paused || self.video.ended) {
+          self.video.muted = false;
           self.load();
           self.video.play().catch(function(){});
         } else {
@@ -898,13 +882,13 @@ function showLoginForm(){
       });
       this.video.addEventListener('pause', function(){
         self.shell.classList.add('is-paused');
-        updateSound();
+        self.tapLayer.setAttribute('aria-label', 'تشغيل الفيديو بالصوت');
         if (self.playBtn) self.playBtn.textContent = '▶';
         if (self.playBtn) self.playBtn.setAttribute('aria-label', 'تشغيل');
       });
       this.video.addEventListener('ended', function(){
         self.shell.classList.add('is-paused');
-        updateSound();
+        self.tapLayer.setAttribute('aria-label', 'تشغيل الفيديو بالصوت');
         if (self.playBtn) self.playBtn.textContent = '▶';
       });
 
@@ -938,18 +922,6 @@ function showLoginForm(){
           self.video.currentTime = (parseFloat(self.seek.value) / 100) * self.video.duration;
         });
         this.seek.addEventListener('click', function(e){ e.stopPropagation(); });
-      }
-
-      /* --- زر الصوت --- */
-      if (this.muteBtn) {
-        this.muteBtn.addEventListener('click', function(e){
-          e.stopPropagation();
-          self.video.muted = !self.video.muted;
-          if (!self.video.muted) self.video.volume = 1;
-          try { localStorage.setItem('kidora-showcase-muted', self.video.muted ? '1' : '0'); } catch (_) {}
-          updateSound();
-          self.showControls();
-        });
       }
 
       /* --- ملء الشاشة --- */

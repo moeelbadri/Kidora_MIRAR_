@@ -363,9 +363,9 @@ Two distinct visual identities.
 The guest experience is a dark-purple cinematic surface over the shared
 contrast-safe background. `index.php` now opens with an optional local
 showcase video under `assets/videos/`, initially showing its poster with an Arabic
-tap-to-play-with-sound prompt. It never autoplays; mute/unmute is remembered per
-browser/site in `kidora-showcase-muted`. A visible sound toggle sits outside the
-hidden full control bar. There is no intro overlay. The page then presents a gold
+tap-to-play-with-sound prompt. It never autoplays, has no sound toggle or saved
+mute preference, and keeps the full control bar hidden. There is no intro overlay.
+The page then presents a gold
 CTA, database-driven counts, an RTL-friendly character
 carousel with premium badges and an accessible details modal, six scroll-revealed
 features, subscription plans, and the two-tab login/register form.
