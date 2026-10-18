@@ -15,6 +15,11 @@ application timezone were intentionally not changed.
   `KIDORA_TRUSTED_PROXIES=10.0.1.2`, `KIDORA_MEDIA_RETENTION_DAYS=365` are saved
   in both the service and Dokploy application configuration. Recheck the exact
   trusted proxy address if Traefik's network attachment changes.
+- Dokploy stores the application environment as an encrypted `enc:v1:` value.
+  Update it through Dokploy's environment API/UI, not by appending plaintext to
+  the stored database value. All 13 original MySQL/SMTP settings were restored
+  together with the four security settings and saved in Dokploy's encryption
+  format after the first Git rebuild exposed this configuration mismatch.
 - The existing MySQL connection credentials remain unchanged. The existing
   database user still has database-level ALL privileges; the deployment did not
   create a separate CRUD-only runtime account.
